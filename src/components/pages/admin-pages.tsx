@@ -395,6 +395,7 @@ export function AdminClasses() {
     syllabus: "",
     startDate: "",
     endDate: "",
+    tuitionGroup: "",
     sessions: [{ day: "Thứ 2", time: "18:00 - 19:30", room: "" }] as NewSession[],
   });
   const [openCreate, setOpenCreate] = React.useState(false);
@@ -413,11 +414,17 @@ export function AdminClasses() {
       toast.error("Vui lòng điền đầy đủ thông tin lớp.");
       return;
     }
+    if (!form.tuitionGroup) {
+      toast.error("Vui lòng chọn khung học phí.");
+      return;
+    }
     if (form.sessions.length === 0 || form.sessions.some((s) => !s.day || !s.time || !s.room)) {
       toast.error("Vui lòng cấu hình đầy đủ lịch học và phòng cho từng buổi.");
       return;
     }
     const sy = SYLLABI.find((s) => s.id === form.syllabus);
+    const tg = TUITION_CONFIG.find((g) => g.group === form.tuitionGroup);
+    const tier = tg?.tiers.find((t) => t.sessions === DEFAULT_TOTAL_SESSIONS) ?? tg?.tiers[0];
     const id = `c${Date.now()}`;
     setClasses((prev) => [
       ...prev,
@@ -434,8 +441,8 @@ export function AdminClasses() {
         endDate: form.endDate,
         totalSessions: DEFAULT_TOTAL_SESSIONS,
         remainingSessions: DEFAULT_TOTAL_SESSIONS,
-        pricePerCourse: 0,
-        pricePerSession: 0,
+        pricePerCourse: tier?.final ?? 0,
+        pricePerSession: tier ? Math.round(tier.final / tier.sessions) : 0,
         sessions: form.sessions,
       },
     ]);
@@ -675,6 +682,23 @@ export function AdminClasses() {
               <div>
                 <Label className="text-xs text-slate-500">Số buổi / khóa</Label>
                 <Input className="h-9 mt-1 bg-slate-50" value={DEFAULT_TOTAL_SESSIONS} disabled />
+                <p className="text-[11px] text-slate-400 mt-1">Cấu hình tại tab Cấu hình</p>
+              </div>
+              <div>
+                <Label className="text-xs text-slate-500">Học phí</Label>
+                <Select value={form.tuitionGroup} onValueChange={(v) => setForm((f) => ({ ...f, tuitionGroup: v }))}>
+                  <SelectTrigger className="h-9 mt-1"><SelectValue placeholder="Chọn khung học phí" /></SelectTrigger>
+                  <SelectContent>
+                    {TUITION_CONFIG.map((g) => {
+                      const tier = g.tiers.find((t) => t.sessions === DEFAULT_TOTAL_SESSIONS) ?? g.tiers[0];
+                      return (
+                        <SelectItem key={g.group} value={g.group}>
+                          {g.group} · {formatVND(tier.final)}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
                 <p className="text-[11px] text-slate-400 mt-1">Cấu hình tại tab Cấu hình</p>
               </div>
             </div>
