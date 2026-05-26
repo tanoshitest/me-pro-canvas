@@ -13,7 +13,7 @@ import { useApp } from "@/lib/app-store";
 import {
   BRANCHES, CLASSES, PROMOTIONS, TUITION_CONFIG, formatVND,
   CLASS_SHIFTS, ROOMS,
-  type Receipt, type Branch,
+  type Receipt, type Branch, type Student,
 } from "@/lib/mock-data";
 import { toast } from "sonner";
 import {
@@ -282,6 +282,92 @@ function Info2({ label, value, className }: { label: string; value: string; clas
       <div className="text-xs text-slate-500">{label}</div>
       <div className="font-medium break-words">{value}</div>
     </div>
+  );
+}
+
+/* Parse "dd/mm/yyyy" or "dd/mm/yyyy hh:mm" → Date */
+function parseDMY(s: string): number {
+  const [datePart, timePart] = s.split(" ");
+  const [d, m, y] = datePart.split("/").map(Number);
+  const [hh, mm] = (timePart ?? "00:00").split(":").map(Number);
+  return new Date(y, (m ?? 1) - 1, d ?? 1, hh ?? 0, mm ?? 0).getTime();
+}
+
+type TimelineEvent = {
+  at: string;
+  type: "Nhập học" | "Dừng học" | "Bảo lưu" | "Đi học lại" | "Đóng học phí" | "Chuyển lớp" | "Chuyển chi nhánh";
+  title: string;
+  detail?: string;
+};
+
+function StudentHistoryTimeline({ stu, receipts }: { stu: Student; receipts: Receipt[] }) {
+  const events: TimelineEvent[] = [];
+
+  if (stu.lifecycleHistory?.length) {
+    stu.lifecycleHistory.forEach((l) =>
+      events.push({ at: l.at, type: l.type, title: l.type, detail: l.note }),
+    );
+  } else if (stu.enrolledAt) {
+    events.push({ at: stu.enrolledAt, type: "Nhập học", title: "Nhập học", detail: `Đăng ký tại CN ${stu.branch}` });
+  }
+
+  receipts.forEach((r) =>
+    events.push({
+      at: r.createdAt,
+      type: "Đóng học phí",
+      title: `Đóng học phí · ${formatVND(r.amount)}`,
+      detail: `Phiếu ${r.id} · ${r.method}${r.status === "Đã hủy" ? " · Đã hủy" : ""}`,
+    }),
+  );
+
+  stu.transferHistory?.forEach((t) =>
+    events.push({
+      at: t.at,
+      type: "Chuyển lớp",
+      title: `Chuyển lớp: ${t.from} → ${t.to}`,
+      detail: t.reason,
+    }),
+  );
+
+  stu.branchHistory?.forEach((t) =>
+    events.push({
+      at: t.at,
+      type: "Chuyển chi nhánh",
+      title: `Chuyển chi nhánh: ${t.from} → ${t.to}`,
+      detail: t.reason,
+    }),
+  );
+
+  events.sort((a, b) => parseDMY(b.at) - parseDMY(a.at));
+
+  if (!events.length) {
+    return <p className="text-sm text-slate-500">Chưa có lịch sử.</p>;
+  }
+
+  const color: Record<TimelineEvent["type"], string> = {
+    "Nhập học": "bg-emerald-100 text-emerald-700 border-emerald-200",
+    "Dừng học": "bg-rose-100 text-rose-700 border-rose-200",
+    "Bảo lưu": "bg-amber-100 text-amber-700 border-amber-200",
+    "Đi học lại": "bg-emerald-100 text-emerald-700 border-emerald-200",
+    "Đóng học phí": "bg-blue-100 text-blue-700 border-blue-200",
+    "Chuyển lớp": "bg-violet-100 text-violet-700 border-violet-200",
+    "Chuyển chi nhánh": "bg-violet-100 text-violet-700 border-violet-200",
+  };
+
+  return (
+    <ol className="relative border-l border-slate-200 ml-2 space-y-3 text-sm">
+      {events.map((e, i) => (
+        <li key={i} className="ml-4">
+          <span className="absolute -left-1.5 mt-1.5 h-3 w-3 rounded-full bg-slate-300 border-2 border-white" />
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-slate-500">{e.at}</span>
+            <span className={`text-xs px-2 py-0.5 rounded-full border ${color[e.type]}`}>{e.type}</span>
+          </div>
+          <div className="font-medium mt-0.5">{e.title}</div>
+          {e.detail && <div className="text-slate-600 text-xs">{e.detail}</div>}
+        </li>
+      ))}
+    </ol>
   );
 }
 
