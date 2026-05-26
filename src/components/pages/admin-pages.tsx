@@ -12,12 +12,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useApp } from "@/lib/app-store";
 import {
   BRANCHES, CLASSES, PROMOTIONS, TUITION_CONFIG, formatVND,
+  CLASS_SHIFTS, ROOMS,
   type Receipt, type Branch,
 } from "@/lib/mock-data";
 import { toast } from "sonner";
 import {
   Users, GraduationCap, Wallet, AlertTriangle, Receipt as ReceiptIcon, XCircle,
   TrendingUp, Calendar, Info, CheckCircle2, ArrowRight, CalendarOff, Repeat,
+  Clock, DoorOpen, BookOpen,
 } from "lucide-react";
 
 /* ============== DASHBOARD ============== */
@@ -396,35 +398,113 @@ function shiftDate(d: string, days: number) {
   return `${String(dt.getDate()).padStart(2, "0")}/${String(dt.getMonth() + 1).padStart(2, "0")}/${dt.getFullYear()}`;
 }
 
-/* ============== TUITION CONFIG ============== */
+/* ============== SETTINGS (Cấu hình) ============== */
 export function AdminTuition() {
   return (
-    <div className="space-y-6">
-      {TUITION_CONFIG.map((g) => (
-        <Card key={g.group}>
-          <CardHeader><CardTitle>{g.group}</CardTitle></CardHeader>
-          <CardContent>
+    <Tabs defaultValue="shifts" className="space-y-4">
+      <TabsList>
+        <TabsTrigger value="shifts"><Clock className="h-4 w-4" /> Ca học</TabsTrigger>
+        <TabsTrigger value="rooms"><DoorOpen className="h-4 w-4" /> Phòng học</TabsTrigger>
+        <TabsTrigger value="fee"><BookOpen className="h-4 w-4" /> Học phí</TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="shifts">
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>Cấu hình ca học</CardTitle>
+              <Button size="sm" variant="outline">+ Thêm ca học</Button>
+            </div>
+            <p className="text-xs text-slate-500">Các ca học sẽ hiển thị để chọn khi tạo lớp mới.</p>
+          </CardHeader>
+          <CardContent className="p-0">
             <Table>
               <TableHeader><TableRow>
-                <TableHead>Gói</TableHead><TableHead>Số buổi</TableHead><TableHead>Học phí gốc</TableHead>
-                <TableHead>Ưu đãi</TableHead><TableHead>Thành tiền</TableHead>
+                <TableHead>Tên ca</TableHead><TableHead>Khung giờ</TableHead>
+                <TableHead>Ngày trong tuần</TableHead><TableHead></TableHead>
               </TableRow></TableHeader>
               <TableBody>
-                {g.tiers.map((t) => (
-                  <TableRow key={t.label}>
-                    <TableCell className="font-medium">{t.label}</TableCell>
-                    <TableCell>{t.sessions}</TableCell>
-                    <TableCell>{formatVND(t.base)}</TableCell>
-                    <TableCell>{t.discountPct ? `Giảm ${t.discountPct}%` : "—"}</TableCell>
-                    <TableCell className="font-semibold text-indigo-700">{formatVND(t.final)}</TableCell>
+                {CLASS_SHIFTS.map((s) => (
+                  <TableRow key={s.id}>
+                    <TableCell className="font-medium">{s.label}</TableCell>
+                    <TableCell>{s.time}</TableCell>
+                    <TableCell>{s.days}</TableCell>
+                    <TableCell className="text-right">
+                      <Button size="sm" variant="ghost">Sửa</Button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           </CardContent>
         </Card>
-      ))}
-    </div>
+      </TabsContent>
+
+      <TabsContent value="rooms">
+        <div className="space-y-4">
+          {BRANCHES.map((b) => {
+            const rooms = ROOMS.filter((r) => r.branch === b);
+            return (
+              <Card key={b}>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base">Chi nhánh: {b}</CardTitle>
+                    <Button size="sm" variant="outline">+ Thêm phòng</Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader><TableRow>
+                      <TableHead>Tên phòng</TableHead><TableHead>Sức chứa</TableHead><TableHead></TableHead>
+                    </TableRow></TableHeader>
+                    <TableBody>
+                      {rooms.map((r) => (
+                        <TableRow key={r.id}>
+                          <TableCell className="font-medium">{r.name}</TableCell>
+                          <TableCell>{r.capacity} học viên</TableCell>
+                          <TableCell className="text-right">
+                            <Button size="sm" variant="ghost">Sửa</Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      </TabsContent>
+
+      <TabsContent value="fee">
+        <div className="space-y-4">
+          {TUITION_CONFIG.map((g) => (
+            <Card key={g.group}>
+              <CardHeader><CardTitle className="text-base">{g.group}</CardTitle></CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader><TableRow>
+                    <TableHead>Gói</TableHead><TableHead>Số buổi</TableHead><TableHead>Học phí gốc</TableHead>
+                    <TableHead>Ưu đãi</TableHead><TableHead>Thành tiền</TableHead>
+                  </TableRow></TableHeader>
+                  <TableBody>
+                    {g.tiers.map((t) => (
+                      <TableRow key={t.label}>
+                        <TableCell className="font-medium">{t.label}</TableCell>
+                        <TableCell>{t.sessions}</TableCell>
+                        <TableCell>{formatVND(t.base)}</TableCell>
+                        <TableCell>{t.discountPct ? `Giảm ${t.discountPct}%` : "—"}</TableCell>
+                        <TableCell className="font-semibold text-indigo-700">{formatVND(t.final)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </TabsContent>
+    </Tabs>
   );
 }
 
