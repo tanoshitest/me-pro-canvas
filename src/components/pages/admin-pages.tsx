@@ -1330,3 +1330,301 @@ export function AdminSyllabus() {
     </div>
   );
 }
+
+/* ============== TEACHERS ============== */
+export function AdminTeachers() {
+  const { classes } = useApp();
+  const [sel, setSel] = React.useState(TEACHERS[0]);
+  const teacherClasses = classes.filter((c) => sel.classes.includes(c.id));
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.4fr] gap-4">
+      <Card>
+        <CardHeader><CardTitle>Danh sách giáo viên</CardTitle></CardHeader>
+        <CardContent className="space-y-2">
+          {TEACHERS.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setSel(t)}
+              className={`w-full text-left rounded-md border px-3 py-2 transition-colors ${sel.id === t.id ? "border-indigo-300 bg-indigo-50" : "border-slate-200 hover:bg-slate-50"}`}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-medium">{t.name}</div>
+                  <div className="text-xs text-slate-500">{t.position} · {t.branch}</div>
+                </div>
+                <Badge variant="secondary">{t.classes.length} lớp</Badge>
+              </div>
+            </button>
+          ))}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{sel.name}</CardTitle>
+          <p className="text-xs text-slate-500">{sel.position} · CN {sel.branch} · Vào làm {sel.startDate}</p>
+        </CardHeader>
+        <CardContent>
+          <Tabs defaultValue="info" className="space-y-3">
+            <TabsList className="flex-wrap h-auto">
+              <TabsTrigger value="info">Thông tin</TabsTrigger>
+              <TabsTrigger value="contract">Hợp đồng</TabsTrigger>
+              <TabsTrigger value="related">Người liên quan</TabsTrigger>
+              <TabsTrigger value="classes">Lớp phụ trách</TabsTrigger>
+              <TabsTrigger value="att">Chấm công</TabsTrigger>
+              <TabsTrigger value="salary">Lương</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="info" className="grid grid-cols-2 gap-3 text-sm mt-3">
+              <Info2 label="Họ tên" value={sel.name} />
+              <Info2 label="Giới tính" value={sel.gender} />
+              <Info2 label="Ngày sinh" value={sel.dob} />
+              <Info2 label="Email" value={sel.email} />
+              <Info2 label="Số điện thoại" value={sel.phone} />
+              <Info2 label="Chi nhánh" value={sel.branch} />
+              <Info2 label="Địa chỉ" value={sel.address} className="col-span-2" />
+              <Info2 label="Lương cơ bản" value={formatVND(sel.baseSalary)} />
+              <Info2 label="Lương / buổi" value={formatVND(sel.perSessionRate)} />
+            </TabsContent>
+
+            <TabsContent value="contract" className="text-sm mt-3 space-y-2">
+              <div className="rounded-md border bg-slate-50 px-3 py-3 flex items-center justify-between">
+                <div>
+                  <div className="font-medium">{sel.contract.name}</div>
+                  <div className="text-xs text-slate-500">
+                    Ký {sel.contract.signedAt} · Hết hạn {sel.contract.expiresAt}
+                  </div>
+                  <div className="text-xs text-indigo-600 mt-1 font-mono">📎 {sel.contract.fileName}</div>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => toast.success("Đã tải xuống hợp đồng (demo)")}>
+                  Tải xuống
+                </Button>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="related" className="text-sm mt-3">
+              {sel.related.length === 0 ? (
+                <p className="text-slate-500">Chưa có người liên quan.</p>
+              ) : (
+                <Table><TableHeader><TableRow>
+                  <TableHead>Họ tên</TableHead><TableHead>Quan hệ</TableHead><TableHead>SĐT</TableHead>
+                </TableRow></TableHeader><TableBody>
+                  {sel.related.map((r, i) => (
+                    <TableRow key={i}>
+                      <TableCell className="font-medium">{r.name}</TableCell>
+                      <TableCell>{r.relation}</TableCell>
+                      <TableCell>{r.phone}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody></Table>
+              )}
+            </TabsContent>
+
+            <TabsContent value="classes" className="text-sm mt-3">
+              {teacherClasses.length === 0 ? (
+                <p className="text-slate-500">Chưa phụ trách lớp nào.</p>
+              ) : (
+                <Table><TableHeader><TableRow>
+                  <TableHead>Lớp</TableHead><TableHead>Syllabus</TableHead>
+                  <TableHead>Lịch</TableHead><TableHead>Phòng</TableHead>
+                </TableRow></TableHeader><TableBody>
+                  {teacherClasses.map((c) => (
+                    <TableRow key={c.id}>
+                      <TableCell className="font-medium">{c.name}</TableCell>
+                      <TableCell>{c.syllabus}</TableCell>
+                      <TableCell className="text-xs">{c.schedule} · {c.time}</TableCell>
+                      <TableCell>{c.room}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody></Table>
+              )}
+            </TabsContent>
+
+            <TabsContent value="att" className="text-sm mt-3">
+              <Table><TableHeader><TableRow>
+                <TableHead>Tháng</TableHead><TableHead className="text-right">Số buổi</TableHead>
+                <TableHead className="text-right">Vắng</TableHead><TableHead className="text-right">Đi muộn</TableHead>
+              </TableRow></TableHeader><TableBody>
+                {sel.attendanceReport.map((a, i) => (
+                  <TableRow key={i}>
+                    <TableCell className="font-medium">{a.month}</TableCell>
+                    <TableCell className="text-right">{a.sessions}</TableCell>
+                    <TableCell className="text-right">{a.absent}</TableCell>
+                    <TableCell className="text-right">{a.late}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody></Table>
+            </TabsContent>
+
+            <TabsContent value="salary" className="text-sm mt-3">
+              <Table><TableHeader><TableRow>
+                <TableHead>Tháng</TableHead><TableHead className="text-right">Buổi</TableHead>
+                <TableHead className="text-right">Tổng</TableHead><TableHead className="text-right">Trừ</TableHead>
+                <TableHead className="text-right">Thực nhận</TableHead>
+              </TableRow></TableHeader><TableBody>
+                {sel.salaryReport.map((s, i) => (
+                  <TableRow key={i}>
+                    <TableCell className="font-medium">{s.month}</TableCell>
+                    <TableCell className="text-right">{s.sessions}</TableCell>
+                    <TableCell className="text-right">{formatVND(s.gross)}</TableCell>
+                    <TableCell className="text-right text-rose-600">-{formatVND(s.deduct)}</TableCell>
+                    <TableCell className="text-right font-semibold">{formatVND(s.net)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody></Table>
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+/* ============== TEACHING SCHEDULE (calendar) ============== */
+const DAYS = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật"];
+const HOURS = Array.from({ length: 14 }, (_, i) => 7 + i); // 7h..20h
+
+function parseHour(t: string) {
+  const [h, m] = t.split(":").map(Number);
+  return h + (m ?? 0) / 60;
+}
+
+export function AdminSchedule() {
+  const { classes } = useApp();
+  const colors = ["bg-indigo-100 border-indigo-300 text-indigo-800", "bg-emerald-100 border-emerald-300 text-emerald-800", "bg-amber-100 border-amber-300 text-amber-800", "bg-rose-100 border-rose-300 text-rose-800", "bg-sky-100 border-sky-300 text-sky-800"];
+
+  // Build events
+  const events: { day: string; start: number; end: number; cls: string; teacher: string; room: string; color: string }[] = [];
+  classes.forEach((c, idx) => {
+    (c.sessions ?? []).forEach((s) => {
+      const [a, b] = s.time.split(" - ");
+      events.push({
+        day: s.day,
+        start: parseHour(a),
+        end: parseHour(b),
+        cls: c.name,
+        teacher: c.teacher,
+        room: s.room,
+        color: colors[idx % colors.length],
+      });
+    });
+  });
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Lịch dạy tuần này</CardTitle>
+        <p className="text-xs text-slate-500">Hiển thị lịch dạy theo giờ giống Google Calendar.</p>
+      </CardHeader>
+      <CardContent className="overflow-x-auto">
+        <div className="min-w-[900px] grid" style={{ gridTemplateColumns: "60px repeat(7, 1fr)" }}>
+          <div />
+          {DAYS.map((d) => (
+            <div key={d} className="text-center text-xs font-semibold text-slate-600 border-b pb-2">{d}</div>
+          ))}
+
+          {HOURS.map((h) => (
+            <React.Fragment key={h}>
+              <div className="text-[10px] text-slate-400 pr-2 text-right border-t py-1">{`${h}:00`}</div>
+              {DAYS.map((d) => (
+                <div key={d + h} className="relative border-t border-l h-14">
+                  {events
+                    .filter((e) => e.day === d && Math.floor(e.start) === h)
+                    .map((e, i) => {
+                      const height = (e.end - e.start) * 56;
+                      const top = (e.start - h) * 56;
+                      return (
+                        <div
+                          key={i}
+                          className={`absolute left-1 right-1 rounded-md border px-2 py-1 text-[11px] leading-tight shadow-sm ${e.color}`}
+                          style={{ top, height }}
+                        >
+                          <div className="font-semibold truncate">{e.cls}</div>
+                          <div className="truncate opacity-80">{e.teacher}</div>
+                          <div className="truncate opacity-70">{e.room}</div>
+                        </div>
+                      );
+                    })}
+                </div>
+              ))}
+            </React.Fragment>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ============== ATTENDANCE & SALARY REPORTS (demo) ============== */
+export function AdminAttendanceReport() {
+  return (
+    <Card>
+      <CardHeader><CardTitle>Báo cáo chấm công</CardTitle></CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-sm text-slate-500">Tổng hợp số buổi dạy, vắng, đi muộn của giáo viên theo tháng.</p>
+        <div className="flex gap-2">
+          <Button onClick={() => toast.success("Đã xuất báo cáo chấm công (demo)")}>Xuất báo cáo Excel</Button>
+          <Button variant="outline" onClick={() => toast.info("Tính năng demo")}>Lọc theo tháng</Button>
+        </div>
+        <Table>
+          <TableHeader><TableRow>
+            <TableHead>Giáo viên</TableHead><TableHead>Tháng</TableHead>
+            <TableHead className="text-right">Buổi dạy</TableHead><TableHead className="text-right">Vắng</TableHead><TableHead className="text-right">Đi muộn</TableHead>
+          </TableRow></TableHeader>
+          <TableBody>
+            {TEACHERS.flatMap((t) =>
+              t.attendanceReport.map((a, i) => (
+                <TableRow key={t.id + i}>
+                  <TableCell className="font-medium">{t.name}</TableCell>
+                  <TableCell>{a.month}</TableCell>
+                  <TableCell className="text-right">{a.sessions}</TableCell>
+                  <TableCell className="text-right">{a.absent}</TableCell>
+                  <TableCell className="text-right">{a.late}</TableCell>
+                </TableRow>
+              )),
+            )}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+}
+
+export function AdminSalaryReport() {
+  return (
+    <Card>
+      <CardHeader><CardTitle>Báo cáo lương</CardTitle></CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-sm text-slate-500">Bảng lương theo tháng dựa trên số buổi dạy và các khoản trừ.</p>
+        <div className="flex gap-2">
+          <Button onClick={() => toast.success("Đã xuất bảng lương (demo)")}>Xuất bảng lương Excel</Button>
+          <Button variant="outline" onClick={() => toast.info("Tính năng demo")}>Lọc theo tháng</Button>
+        </div>
+        <Table>
+          <TableHeader><TableRow>
+            <TableHead>Giáo viên</TableHead><TableHead>Tháng</TableHead>
+            <TableHead className="text-right">Buổi</TableHead>
+            <TableHead className="text-right">Tổng</TableHead>
+            <TableHead className="text-right">Trừ</TableHead>
+            <TableHead className="text-right">Thực nhận</TableHead>
+          </TableRow></TableHeader>
+          <TableBody>
+            {TEACHERS.flatMap((t) =>
+              t.salaryReport.map((s, i) => (
+                <TableRow key={t.id + i}>
+                  <TableCell className="font-medium">{t.name}</TableCell>
+                  <TableCell>{s.month}</TableCell>
+                  <TableCell className="text-right">{s.sessions}</TableCell>
+                  <TableCell className="text-right">{formatVND(s.gross)}</TableCell>
+                  <TableCell className="text-right text-rose-600">-{formatVND(s.deduct)}</TableCell>
+                  <TableCell className="text-right font-semibold">{formatVND(s.net)}</TableCell>
+                </TableRow>
+              )),
+            )}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+}
