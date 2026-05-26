@@ -110,6 +110,11 @@ export const STUDENTS: Student[] = [
       { at: "01/03/2026 09:10", by: "Admin Lan", action: "Tạo hồ sơ", detail: "Khởi tạo thông tin học viên" },
       { at: "02/03/2026 14:22", by: "Admin Lan", action: "Thu học phí", detail: "Phiếu DC-000123 · +24 buổi" },
     ],
+    lifecycleHistory: [
+      { at: "01/03/2026", type: "Nhập học", note: "Đăng ký khoá Family & Friends 1 tại CN Đội Cấn" },
+      { at: "15/04/2026", type: "Bảo lưu", note: "PH xin bảo lưu 2 tuần vì lý do gia đình" },
+      { at: "29/04/2026", type: "Đi học lại", note: "Quay lại lớp 4CLC1 sau bảo lưu" },
+    ],
   },
   {
     id: "s2", name: "Đăng Khoa", nickname: "Bing", branch: "Đội Cấn", classId: "c1",
