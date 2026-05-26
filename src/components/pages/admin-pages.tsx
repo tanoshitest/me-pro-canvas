@@ -1698,9 +1698,29 @@ export function AdminSyllabus() {
   const [openAdd, setOpenAdd] = React.useState(false);
   const emptyForm = () => ({
     name: "", code: "", level: "", ageGroup: "",
-    stages: 5, lessonsPerStage: 4,
+    stages: 5,
+    stageConfig: Array.from({ length: 5 }, () => ({ lessons: 4, bigTest: true })),
   });
   const [form, setForm] = React.useState(emptyForm());
+
+  const setStageCount = (n: number) => {
+    const count = Math.max(1, Math.min(20, Number(n) || 1));
+    setForm((prev) => {
+      const cfg = [...prev.stageConfig];
+      if (count > cfg.length) {
+        while (cfg.length < count) cfg.push({ lessons: 4, bigTest: true });
+      } else {
+        cfg.length = count;
+      }
+      return { ...prev, stages: count, stageConfig: cfg };
+    });
+  };
+  const updateStage = (i: number, patch: Partial<{ lessons: number; bigTest: boolean }>) => {
+    setForm((prev) => {
+      const cfg = prev.stageConfig.map((s, idx) => idx === i ? { ...s, ...patch } : s);
+      return { ...prev, stageConfig: cfg };
+    });
+  };
 
   const submitSyllabus = () => {
     if (!form.name.trim() || !form.code.trim()) {
@@ -1708,15 +1728,17 @@ export function AdminSyllabus() {
       return;
     }
     const stages = Math.max(1, Number(form.stages) || 1);
-    const lessonsPerStage = Math.max(1, Number(form.lessonsPerStage) || 1);
+    const cfg = form.stageConfig.slice(0, stages);
+    const totalLessons = cfg.reduce((sum, s) => sum + Math.max(1, Number(s.lessons) || 1), 0);
+    const bigTests = cfg.filter((s) => s.bigTest).length;
     const id = `sy${Date.now()}`;
     const today = new Date();
     const created = `${String(today.getDate()).padStart(2, "0")}/${String(today.getMonth() + 1).padStart(2, "0")}/${today.getFullYear()}`;
     const newItem: Syllabus = {
       id, code: form.code.trim().toUpperCase(), name: form.name.trim(),
       level: form.level.trim() || "—", ageGroup: form.ageGroup.trim() || "—",
-      totalLessons: stages * lessonsPerStage,
-      stages, bigTests: stages,
+      totalLessons,
+      stages, bigTests,
       status: "Bản nháp", createdAt: created, createdBy: "Admin",
       description: "Syllabus mới — bấm để cấu hình chi tiết từng chặng.",
     };
