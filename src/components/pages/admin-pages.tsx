@@ -1052,15 +1052,43 @@ function shiftDate(d: string, days: number) {
 /* ============== SETTINGS (Cấu hình) ============== */
 export function AdminTuition() {
   const { cashConfig, setCashConfig } = useApp();
+  const [sessionsPerCourse, setSessionsPerCourse] = React.useState<number>(24);
   return (
     <Tabs defaultValue="shifts" className="space-y-4">
       <TabsList>
         <TabsTrigger value="shifts"><Clock className="h-4 w-4" /> Ca học</TabsTrigger>
         <TabsTrigger value="rooms"><DoorOpen className="h-4 w-4" /> Phòng học</TabsTrigger>
+        <TabsTrigger value="course"><BookOpen className="h-4 w-4" /> Khoá học</TabsTrigger>
         <TabsTrigger value="fee"><BookOpen className="h-4 w-4" /> Học phí</TabsTrigger>
         <TabsTrigger value="promotions"><Tag className="h-4 w-4" /> Khuyến mãi</TabsTrigger>
         <TabsTrigger value="receipts"><Hash className="h-4 w-4" /> Phiếu thu</TabsTrigger>
       </TabsList>
+
+      <TabsContent value="course">
+        <Card>
+          <CardHeader>
+            <CardTitle>Cấu hình khoá học</CardTitle>
+            <p className="text-xs text-slate-500">Số buổi mặc định cho mỗi khoá học. Có thể thay đổi bất cứ lúc nào.</p>
+          </CardHeader>
+          <CardContent>
+            <div className="max-w-md space-y-2">
+              <Label>Số buổi / khoá</Label>
+              <div className="flex items-center gap-3">
+                <Input
+                  type="number"
+                  min={1}
+                  value={sessionsPerCourse}
+                  onChange={(e) => setSessionsPerCourse(Number(e.target.value) || 0)}
+                  className="w-32"
+                />
+                <span className="text-sm text-slate-500">buổi</span>
+              </div>
+              <p className="text-xs text-slate-500">Hiện tại: <span className="font-semibold text-slate-700">{sessionsPerCourse} buổi / khoá</span></p>
+              <Button size="sm" className="mt-2">Lưu cấu hình</Button>
+            </div>
+          </CardContent>
+        </Card>
+      </TabsContent>
 
       <TabsContent value="shifts">
         <Card>
