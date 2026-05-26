@@ -1726,6 +1726,11 @@ function SyllabusGradesTab() {
 }
 
 function SyllabusReportTab() {
+  return null as never;
+}
+
+function _Unused() { return null; }
+
   const total = SYLLABUS_STUDENTS.length;
   const attendRate = Math.round((SYLLABUS_STUDENTS.filter((s) => s.attendance === "Có mặt").length / total) * 100);
   const highAbsent = SYLLABUS_STUDENTS.filter((s) => s.attendance === "Vắng không phép").length;
