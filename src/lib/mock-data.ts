@@ -12,6 +12,7 @@ export interface Student {
   bought: number;
   attended: number;
   debt: number;
+  transferDebt?: number; // công nợ phát sinh do chuyển lớp
   transferNote?: string;
   // Personal
   dob?: string;            // dd/mm/yyyy
