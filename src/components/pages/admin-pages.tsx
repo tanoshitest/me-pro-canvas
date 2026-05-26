@@ -1721,7 +1721,8 @@ export function AdminSyllabus() {
 
   const submitSyllabus = () => {
     if (!form.name.trim() || !form.code.trim()) {
-      toast.error("Vui lòng nhập mã và tên syllabus.");
+    if (!form.name.trim()) {
+      toast.error("Vui lòng nhập tên syllabus.");
       return;
     }
     const stages = Math.max(1, Number(form.stages) || 1);
