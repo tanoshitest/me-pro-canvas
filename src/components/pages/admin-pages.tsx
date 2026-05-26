@@ -2690,10 +2690,25 @@ function parseHour(t: string) {
 export function AdminSchedule() {
   const { classes } = useApp();
   const colors = ["bg-indigo-100 border-indigo-300 text-indigo-800", "bg-emerald-100 border-emerald-300 text-emerald-800", "bg-amber-100 border-amber-300 text-amber-800", "bg-rose-100 border-rose-300 text-rose-800", "bg-sky-100 border-sky-300 text-sky-800"];
+  const [branch, setBranch] = React.useState<"all" | Branch>("all");
+  const [weekOffset, setWeekOffset] = React.useState(0);
+
+  const weekLabel = React.useMemo(() => {
+    const now = new Date();
+    const day = (now.getDay() + 6) % 7; // Mon=0
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - day + weekOffset * 7);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    const f = (d: Date) => `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+    return `${f(monday)} – ${f(sunday)}/${sunday.getFullYear()}`;
+  }, [weekOffset]);
 
   // Build events
   const events: { day: string; start: number; end: number; cls: string; teacher: string; room: string; color: string }[] = [];
-  classes.forEach((c, idx) => {
+  classes
+    .filter((c) => branch === "all" || c.branch === branch)
+    .forEach((c, idx) => {
     (c.sessions ?? []).forEach((s) => {
       const [a, b] = s.time.split(" - ");
       events.push({
@@ -2709,44 +2724,69 @@ export function AdminSchedule() {
   });
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Lịch dạy tuần này</CardTitle>
-        <p className="text-xs text-slate-500">Hiển thị lịch dạy theo giờ giống Google Calendar.</p>
+    <Card className="flex flex-col h-[calc(100vh-7rem)]">
+      <CardHeader className="flex-row items-center justify-between gap-3 space-y-0 pb-3">
+        <div>
+          <CardTitle>Lịch dạy tuần này</CardTitle>
+          <p className="text-xs text-slate-500">Hiển thị lịch dạy theo giờ giống Google Calendar.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Select value={branch} onValueChange={(v) => setBranch(v as "all" | Branch)}>
+            <SelectTrigger className="h-9 w-44"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tất cả chi nhánh</SelectItem>
+              {BRANCHES.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <div className="flex items-center rounded-md border">
+            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-none" onClick={() => setWeekOffset((v) => v - 1)}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="sm" className="h-9 px-3 rounded-none border-x text-xs font-medium" onClick={() => setWeekOffset(0)}>
+              {weekOffset === 0 ? `Tuần này · ${weekLabel}` : weekLabel}
+            </Button>
+            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-none" onClick={() => setWeekOffset((v) => v + 1)}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
       </CardHeader>
-      <CardContent className="overflow-x-auto">
-        <div className="min-w-[900px] grid" style={{ gridTemplateColumns: "60px repeat(7, 1fr)" }}>
-          <div />
-          {DAYS.map((d) => (
-            <div key={d} className="text-center text-xs font-semibold text-slate-600 border-b pb-2">{d}</div>
-          ))}
-
-          {HOURS.map((h) => (
-            <React.Fragment key={h}>
-              <div className="text-[10px] text-slate-400 pr-2 text-right border-t py-1">{`${h}:00`}</div>
-              {DAYS.map((d) => (
-                <div key={d + h} className="relative border-t border-l h-14">
-                  {events
-                    .filter((e) => e.day === d && Math.floor(e.start) === h)
-                    .map((e, i) => {
-                      const height = (e.end - e.start) * 56;
-                      const top = (e.start - h) * 56;
-                      return (
-                        <div
-                          key={i}
-                          className={`absolute left-1 right-1 rounded-md border px-2 py-1 text-[11px] leading-tight shadow-sm ${e.color}`}
-                          style={{ top, height }}
-                        >
-                          <div className="font-semibold truncate">{e.cls}</div>
-                          <div className="truncate opacity-80">{e.teacher}</div>
-                          <div className="truncate opacity-70">{e.room}</div>
-                        </div>
-                      );
-                    })}
-                </div>
-              ))}
-            </React.Fragment>
-          ))}
+      <CardContent className="flex-1 min-h-0 overflow-hidden p-0">
+        <div className="h-full flex flex-col">
+          <div className="grid border-b" style={{ gridTemplateColumns: "52px repeat(7, 1fr)" }}>
+            <div />
+            {DAYS.map((d) => (
+              <div key={d} className="text-center text-xs font-semibold text-slate-600 py-2">{d}</div>
+            ))}
+          </div>
+          <div className="flex-1 min-h-0 grid" style={{ gridTemplateColumns: "52px repeat(7, 1fr)", gridTemplateRows: `repeat(${HOURS.length}, minmax(0, 1fr))` }}>
+            {HOURS.map((h) => (
+              <React.Fragment key={h}>
+                <div className="text-[10px] text-slate-400 pr-2 text-right border-t pt-0.5">{`${h}:00`}</div>
+                {DAYS.map((d) => (
+                  <div key={d + h} className="relative border-t border-l">
+                    {events
+                      .filter((e) => e.day === d && Math.floor(e.start) === h)
+                      .map((e, i) => {
+                        const heightPct = (e.end - e.start) * 100;
+                        const topPct = (e.start - h) * 100;
+                        return (
+                          <div
+                            key={i}
+                            className={`absolute left-1 right-1 rounded-md border px-1.5 py-0.5 text-[10px] leading-tight shadow-sm overflow-hidden ${e.color}`}
+                            style={{ top: `${topPct}%`, height: `${heightPct}%` }}
+                          >
+                            <div className="font-semibold truncate">{e.cls}</div>
+                            <div className="truncate opacity-80">{e.teacher}</div>
+                            <div className="truncate opacity-70">{e.room}</div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                ))}
+              </React.Fragment>
+            ))}
+          </div>
         </div>
       </CardContent>
     </Card>
