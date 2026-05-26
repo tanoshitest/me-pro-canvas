@@ -1,6 +1,6 @@
 import * as React from "react";
 import {
-  LayoutDashboard, Users, GraduationCap, BookOpen, Tag, Wallet, Receipt, Repeat,
+  LayoutDashboard, Users, GraduationCap, BookOpen, Tag, Wallet, Receipt,
   CalendarDays, ClipboardList, User, Building2, BadgeInfo,
 } from "lucide-react";
 import { useApp } from "@/lib/app-store";
