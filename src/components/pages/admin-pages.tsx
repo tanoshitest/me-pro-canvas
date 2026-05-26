@@ -100,6 +100,10 @@ export function AdminStudents() {
   const { students, classes, receipts } = useApp();
   const [selected, setSelected] = React.useState<string | null>(null);
   const stu = students.find((s) => s.id === selected);
+  const cls = stu ? classes.find((c) => c.id === stu.classId) : null;
+  const stuReceipts = stu ? receipts.filter((r) => r.studentId === stu.id) : [];
+  const paid = stuReceipts.filter((r) => r.status === "Hiệu lực").reduce((s, r) => s + r.amount, 0);
+  const remaining = stu ? Math.max(0, stu.bought - stu.attended) : 0;
 
   return (
     <div className="grid gap-6 lg:grid-cols-[2fr_3fr]">
@@ -112,7 +116,7 @@ export function AdminStudents() {
             </TableRow></TableHeader>
             <TableBody>
               {students.map((s) => (
-                <TableRow key={s.id} className="cursor-pointer" onClick={() => setSelected(s.id)}>
+                <TableRow key={s.id} className={`cursor-pointer ${selected === s.id ? "bg-indigo-50" : ""}`} onClick={() => setSelected(s.id)}>
                   <TableCell className="font-medium">{s.name}{s.nickname ? ` (${s.nickname})` : ""}</TableCell>
                   <TableCell>{s.branch}</TableCell>
                   <TableCell>{s.bought - s.attended}</TableCell>
@@ -125,60 +129,230 @@ export function AdminStudents() {
       </Card>
 
       <Card>
-        <CardHeader><CardTitle>{stu ? `Hồ sơ: ${stu.name}` : "Chọn 1 học viên để xem chi tiết"}</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle>{stu ? `Hồ sơ: ${stu.name}` : "Chọn 1 học viên để xem chi tiết"}</CardTitle>
+          {stu && <p className="text-xs text-slate-500">Mã HV: <span className="font-mono">{stu.id.toUpperCase()}</span> · {stu.branch}</p>}
+        </CardHeader>
         <CardContent>
-          {!stu ? (
+          {!stu || !cls ? (
             <p className="text-slate-500">Nhấp vào học viên ở bên trái.</p>
           ) : (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <Info2 label="Chi nhánh" value={stu.branch} />
-                <Info2 label="Lớp hiện tại" value={classes.find((c) => c.id === stu.classId)?.name ?? "-"} />
-                <Info2 label="Số buổi đã mua" value={stu.bought.toString()} />
-                <Info2 label="Đã học" value={stu.attended.toString()} />
-                <Info2 label="Còn lại" value={(stu.bought - stu.attended).toString()} />
-                <Info2 label="Công nợ" value={formatVND(stu.debt)} />
-              </div>
-              {stu.transferNote && (
-                <div className="rounded-md border border-amber-300 bg-amber-50 text-amber-800 text-sm px-3 py-2 flex items-start gap-2">
-                  <Repeat className="h-4 w-4 mt-0.5 shrink-0" />
-                  <span><strong>Lịch sử chuyển lớp:</strong> {stu.transferNote}</span>
+            <Tabs defaultValue="personal" className="space-y-3">
+              <TabsList className="flex-wrap h-auto">
+                <TabsTrigger value="personal">Học viên</TabsTrigger>
+                <TabsTrigger value="parent">Phụ huynh</TabsTrigger>
+                <TabsTrigger value="academic">Học tập</TabsTrigger>
+                <TabsTrigger value="fee">Học phí</TabsTrigger>
+                <TabsTrigger value="ops">Lịch sử vận hành</TabsTrigger>
+              </TabsList>
+
+              {/* ===== HỌC VIÊN ===== */}
+              <TabsContent value="personal" className="mt-3 grid grid-cols-2 gap-3 text-sm">
+                <Info2 label="Mã học viên" value={stu.id.toUpperCase()} />
+                <Info2 label="Họ tên" value={`${stu.name}${stu.nickname ? ` (${stu.nickname})` : ""}`} />
+                <Info2 label="Ngày sinh" value={stu.dob ?? "-"} />
+                <Info2 label="Giới tính" value={stu.gender ?? "-"} />
+                <Info2 label="Trường học" value={stu.school ?? "-"} />
+                <Info2 label="Email" value={stu.email || "-"} />
+                <Info2 label="Địa chỉ" value={stu.address ?? "-"} className="col-span-2" />
+                <Info2 label="Ghi chú" value={stu.note ?? "-"} className="col-span-2" />
+              </TabsContent>
+
+              {/* ===== PHỤ HUYNH ===== */}
+              <TabsContent value="parent" className="mt-3 grid grid-cols-2 gap-3 text-sm">
+                <Info2 label="Họ tên phụ huynh" value={stu.parentName ?? "-"} />
+                <Info2 label="Quan hệ" value={stu.parentRelation ?? "-"} />
+                <Info2 label="Số điện thoại" value={stu.parentPhone ?? "-"} />
+                <Info2 label="Email" value={stu.parentEmail ?? "-"} />
+              </TabsContent>
+
+              {/* ===== HỌC TẬP ===== */}
+              <TabsContent value="academic" className="mt-3 space-y-3 text-sm">
+                <div className="grid grid-cols-2 gap-3">
+                  <Info2 label="Chi nhánh" value={stu.branch} />
+                  <Info2 label="Lớp hiện tại" value={cls.name} />
+                  <Info2 label="Giáo viên phụ trách" value={cls.teacher} />
+                  <Info2 label="Ngày nhập học" value={stu.enrolledAt ?? "-"} />
+                  <Info2 label="Syllabus đang học" value={cls.syllabus} />
+                  <Info2
+                    label="Tiến độ syllabus"
+                    value={`${stu.syllabusProgress ?? 0}/${stu.syllabusTotal ?? cls.totalSessions} buổi`}
+                  />
+                  <Info2 label="Điểm trung bình" value={stu.avgScore != null ? stu.avgScore.toFixed(1) : "-"} />
+                  <Info2 label="Nhận xét gần nhất" value={stu.latestComment ?? "-"} />
                 </div>
-              )}
-              <Tabs defaultValue="fee">
-                <TabsList>
-                  <TabsTrigger value="fee">Lịch sử học phí</TabsTrigger>
-                  <TabsTrigger value="att">Điểm danh</TabsTrigger>
-                  <TabsTrigger value="grade">Kết quả</TabsTrigger>
-                </TabsList>
-                <TabsContent value="fee" className="mt-3">
-                  <Table><TableHeader><TableRow>
-                    <TableHead>Mã phiếu</TableHead><TableHead>Ngày</TableHead><TableHead>Tiền</TableHead><TableHead>PT</TableHead>
-                  </TableRow></TableHeader><TableBody>
-                    {receipts.filter((r) => r.studentId === stu.id).map((r) => (
-                      <TableRow key={r.id}><TableCell>{r.id}</TableCell><TableCell>{r.createdAt}</TableCell><TableCell>{formatVND(r.amount)}</TableCell><TableCell>{r.method}</TableCell></TableRow>
-                    ))}
-                  </TableBody></Table>
-                </TabsContent>
-                <TabsContent value="att" className="mt-3 text-sm space-y-1">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <div key={i} className="flex justify-between py-1.5 border-b">
-                      <span>Buổi {i + 1} · 0{i + 3}/03/2026</span>
-                      <Badge variant={i === 3 ? "destructive" : "secondary"}>{i === 3 ? "Vắng có phép" : "Có mặt"}</Badge>
-                    </div>
-                  ))}
-                </TabsContent>
-                <TabsContent value="grade" className="mt-3">
-                  <Table><TableHeader><TableRow>
-                    <TableHead>Buổi</TableHead><TableHead>Listening</TableHead><TableHead>Speaking</TableHead><TableHead>Reading</TableHead><TableHead>Writing</TableHead>
-                  </TableRow></TableHeader><TableBody>
-                    {[8.5, 9, 8, 7.5].map((g, i) => (
-                      <TableRow key={i}><TableCell>Buổi {i + 1}</TableCell><TableCell>{g}</TableCell><TableCell>{g - 0.5}</TableCell><TableCell>{g}</TableCell><TableCell>{g - 1}</TableCell></TableRow>
-                    ))}
-                  </TableBody></Table>
-                </TabsContent>
-              </Tabs>
-            </div>
+              </TabsContent>
+
+              {/* ===== HỌC PHÍ ===== */}
+              <TabsContent value="fee" className="mt-3 space-y-3 text-sm">
+                <div className="grid grid-cols-2 gap-3">
+                  <Info2 label="Tổng buổi đã mua" value={`${stu.bought} buổi`} />
+                  <Info2 label="Số buổi đã học" value={`${stu.attended} buổi`} />
+                  <Info2 label="Số buổi còn lại (Ví)" value={`${remaining} buổi`} />
+                  <Info2 label="Học phí đã đóng" value={formatVND(paid)} />
+                  <Info2 label="Học phí còn nợ" value={formatVND(stu.debt)} />
+                  <Info2 label="Công nợ hiện tại" value={formatVND(stu.debt)} />
+                </div>
+                <div>
+                  <div className="font-semibold mb-2">Lịch sử thanh toán</div>
+                  {stuReceipts.length === 0 ? (
+                    <p className="text-slate-500">Chưa có giao dịch.</p>
+                  ) : (
+                    <Table><TableHeader><TableRow>
+                      <TableHead>Mã phiếu</TableHead><TableHead>Ngày</TableHead><TableHead>Số tiền</TableHead>
+                      <TableHead>Phương thức</TableHead><TableHead>Trạng thái</TableHead>
+                    </TableRow></TableHeader><TableBody>
+                      {stuReceipts.map((r) => (
+                        <TableRow key={r.id}>
+                          <TableCell className="font-mono text-xs">{r.id}</TableCell>
+                          <TableCell>{r.createdAt}</TableCell>
+                          <TableCell>{formatVND(r.amount)}</TableCell>
+                          <TableCell>{r.method}</TableCell>
+                          <TableCell>
+                            <Badge variant={r.status === "Hiệu lực" ? "default" : "secondary"}>{r.status}</Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody></Table>
+                  )}
+                </div>
+              </TabsContent>
+
+              {/* ===== LỊCH SỬ VẬN HÀNH ===== */}
+              <TabsContent value="ops" className="mt-3">
+                <Tabs defaultValue="att" className="space-y-3">
+                  <TabsList className="flex-wrap h-auto">
+                    <TabsTrigger value="att">Điểm danh</TabsTrigger>
+                    <TabsTrigger value="grade">Nhập điểm</TabsTrigger>
+                    <TabsTrigger value="cls">Chuyển lớp</TabsTrigger>
+                    <TabsTrigger value="br">Chuyển chi nhánh</TabsTrigger>
+                    <TabsTrigger value="paylog">Học phí</TabsTrigger>
+                    <TabsTrigger value="audit">Audit Log</TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="att" className="text-sm">
+                    {!stu.attendanceHistory?.length ? (
+                      <p className="text-slate-500">Chưa có dữ liệu điểm danh.</p>
+                    ) : (
+                      <Table><TableHeader><TableRow>
+                        <TableHead>Ngày</TableHead><TableHead>Buổi</TableHead><TableHead>Trạng thái</TableHead>
+                      </TableRow></TableHeader><TableBody>
+                        {stu.attendanceHistory.map((a, i) => (
+                          <TableRow key={i}>
+                            <TableCell>{a.at}</TableCell>
+                            <TableCell>{a.session}</TableCell>
+                            <TableCell>
+                              <Badge variant={a.status === "Có mặt" ? "secondary" : a.status === "Đi muộn" ? "default" : "destructive"}>
+                                {a.status}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody></Table>
+                    )}
+                  </TabsContent>
+
+                  <TabsContent value="grade" className="text-sm">
+                    {!stu.scoreHistory?.length ? (
+                      <p className="text-slate-500">Chưa có dữ liệu điểm.</p>
+                    ) : (
+                      <Table><TableHeader><TableRow>
+                        <TableHead>Ngày</TableHead><TableHead>Buổi</TableHead>
+                        <TableHead>Listening</TableHead><TableHead>Speaking</TableHead>
+                        <TableHead>Reading</TableHead><TableHead>Writing</TableHead>
+                      </TableRow></TableHeader><TableBody>
+                        {stu.scoreHistory.map((g, i) => (
+                          <TableRow key={i}>
+                            <TableCell>{g.at}</TableCell><TableCell>{g.session}</TableCell>
+                            <TableCell>{g.listening}</TableCell><TableCell>{g.speaking}</TableCell>
+                            <TableCell>{g.reading}</TableCell><TableCell>{g.writing}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody></Table>
+                    )}
+                  </TabsContent>
+
+                  <TabsContent value="cls" className="text-sm space-y-2">
+                    {stu.transferNote && (
+                      <div className="rounded-md border border-amber-300 bg-amber-50 text-amber-800 px-3 py-2 flex items-start gap-2">
+                        <Repeat className="h-4 w-4 mt-0.5 shrink-0" />
+                        <span>{stu.transferNote}</span>
+                      </div>
+                    )}
+                    {stu.transferHistory?.length ? (
+                      <Table><TableHeader><TableRow>
+                        <TableHead>Ngày</TableHead><TableHead>Từ lớp</TableHead><TableHead>Sang lớp</TableHead><TableHead>Lý do</TableHead>
+                      </TableRow></TableHeader><TableBody>
+                        {stu.transferHistory.map((t, i) => (
+                          <TableRow key={i}>
+                            <TableCell>{t.at}</TableCell><TableCell>{t.from}</TableCell>
+                            <TableCell>{t.to}</TableCell><TableCell>{t.reason}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody></Table>
+                    ) : (!stu.transferNote && <p className="text-slate-500">Chưa có lịch sử chuyển lớp.</p>)}
+                  </TabsContent>
+
+                  <TabsContent value="br" className="text-sm">
+                    {!stu.branchHistory?.length ? (
+                      <p className="text-slate-500">Chưa có lịch sử chuyển chi nhánh.</p>
+                    ) : (
+                      <Table><TableHeader><TableRow>
+                        <TableHead>Ngày</TableHead><TableHead>Từ CN</TableHead><TableHead>Sang CN</TableHead><TableHead>Lý do</TableHead>
+                      </TableRow></TableHeader><TableBody>
+                        {stu.branchHistory.map((t, i) => (
+                          <TableRow key={i}>
+                            <TableCell>{t.at}</TableCell><TableCell>{t.from}</TableCell>
+                            <TableCell>{t.to}</TableCell><TableCell>{t.reason}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody></Table>
+                    )}
+                  </TabsContent>
+
+                  <TabsContent value="paylog" className="text-sm">
+                    {stuReceipts.length === 0 ? (
+                      <p className="text-slate-500">Chưa có giao dịch.</p>
+                    ) : (
+                      <Table><TableHeader><TableRow>
+                        <TableHead>Ngày</TableHead><TableHead>Mã phiếu</TableHead>
+                        <TableHead>Số tiền</TableHead><TableHead>PT</TableHead><TableHead>Trạng thái</TableHead>
+                      </TableRow></TableHeader><TableBody>
+                        {stuReceipts.map((r) => (
+                          <TableRow key={r.id}>
+                            <TableCell>{r.createdAt}</TableCell>
+                            <TableCell className="font-mono text-xs">{r.id}</TableCell>
+                            <TableCell>{formatVND(r.amount)}</TableCell>
+                            <TableCell>{r.method}</TableCell>
+                            <TableCell>
+                              <Badge variant={r.status === "Hiệu lực" ? "default" : "secondary"}>{r.status}</Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody></Table>
+                    )}
+                  </TabsContent>
+
+                  <TabsContent value="audit" className="text-sm">
+                    {!stu.auditLog?.length ? (
+                      <p className="text-slate-500">Chưa có nhật ký thay đổi.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {stu.auditLog.map((a, i) => (
+                          <div key={i} className="border rounded-md p-2 bg-slate-50">
+                            <div className="flex justify-between text-xs text-slate-500">
+                              <span>{a.at}</span><span>{a.by}</span>
+                            </div>
+                            <div className="font-medium">{a.action}</div>
+                            <div className="text-slate-600">{a.detail}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </TabsContent>
+                </Tabs>
+              </TabsContent>
+            </Tabs>
           )}
         </CardContent>
       </Card>
@@ -186,11 +360,11 @@ export function AdminStudents() {
   );
 }
 
-function Info2({ label, value }: { label: string; value: string }) {
+function Info2({ label, value, className }: { label: string; value: string; className?: string }) {
   return (
-    <div className="rounded-md border bg-slate-50 px-3 py-2">
+    <div className={`rounded-md border bg-slate-50 px-3 py-2 ${className ?? ""}`}>
       <div className="text-xs text-slate-500">{label}</div>
-      <div className="font-medium">{value}</div>
+      <div className="font-medium break-words">{value}</div>
     </div>
   );
 }
