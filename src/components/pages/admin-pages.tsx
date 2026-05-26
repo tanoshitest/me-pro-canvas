@@ -2369,16 +2369,20 @@ export function AdminTeachers() {
 
   const emptyT = () => ({
     name: "", email: "", phone: "", dob: "", gender: "Nữ" as "Nam" | "Nữ",
-    address: "", branch: "" as Branch | "", position: "Giáo viên chính", startDate: "",
+    address: "", startDate: "",
+    employmentType: "Fulltime" as "Fulltime" | "Parttime",
     baseSalary: 8000000, perSessionRate: 250000,
-    contractName: "", contractSigned: "", contractExpires: "", contractFile: "",
+    contractName: "",
+    contractSigned: undefined as Date | undefined,
+    contractExpires: undefined as Date | undefined,
+    contractFile: "",
   });
   const [openAdd, setOpenAdd] = React.useState(false);
   const [t, setT] = React.useState(emptyT());
 
   const submitTeacher = () => {
-    if (!t.name.trim() || !t.branch || !t.email.trim() || !t.phone.trim()) {
-      toast.error("Vui lòng nhập họ tên, chi nhánh, email và số điện thoại.");
+    if (!t.name.trim() || !t.email.trim() || !t.phone.trim()) {
+      toast.error("Vui lòng nhập họ tên, email và số điện thoại.");
       return;
     }
     const id = `t${Date.now()}`;
@@ -2387,9 +2391,14 @@ export function AdminTeachers() {
       {
         id, name: t.name.trim(), email: t.email, phone: t.phone,
         dob: t.dob, gender: t.gender, address: t.address,
-        branch: t.branch as Branch, position: t.position, startDate: t.startDate,
+        branch: BRANCHES[0], position: t.employmentType, startDate: t.startDate,
         baseSalary: Number(t.baseSalary) || 0, perSessionRate: Number(t.perSessionRate) || 0,
-        contract: { name: t.contractName, signedAt: t.contractSigned, expiresAt: t.contractExpires, fileName: t.contractFile },
+        contract: {
+          name: t.contractName,
+          signedAt: t.contractSigned ? fmtDate(t.contractSigned) : "",
+          expiresAt: t.contractExpires ? fmtDate(t.contractExpires) : "",
+          fileName: t.contractFile,
+        },
         related: [], classes: [],
         attendanceReport: [], salaryReport: [],
       },
