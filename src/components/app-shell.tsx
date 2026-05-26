@@ -18,7 +18,6 @@ const NAV: Record<string, NavItem[]> = {
     { id: "classes", label: "Quản lý lớp học", icon: GraduationCap },
     { id: "tuition", label: "Cấu hình học phí", icon: BookOpen },
     { id: "promotions", label: "Cấu hình khuyến mãi", icon: Tag },
-    { id: "collect", label: "Thu học phí", icon: Wallet },
     { id: "receipts", label: "Quản lý phiếu thu", icon: Receipt },
   ],
   teacher: [
