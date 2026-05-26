@@ -512,10 +512,9 @@ export function AdminClasses() {
     name: "",
     teacher: "",
     syllabus: "",
-    startDate: "",
-    endDate: "",
+    startDate: undefined as Date | undefined,
     tuitionGroup: "",
-    sessions: [{ day: "Thứ 2", time: "18:00 - 19:30", room: "" }] as NewSession[],
+    sessions: [{ day: "Thứ 2", shiftId: "", room: "" }] as NewSession[],
   });
   const [openCreate, setOpenCreate] = React.useState(false);
   const [form, setForm] = React.useState(emptyForm());
