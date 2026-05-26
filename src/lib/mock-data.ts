@@ -75,7 +75,7 @@ export interface Receipt {
 export const STUDENTS: Student[] = [
   {
     id: "s1", name: "Hồng Diệp", nickname: "Kirito", branch: "Đội Cấn", classId: "c1",
-    bought: 48, attended: 22, debt: 0,
+    bought: 32, attended: 22, debt: 0,
     dob: "12/05/2016", gender: "Nữ", school: "Tiểu học Nguyễn Trãi",
     address: "12 Đội Cấn, Ba Đình, Hà Nội", email: "hongdiep.kirito@gmail.com",
     note: "Bé nhút nhát, cần khuyến khích nói nhiều hơn.",
