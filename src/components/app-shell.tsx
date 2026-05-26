@@ -4,6 +4,7 @@ import {
   CalendarDays, ClipboardList, User, Building2, BadgeInfo, PanelLeftClose, PanelLeftOpen,
   UserPlus,
   Briefcase,
+  CheckCircle2,
 } from "lucide-react";
 import { useApp } from "@/lib/app-store";
 import { cn } from "@/lib/utils";
@@ -11,21 +12,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
-type NavItem = { id: string; label: string; icon: React.ComponentType<{ className?: string }>; disabled?: boolean };
+type NavItem = { id: string; label: string; icon: React.ComponentType<{ className?: string }>; disabled?: boolean; done?: boolean };
 
 const NAV: Record<string, NavItem[]> = {
   admin: [
     { id: "admissions", label: "Quản lý tuyển sinh", icon: UserPlus, disabled: true },
-    { id: "teachers", label: "Quản lý giáo viên", icon: UserCog },
-    { id: "students", label: "Quản lý học viên", icon: Users },
-    { id: "syllabus", label: "Quản lý syllabus", icon: ClipboardCheck },
-    { id: "classes", label: "Quản lý lớp học", icon: GraduationCap },
-    { id: "fees", label: "Quản lý học phí", icon: Wallet },
-    { id: "schedule-admin", label: "Lịch dạy", icon: CalendarRange },
+    { id: "teachers", label: "Quản lý giáo viên", icon: UserCog, done: true },
+    { id: "students", label: "Quản lý học viên", icon: Users, done: true },
+    { id: "syllabus", label: "Quản lý syllabus", icon: ClipboardCheck, done: true },
+    { id: "classes", label: "Quản lý lớp học", icon: GraduationCap, done: true },
+    { id: "fees", label: "Quản lý học phí", icon: Wallet, done: true },
+    { id: "schedule-admin", label: "Lịch dạy", icon: CalendarRange, done: true },
     { id: "attendance-report", label: "Báo cáo chấm công", icon: ClipboardList },
     { id: "salary-report", label: "Báo cáo lương", icon: Wallet },
     { id: "work-management", label: "Quản lý công việc", icon: Briefcase, disabled: true },
-    { id: "tuition", label: "Cấu hình", icon: BookOpen },
+    { id: "tuition", label: "Cấu hình", icon: BookOpen, done: true },
   ],
   teacher: [
     { id: "today", label: "Lịch dạy hôm nay", icon: CalendarDays },
@@ -83,7 +84,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 )}
               >
                 <Icon className="h-4 w-4 shrink-0" />
-                {!collapsed && <span>{item.label}</span>}
+                {!collapsed && <span className="flex-1">{item.label}</span>}
+                {!collapsed && item.done && <CheckCircle2 className="h-4 w-4 text-red-500 shrink-0" />}
               </button>
             );
           })}
