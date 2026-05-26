@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useApp } from "@/lib/app-store";
 import {
   BRANCHES, CLASSES, PROMOTIONS, TUITION_CONFIG, formatVND,
-  CLASS_SHIFTS, ROOMS,
+  CLASS_SHIFTS, ROOMS, SYLLABI,
   type Receipt, type Branch, type Student,
 } from "@/lib/mock-data";
 import { toast } from "sonner";
@@ -1250,5 +1250,83 @@ export function TransferDialog({ studentId, onClose }: { studentId: string | nul
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+/* ============== SYLLABUS ============== */
+export function AdminSyllabus() {
+  const [q, setQ] = React.useState("");
+  const [sel, setSel] = React.useState(SYLLABI[0]);
+  const list = SYLLABI.filter((s) =>
+    `${s.code} ${s.name} ${s.level} ${s.ageGroup}`.toLowerCase().includes(q.toLowerCase()),
+  );
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] gap-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>Danh mục syllabus</CardTitle>
+          <Input
+            placeholder="Tìm theo mã, tên, cấp độ..."
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            className="mt-2"
+          />
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Mã</TableHead>
+                <TableHead>Tên syllabus</TableHead>
+                <TableHead>Cấp độ</TableHead>
+                <TableHead>Độ tuổi</TableHead>
+                <TableHead className="text-right">Số buổi</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {list.map((s) => (
+                <TableRow
+                  key={s.id}
+                  className={`cursor-pointer ${sel.id === s.id ? "bg-indigo-50" : ""}`}
+                  onClick={() => setSel(s)}
+                >
+                  <TableCell className="font-mono text-xs">{s.code}</TableCell>
+                  <TableCell className="font-medium">{s.name}</TableCell>
+                  <TableCell><Badge variant="secondary">{s.level}</Badge></TableCell>
+                  <TableCell className="text-xs text-slate-600">{s.ageGroup}</TableCell>
+                  <TableCell className="text-right">{s.totalLessons}</TableCell>
+                </TableRow>
+              ))}
+              {list.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center text-slate-500 py-6">
+                    Không tìm thấy syllabus phù hợp.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{sel.name}</CardTitle>
+          <p className="text-xs text-slate-500">
+            Mã <span className="font-mono">{sel.code}</span> · {sel.level} · {sel.ageGroup}
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm">
+          <Info2 label="Tổng số buổi" value={`${sel.totalLessons} buổi`} />
+          <Info2 label="Đối tượng" value={sel.ageGroup} />
+          <Info2 label="Cấp độ" value={sel.level} />
+          <div className="rounded-md border bg-slate-50 px-3 py-2">
+            <div className="text-xs text-slate-500">Mô tả</div>
+            <div className="font-medium break-words">{sel.description}</div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
