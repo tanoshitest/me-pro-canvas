@@ -1892,47 +1892,6 @@ export function AdminSyllabus() {
             </div>
           </div>
           {/* legacy block removed */}
-          <div className="hidden">
-              <div className="grid grid-cols-[200px,1fr] gap-3 items-end">
-                <div>
-                  <Label className="text-xs text-slate-500">Số chặng</Label>
-                  <Input className="h-9 mt-1" type="number" min={1} max={20} value={form.stages} onChange={(e) => setStageCount(Number(e.target.value))} />
-                </div>
-                <div className="text-xs text-slate-500">
-                  Tổng: <b>{form.stageConfig.reduce((s, x) => s + (Number(x.lessons) || 0), 0)}</b> buổi ·{" "}
-                  <b>{form.stageConfig.filter((x) => x.bigTest).length}</b> Big Test
-                </div>
-              </div>
-              <div className="mt-3 rounded-md border bg-slate-50 p-3 max-h-72 overflow-y-auto">
-                <div className="text-xs font-medium text-slate-600 mb-2">Cấu hình chi tiết từng chặng</div>
-                <div className="space-y-2">
-                  {form.stageConfig.map((st, i) => (
-                    <div key={i} className="flex items-center gap-3 rounded-md border bg-white px-3 py-2">
-                      <div className="font-semibold text-sm text-slate-700 w-20">Chặng {i + 1}</div>
-                      <div className="flex items-center gap-2">
-                        <Label className="text-xs text-slate-500">Số buổi</Label>
-                        <Input
-                          className="h-8 w-20"
-                          type="number"
-                          min={1}
-                          max={50}
-                          value={st.lessons}
-                          onChange={(e) => updateStage(i, { lessons: Number(e.target.value) })}
-                        />
-                      </div>
-                      <label className="flex items-center gap-2 text-xs text-slate-600 ml-auto cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={st.bigTest}
-                          onChange={(e) => updateStage(i, { bigTest: e.target.checked })}
-                        />
-                        Có Big Test
-                      </label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-          </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpenAdd(false)}>Hủy</Button>
             <Button onClick={submitSyllabus}>Tạo & cấu hình chi tiết</Button>
