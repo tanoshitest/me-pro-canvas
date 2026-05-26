@@ -37,6 +37,7 @@ export interface Student {
   attendanceHistory?: { at: string; session: string; status: "Có mặt" | "Vắng có phép" | "Vắng không phép" | "Đi muộn" }[];
   scoreHistory?: { at: string; session: string; listening: number; speaking: number; reading: number; writing: number }[];
   auditLog?: { at: string; by: string; action: string; detail: string }[];
+  lifecycleHistory?: { at: string; type: "Nhập học" | "Dừng học" | "Bảo lưu" | "Đi học lại"; note?: string }[];
 }
 
 export interface ClassRoom {
