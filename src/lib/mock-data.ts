@@ -53,6 +53,7 @@ export interface ClassRoom {
   totalSessions: number;
   pricePerCourse: number;
   pricePerSession: number;
+  sessions?: { day: string; time: string; room: string }[];
 }
 
 export interface Receipt {
@@ -152,18 +153,30 @@ export const CLASSES: ClassRoom[] = [
     teacher: "Cô Mai", room: "P.201", syllabus: "Family & Friends 1",
     startDate: "01/03/2026", endDate: "30/06/2026",
     totalSessions: 24, pricePerCourse: 3480000, pricePerSession: 145000,
+    sessions: [
+      { day: "Thứ 3", time: "18:30 - 19:30", room: "P.201" },
+      { day: "Thứ 6", time: "19:00 - 20:30", room: "P.202" },
+    ],
   },
   {
     id: "c2", name: "4CLC2", schedule: "Thứ 2, 4", time: "18:00 - 19:30", branch: "Hoàng Hoa Thám",
     teacher: "Thầy Hùng", room: "P.105", syllabus: "Family & Friends 1",
     startDate: "05/03/2026", endDate: "05/07/2026",
     totalSessions: 24, pricePerCourse: 3480000, pricePerSession: 145000,
+    sessions: [
+      { day: "Thứ 2", time: "18:00 - 19:30", room: "P.105" },
+      { day: "Thứ 4", time: "18:00 - 19:30", room: "P.106" },
+    ],
   },
   {
     id: "c3", name: "FF1 Kids", schedule: "Thứ 7, CN", time: "08:00 - 09:30", branch: "Ngọc Hà",
     teacher: "Cô Lan", room: "P.301", syllabus: "Family & Friends 1",
     startDate: "10/02/2026", endDate: "10/05/2026",
     totalSessions: 24, pricePerCourse: 3480000, pricePerSession: 145000,
+    sessions: [
+      { day: "Thứ 7",     time: "08:00 - 09:30", room: "P.301" },
+      { day: "Chủ nhật",  time: "08:00 - 09:30", room: "P.302" },
+    ],
   },
 ];
 
