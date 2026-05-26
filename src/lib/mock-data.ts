@@ -338,8 +338,16 @@ export interface Syllabus {
   ageGroup: string;
   totalLessons: number;
   description: string;
+  stages?: number;
+  bigTests?: number;
+  status?: "Đang dùng" | "Bản nháp" | "Lưu trữ";
+  createdAt?: string;
+  createdBy?: string;
 }
 export const SYLLABI: Syllabus[] = [
+  { id: "syN5",  code: "JLPT-N5", name: "JLPT N5 Foundation",      level: "N5", ageGroup: "Người mới bắt đầu", totalLessons: 20, stages: 5, bigTests: 5, status: "Đang dùng", createdAt: "10/01/2025", createdBy: "Cô Mai",  description: "Lộ trình nền tảng JLPT N5: bảng chữ, từ vựng, ngữ pháp cơ bản và luyện đề." },
+  { id: "syA1",  code: "GT-A1",   name: "Giao tiếp sơ cấp A1",     level: "A1", ageGroup: "Người đi làm",       totalLessons: 20, stages: 5, bigTests: 5, status: "Đang dùng", createdAt: "15/02/2025", createdBy: "Thầy Nam", description: "Giao tiếp tiếng Nhật sơ cấp theo tình huống đời sống và công sở." },
+  { id: "syN4",  code: "JLPT-N4", name: "JLPT N4 Intensive",       level: "N4", ageGroup: "Đã học xong N5",     totalLessons: 20, stages: 5, bigTests: 5, status: "Bản nháp", createdAt: "05/03/2025", createdBy: "Cô Hà",   description: "Tăng tốc JLPT N4: ngữ pháp nâng cao, đọc hiểu, nghe hiểu và luyện đề." },
   { id: "sy01", code: "FF1",   name: "Family & Friends 1",      level: "Starter",      ageGroup: "Mẫu giáo - Lớp 1", totalLessons: 24, description: "Làm quen tiếng Anh qua bài hát, từ vựng cơ bản về gia đình, đồ vật." },
   { id: "sy02", code: "FF2",   name: "Family & Friends 2",      level: "Beginner",     ageGroup: "Lớp 2 - 3",         totalLessons: 24, description: "Mở rộng vốn từ, câu đơn giản, đọc hiểu đoạn ngắn." },
   { id: "sy03", code: "FF3",   name: "Family & Friends 3",      level: "Elementary",   ageGroup: "Lớp 3 - 4",         totalLessons: 24, description: "Ngữ pháp cơ bản: thì hiện tại, quá khứ đơn, kỹ năng viết câu." },
