@@ -150,6 +150,19 @@ export const ROOMS: ClassRoomConfig[] = [
   { id: "r7", name: "P.302", branch: "Ngọc Hà", capacity: 20 },
 ];
 
+export interface CashReceiptConfig {
+  branch: Branch;
+  prefix: string;
+  start: number;
+  end: number;
+  current: number;
+}
+export const CASH_RECEIPT_CONFIG_SEED: CashReceiptConfig[] = [
+  { branch: "Đội Cấn",        prefix: "DC", start: 125, end: 999, current: 124 },
+  { branch: "Hoàng Hoa Thám", prefix: "HH", start: 46,  end: 999, current: 45  },
+  { branch: "Ngọc Hà",        prefix: "NH", start: 78,  end: 999, current: 77  },
+];
+
 export const SYLLABUS_LESSONS = [
   { id: "l1", title: "Buổi 1: Hello! My name is...", vocab: "hello, name, I, you", grammar: "What's your name? — My name is...", material: "SB p.4-5, WB p.2", classwork: "Role-play giới thiệu bản thân", homework: "WB p.3, học thuộc lời chào" },
   { id: "l2", title: "Buổi 2: My family", vocab: "mum, dad, brother, sister", grammar: "This is my...", material: "SB p.6-7", classwork: "Vẽ cây gia đình", homework: "Tô màu trang 4 WB" },
