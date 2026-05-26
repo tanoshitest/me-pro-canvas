@@ -657,7 +657,7 @@ export function AdminTuition() {
 
 /* ============== COLLECT FEE (dialog) ============== */
 export function CollectFeeDialog({ studentId, onClose }: { studentId: string | null; onClose: () => void }) {
-  const { students, classes, receipts, setReceipts, setStudents } = useApp();
+  const { students, classes, receipts, setReceipts, setStudents, cashConfig, setCashConfig } = useApp();
   const stu = students.find((s) => s.id === studentId) ?? null;
   const cls = stu ? classes.find((c) => c.id === stu.classId) ?? null : null;
 
@@ -674,11 +674,26 @@ export function CollectFeeDialog({ studentId, onClose }: { studentId: string | n
   React.useEffect(() => {
     if (studentId) {
       setPkg("1"); setPromoId("p0"); setExtra(0); setReceived(0);
-      setMethod("Tiền mặt"); setReceiptNo(""); setNote("");
+      setMethod("Tiền mặt"); setNote("");
     }
   }, [studentId]);
 
+  // Auto-generate receipt number whenever student or method changes
+  React.useEffect(() => {
+    if (!stu) return;
+    if (method === "Tiền mặt") {
+      const cfg = cashConfig.find((c) => c.branch === stu.branch);
+      if (!cfg) { setReceiptNo(""); return; }
+      const next = Math.max(cfg.current + 1, cfg.start);
+      setReceiptNo(next > cfg.end ? "" : `${cfg.prefix}-${String(next).padStart(6, "0")}`);
+    } else {
+      setReceiptNo(`CK-${String(100000 + receipts.length + 1).slice(1)}`);
+    }
+  }, [studentId, method, stu, cashConfig, receipts.length]);
+
   if (!stu || !cls) return null;
+  const cashCfg = cashConfig.find((c) => c.branch === stu.branch);
+  const cashExhausted = method === "Tiền mặt" && (!cashCfg || Math.max(cashCfg.current + 1, cashCfg.start) > cashCfg.end);
 
   const sessionsToAdd = Number(pkg) * cls.totalSessions;
   const base = cls.pricePerCourse * Number(pkg);
@@ -688,21 +703,26 @@ export function CollectFeeDialog({ studentId, onClose }: { studentId: string | n
   const debt = Math.max(0, total - Number(received));
 
   const submit = () => {
-    if (method === "Tiền mặt" && !receiptNo.trim()) {
-      toast.error("Cần nhập số phiếu thu (tiền mặt)", { description: "VD: DC-000125" });
+    if (!receiptNo.trim()) {
+      toast.error("Không sinh được số phiếu thu", { description: "Kiểm tra cấu hình dải phiếu thu của chi nhánh." });
       return;
     }
     setConfirmOpen(true);
   };
 
   const finalize = () => {
-    const id = receiptNo.trim() || `${stu.branch.slice(0, 2).toUpperCase()}-${String(1000 + receipts.length).slice(1)}`;
+    const id = receiptNo.trim();
     const newReceipt: Receipt = {
       id, studentId: stu.id, studentName: stu.name, branch: stu.branch,
       amount: Number(received), method, status: "Hiệu lực",
       createdBy: "Admin (demo)", createdAt: date, note,
     };
     setReceipts((prev) => [newReceipt, ...prev]);
+    if (method === "Tiền mặt") {
+      setCashConfig((prev) => prev.map((c) => c.branch === stu.branch
+        ? { ...c, current: Math.max(c.current + 1, c.start) }
+        : c));
+    }
     setStudents((prev) => prev.map((s) => s.id === stu.id
       ? { ...s, bought: s.bought + sessionsToAdd, debt: s.debt + debt }
       : s));
@@ -756,12 +776,11 @@ export function CollectFeeDialog({ studentId, onClose }: { studentId: string | n
                   <SelectContent>
                     <SelectItem value="Tiền mặt">Tiền mặt</SelectItem>
                     <SelectItem value="Chuyển khoản">Chuyển khoản</SelectItem>
-                    <SelectItem value="POS">POS</SelectItem>
                   </SelectContent>
                 </Select>
               </Field>
-              <Field label={`Số phiếu thu ${method === "Tiền mặt" ? "(bắt buộc)" : "(auto)"}`}>
-                <Input placeholder="VD: DC-000125" value={receiptNo} onChange={(e) => setReceiptNo(e.target.value)} />
+              <Field label={`Số phiếu thu (auto · ${method === "Tiền mặt" ? "dải " + stu.branch : "chuyển khoản"})`}>
+                <Input value={receiptNo} readOnly className="font-mono bg-slate-50" placeholder={cashExhausted ? "Đã hết dải phiếu — cấu hình lại" : ""} />
               </Field>
               <Field label="Ngày thu"><Input value={date} onChange={(e) => setDate(e.target.value)} /></Field>
               <Field label="Ghi chú" className="col-span-2"><Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} /></Field>
