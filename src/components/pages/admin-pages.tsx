@@ -506,7 +506,12 @@ export function AdminClasses() {
   // Create class dialog
   const DEFAULT_TOTAL_SESSIONS = 24;
   const DAY_OPTIONS = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật"];
-  type NewSession = { day: string; time: string; room: string };
+  const DAY_TO_INDEX: Record<string, number> = {
+    "Thứ 2": 1, "Thứ 3": 2, "Thứ 4": 3, "Thứ 5": 4, "Thứ 6": 5, "Thứ 7": 6, "Chủ nhật": 0,
+  };
+  const fmtDate = (d: Date) =>
+    `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+  type NewSession = { day: string; shiftId: string; room: string };
   const emptyForm = () => ({
     branch: "" as Branch | "",
     name: "",
@@ -527,8 +532,28 @@ export function AdminClasses() {
   const addSession = () => setForm((f) => ({ ...f, sessions: [...f.sessions, { day: "Thứ 4", time: "18:00 - 19:30", room: "" }] }));
   const removeSession = (i: number) => setForm((f) => ({ ...f, sessions: f.sessions.filter((_, idx) => idx !== i) }));
 
+  // Auto-generate end date: count occurrences of selected weekdays starting from startDate until reaching totalSessions
+  const computedEndDate = React.useMemo(() => {
+    if (!form.startDate || form.sessions.length === 0) return null;
+    const dayIdxs = Array.from(new Set(form.sessions.map((s) => DAY_TO_INDEX[s.day]).filter((n) => n !== undefined)));
+    if (dayIdxs.length === 0) return null;
+    const d = new Date(form.startDate);
+    let count = 0;
+    let last = new Date(d);
+    // safety cap
+    for (let i = 0; i < 366 * 3; i++) {
+      if (dayIdxs.includes(d.getDay())) {
+        count++;
+        last = new Date(d);
+        if (count >= DEFAULT_TOTAL_SESSIONS) break;
+      }
+      d.setDate(d.getDate() + 1);
+    }
+    return last;
+  }, [form.startDate, form.sessions]);
+
   const submitCreate = () => {
-    if (!form.branch || !form.name.trim() || !form.teacher || !form.syllabus || !form.startDate || !form.endDate) {
+    if (!form.branch || !form.name.trim() || !form.teacher || !form.syllabus || !form.startDate || !computedEndDate) {
       toast.error("Vui lòng điền đầy đủ thông tin lớp.");
       return;
     }
@@ -536,13 +561,17 @@ export function AdminClasses() {
       toast.error("Vui lòng chọn khung học phí.");
       return;
     }
-    if (form.sessions.length === 0 || form.sessions.some((s) => !s.day || !s.time || !s.room)) {
+    if (form.sessions.length === 0 || form.sessions.some((s) => !s.day || !s.shiftId || !s.room)) {
       toast.error("Vui lòng cấu hình đầy đủ lịch học và phòng cho từng buổi.");
       return;
     }
     const sy = SYLLABI.find((s) => s.id === form.syllabus);
     const tg = TUITION_CONFIG.find((g) => g.group === form.tuitionGroup);
     const tier = tg?.tiers.find((t) => t.sessions === DEFAULT_TOTAL_SESSIONS) ?? tg?.tiers[0];
+    const expandedSessions = form.sessions.map((s) => {
+      const sh = CLASS_SHIFTS.find((x) => x.id === s.shiftId);
+      return { day: s.day, time: sh?.time ?? "", room: s.room };
+    });
     const id = `c${Date.now()}`;
     setClasses((prev) => [
       ...prev,
@@ -550,18 +579,18 @@ export function AdminClasses() {
         id,
         name: form.name.trim(),
         schedule: form.sessions.map((s) => s.day).join(", "),
-        time: form.sessions[0].time,
+        time: expandedSessions[0].time,
         branch: form.branch as Branch,
         teacher: form.teacher,
-        room: form.sessions[0].room,
+        room: expandedSessions[0].room,
         syllabus: sy ? `${sy.code} · ${sy.name}` : form.syllabus,
-        startDate: form.startDate,
-        endDate: form.endDate,
+        startDate: fmtDate(form.startDate),
+        endDate: fmtDate(computedEndDate),
         totalSessions: DEFAULT_TOTAL_SESSIONS,
         remainingSessions: DEFAULT_TOTAL_SESSIONS,
         pricePerCourse: tier?.final ?? 0,
         pricePerSession: tier ? Math.round(tier.final / tier.sessions) : 0,
-        sessions: form.sessions,
+        sessions: expandedSessions,
       },
     ]);
     toast.success(`Đã tạo lớp ${form.name.trim()}`);
