@@ -1650,18 +1650,13 @@ function DetailField({ icon: Icon, label, value, link }: { icon: React.Component
   );
 }
 
-function SyllabusAttendanceTab() {
+function SyllabusAttendanceTab({ sel }: { sel: SyllabusSel }) {
   const stages = SYLLABUS_STAGES;
-  const [stageId, setStageId] = React.useState(stages[0].id);
-  const stage = stages.find((s) => s.id === stageId)!;
-  const [lessonId, setLessonId] = React.useState(stage.lessons[0].id);
+  const stage = stages.find((s) => s.id === sel.stageId)!;
+  const lesson = sel.kind === "lesson" ? stage.lessons.find((l) => l.id === sel.lessonId) ?? null : null;
   const [classId, setClassId] = React.useState<string>("all");
   const [q, setQ] = React.useState("");
   const [rows, setRows] = React.useState(SYLLABUS_STUDENTS);
-
-  React.useEffect(() => {
-    setLessonId(stages.find((s) => s.id === stageId)!.lessons[0].id);
-  }, [stageId, stages]);
 
   const filtered = rows.filter((r) => `${r.code} ${r.name}`.toLowerCase().includes(q.toLowerCase()));
 
@@ -1674,38 +1669,32 @@ function SyllabusAttendanceTab() {
         <CardTitle className="flex items-center gap-2"><ClipboardCheck className="h-5 w-5" /> Điểm danh học viên</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-          <div>
-            <Label className="text-xs">Chọn chặng</Label>
-            <Select value={stageId} onValueChange={setStageId}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {stages.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
+        <div className="rounded-md border bg-slate-50/60 px-3 py-2 flex items-center justify-between gap-3 flex-wrap text-sm">
+          <div className="flex items-center gap-2">
+            <Layers className="h-4 w-4 text-indigo-600" />
+            <span className="text-slate-500">{stage.name}</span>
+            <span className="text-slate-400">·</span>
+            {lesson ? (
+              <>
+                <BookOpen className="h-4 w-4 text-emerald-600" />
+                <span className="font-medium">Buổi {lesson.index}: {lesson.unit}</span>
+              </>
+            ) : (
+              <>
+                <ClipboardCheck className="h-4 w-4 text-amber-600" />
+                <span className="font-medium">{stage.bigTest.name}</span>
+              </>
+            )}
           </div>
-          <div>
-            <Label className="text-xs">Buổi học</Label>
-            <Select value={lessonId} onValueChange={setLessonId}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {stage.lessons.map((l) => <SelectItem key={l.id} value={l.id}>Buổi {l.index} · {l.unit}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label className="text-xs">Lớp</Label>
+          <div className="flex items-center gap-2">
             <Select value={classId} onValueChange={setClassId}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-8 w-40"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tất cả lớp</SelectItem>
                 {CLASSES.slice(0, 5).map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
               </SelectContent>
             </Select>
-          </div>
-          <div>
-            <Label className="text-xs">Tìm học viên</Label>
-            <Input placeholder="Tên hoặc mã..." value={q} onChange={(e) => setQ(e.target.value)} />
+            <Input className="h-8 w-56" placeholder="Tìm học viên..." value={q} onChange={(e) => setQ(e.target.value)} />
           </div>
         </div>
 
