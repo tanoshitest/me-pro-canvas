@@ -12,6 +12,7 @@ export interface Student {
   bought: number;
   attended: number;
   debt: number;
+  transferNote?: string;
 }
 
 export interface ClassRoom {

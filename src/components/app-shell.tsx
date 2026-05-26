@@ -1,6 +1,6 @@
 import * as React from "react";
 import {
-  LayoutDashboard, Users, GraduationCap, BookOpen, Tag, Wallet, Receipt, Repeat,
+  LayoutDashboard, Users, GraduationCap, BookOpen, Tag, Wallet, Receipt,
   CalendarDays, ClipboardList, User, Building2, BadgeInfo,
 } from "lucide-react";
 import { useApp } from "@/lib/app-store";
@@ -19,7 +19,6 @@ const NAV: Record<string, NavItem[]> = {
     { id: "promotions", label: "Cấu hình khuyến mãi", icon: Tag },
     { id: "collect", label: "Thu học phí", icon: Wallet },
     { id: "receipts", label: "Quản lý phiếu thu", icon: Receipt },
-    { id: "transfer", label: "Chuyển lớp", icon: Repeat },
   ],
   teacher: [
     { id: "today", label: "Lịch dạy hôm nay", icon: CalendarDays },
