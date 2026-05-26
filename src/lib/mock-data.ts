@@ -52,6 +52,7 @@ export interface ClassRoom {
   startDate: string;
   endDate: string;
   totalSessions: number;
+  remainingSessions: number;
   pricePerCourse: number;
   pricePerSession: number;
   sessions?: { day: string; time: string; room: string }[];
