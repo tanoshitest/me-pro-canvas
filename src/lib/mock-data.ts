@@ -13,6 +13,30 @@ export interface Student {
   attended: number;
   debt: number;
   transferNote?: string;
+  // Personal
+  dob?: string;            // dd/mm/yyyy
+  gender?: "Nam" | "Nữ";
+  school?: string;
+  address?: string;
+  email?: string;
+  note?: string;
+  // Parent
+  parentName?: string;
+  parentPhone?: string;
+  parentRelation?: "Bố" | "Mẹ" | "Người giám hộ";
+  parentEmail?: string;
+  // Academic
+  enrolledAt?: string;     // dd/mm/yyyy
+  syllabusProgress?: number;   // lessons done
+  syllabusTotal?: number;      // total lessons
+  avgScore?: number;           // 0-10
+  latestComment?: string;
+  // Ops history
+  transferHistory?: { at: string; from: string; to: string; reason: string }[];
+  branchHistory?:   { at: string; from: Branch; to: Branch; reason: string }[];
+  attendanceHistory?: { at: string; session: string; status: "Có mặt" | "Vắng có phép" | "Vắng không phép" | "Đi muộn" }[];
+  scoreHistory?: { at: string; session: string; listening: number; speaking: number; reading: number; writing: number }[];
+  auditLog?: { at: string; by: string; action: string; detail: string }[];
 }
 
 export interface ClassRoom {
@@ -46,11 +70,80 @@ export interface Receipt {
 }
 
 export const STUDENTS: Student[] = [
-  { id: "s1", name: "Hồng Diệp", nickname: "Kirito", branch: "Đội Cấn", classId: "c1", bought: 48, attended: 22, debt: 0 },
-  { id: "s2", name: "Đăng Khoa", nickname: "Bing", branch: "Đội Cấn", classId: "c1", bought: 24, attended: 20, debt: 500000 },
-  { id: "s3", name: "Mimi", branch: "Hoàng Hoa Thám", classId: "c2", bought: 24, attended: 10, debt: 0 },
-  { id: "s4", name: "Lại Thế Thái Dương", branch: "Ngọc Hà", classId: "c3", bought: 96, attended: 30, debt: 0 },
-  { id: "s5", name: "Nguyễn Ngọc Linh", branch: "Đội Cấn", classId: "c1", bought: 24, attended: 23, debt: 200000 },
+  {
+    id: "s1", name: "Hồng Diệp", nickname: "Kirito", branch: "Đội Cấn", classId: "c1",
+    bought: 48, attended: 22, debt: 0,
+    dob: "12/05/2016", gender: "Nữ", school: "Tiểu học Nguyễn Trãi",
+    address: "12 Đội Cấn, Ba Đình, Hà Nội", email: "hongdiep.kirito@gmail.com",
+    note: "Bé nhút nhát, cần khuyến khích nói nhiều hơn.",
+    parentName: "Nguyễn Văn Hùng", parentPhone: "0912 345 678",
+    parentRelation: "Bố", parentEmail: "hung.nguyen@gmail.com",
+    enrolledAt: "01/03/2026", syllabusProgress: 11, syllabusTotal: 24,
+    avgScore: 8.4, latestComment: "Phát âm rõ, cần luyện thêm Writing.",
+    attendanceHistory: [
+      { at: "03/03/2026", session: "Buổi 1", status: "Có mặt" },
+      { at: "06/03/2026", session: "Buổi 2", status: "Có mặt" },
+      { at: "10/03/2026", session: "Buổi 3", status: "Đi muộn" },
+      { at: "13/03/2026", session: "Buổi 4", status: "Vắng có phép" },
+      { at: "17/03/2026", session: "Buổi 5", status: "Có mặt" },
+    ],
+    scoreHistory: [
+      { at: "10/03/2026", session: "Buổi 3", listening: 8.5, speaking: 8, reading: 9, writing: 7.5 },
+      { at: "17/03/2026", session: "Buổi 5", listening: 9,   speaking: 8.5, reading: 9, writing: 8 },
+    ],
+    auditLog: [
+      { at: "01/03/2026 09:10", by: "Admin Lan", action: "Tạo hồ sơ", detail: "Khởi tạo thông tin học viên" },
+      { at: "02/03/2026 14:22", by: "Admin Lan", action: "Thu học phí", detail: "Phiếu DC-000123 · +24 buổi" },
+    ],
+  },
+  {
+    id: "s2", name: "Đăng Khoa", nickname: "Bing", branch: "Đội Cấn", classId: "c1",
+    bought: 24, attended: 20, debt: 500000,
+    dob: "08/09/2015", gender: "Nam", school: "Tiểu học Kim Đồng",
+    address: "45 Liễu Giai, Ba Đình, Hà Nội", email: "",
+    note: "Hiếu động, học tốt phần Listening.",
+    parentName: "Trần Thị Hoa", parentPhone: "0987 654 321",
+    parentRelation: "Mẹ", parentEmail: "hoa.tran@gmail.com",
+    enrolledAt: "01/03/2026", syllabusProgress: 20, syllabusTotal: 24,
+    avgScore: 7.8, latestComment: "Tiến bộ rõ ở phần nói, còn nợ học phí khóa mới.",
+    auditLog: [
+      { at: "01/03/2026 10:05", by: "Admin Lan", action: "Tạo hồ sơ", detail: "Khởi tạo thông tin học viên" },
+      { at: "02/03/2026 14:30", by: "Admin Lan", action: "Thu học phí", detail: "Phiếu DC-000124 · còn nợ 500.000" },
+    ],
+  },
+  {
+    id: "s3", name: "Mimi", branch: "Hoàng Hoa Thám", classId: "c2",
+    bought: 24, attended: 10, debt: 0,
+    dob: "20/11/2016", gender: "Nữ", school: "Tiểu học Hoàng Hoa Thám",
+    address: "120 Hoàng Hoa Thám, Ba Đình, Hà Nội", email: "",
+    parentName: "Lê Minh Tâm", parentPhone: "0901 234 567",
+    parentRelation: "Mẹ", parentEmail: "tam.le@gmail.com",
+    enrolledAt: "05/03/2026", syllabusProgress: 6, syllabusTotal: 24,
+    avgScore: 8.0, latestComment: "Chăm chỉ làm bài tập về nhà.",
+  },
+  {
+    id: "s4", name: "Lại Thế Thái Dương", branch: "Ngọc Hà", classId: "c3",
+    bought: 96, attended: 30, debt: 0,
+    dob: "15/02/2015", gender: "Nam", school: "Tiểu học Ngọc Hà",
+    address: "8 Ngọc Hà, Ba Đình, Hà Nội", email: "thaiduong.lai@gmail.com",
+    parentName: "Lại Văn Bình", parentPhone: "0978 111 222",
+    parentRelation: "Bố", parentEmail: "binh.lai@gmail.com",
+    enrolledAt: "10/02/2026", syllabusProgress: 30, syllabusTotal: 96,
+    avgScore: 9.1, latestComment: "Học viên xuất sắc, có thể nâng trình.",
+    transferHistory: [
+      { at: "01/02/2026", from: "FF1 Basic", to: "FF1 Kids", reason: "Phụ huynh đề nghị nâng trình" },
+    ],
+  },
+  {
+    id: "s5", name: "Nguyễn Ngọc Linh", branch: "Đội Cấn", classId: "c1",
+    bought: 24, attended: 23, debt: 200000,
+    dob: "03/07/2016", gender: "Nữ", school: "Tiểu học Nguyễn Trãi",
+    address: "27 Đội Cấn, Ba Đình, Hà Nội", email: "",
+    parentName: "Nguyễn Thị Mai", parentPhone: "0936 777 888",
+    parentRelation: "Mẹ", parentEmail: "mai.nguyen@gmail.com",
+    enrolledAt: "01/03/2026", syllabusProgress: 23, syllabusTotal: 24,
+    avgScore: 8.2, latestComment: "Sắp hết khóa, đã nhắc PH gia hạn.",
+  },
 ];
 
 export const CLASSES: ClassRoom[] = [
