@@ -400,91 +400,42 @@ export function AdminClasses() {
 
   return (
     <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>Danh sách lớp</CardTitle>
-          <div className="grid grid-cols-2 gap-2 pt-2">
+      {cls ? (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <div>
-              <Label className="text-xs text-slate-500">Chi nhánh</Label>
-              <Select
-                value={filterBranch}
-                onValueChange={(v) => { setFilterBranch(v); setFilterClassId("all"); }}
-              >
-                <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tất cả chi nhánh</SelectItem>
-                  {BRANCHES.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <CardTitle>Chi tiết lớp: {cls.name}</CardTitle>
+              <div className="text-xs text-slate-500 mt-1">{cls.branch} · {cls.teacher}</div>
             </div>
-            <div>
-              <Label className="text-xs text-slate-500">Lớp</Label>
-              <Select value={filterClassId} onValueChange={setFilterClassId}>
-                <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tất cả lớp</SelectItem>
-                  {classOptions.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+            <div className="flex items-center gap-2">
+              <Dialog open={openHoliday} onOpenChange={setOpenHoliday}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm"><CalendarOff className="h-4 w-4" /> Set lịch nghỉ</Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Set lịch nghỉ buổi học</DialogTitle>
+                    <DialogDescription>
+                      Khi xác nhận: trạng thái buổi chuyển "Nghỉ", không trừ buổi học viên, không cộng buổi giáo viên,
+                      và ngày kết thúc lớp tự dời thêm 1 buổi.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-2">
+                    <Label>Ngày nghỉ</Label>
+                    <Input placeholder="VD: 25/03/2026" value={holidayDate} onChange={(e) => setHolidayDate(e.target.value)} />
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setOpenHoliday(false)}>Hủy</Button>
+                    <Button onClick={confirmHoliday}>Xác nhận lịch nghỉ</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+              <Button variant="outline" size="sm" onClick={() => setSelected(null)}>
+                <ArrowLeft className="h-4 w-4" /> Quay lại danh sách
+              </Button>
             </div>
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader><TableRow>
-              <TableHead>Lớp</TableHead><TableHead>Lịch</TableHead>
-              <TableHead>Chi nhánh</TableHead><TableHead>Giáo viên</TableHead>
-              <TableHead>Syllabus</TableHead><TableHead className="text-right">Học viên</TableHead>
-            </TableRow></TableHeader>
-            <TableBody>
-              {filteredClasses.map((c) => (
-                <TableRow key={c.id} className="cursor-pointer hover:bg-indigo-50" onClick={() => setSelected(c.id)}>
-                  <TableCell className="font-medium text-indigo-700">{c.name}</TableCell>
-                  <TableCell>{c.schedule} · {c.time}</TableCell>
-                  <TableCell>{c.branch}</TableCell>
-                  <TableCell>{c.teacher}</TableCell>
-                  <TableCell className="text-xs">{c.syllabus}</TableCell>
-                  <TableCell className="text-right">{students.filter((s) => s.classId === c.id).length}</TableCell>
-                </TableRow>
-              ))}
-              {filteredClasses.length === 0 && (
-                <TableRow><TableCell colSpan={6} className="text-center text-slate-500 py-6">Không có lớp phù hợp</TableCell></TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      <Dialog open={!!cls} onOpenChange={(o) => !o && setSelected(null)}>
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
-          {cls && (
-            <>
-              <DialogHeader className="flex flex-row items-center justify-between space-y-0">
-                <DialogTitle>Chi tiết lớp: {cls.name}</DialogTitle>
-                <Dialog open={openHoliday} onOpenChange={setOpenHoliday}>
-              <DialogTrigger asChild>
-                    <Button variant="outline" size="sm" className="mr-6"><CalendarOff className="h-4 w-4" /> Set lịch nghỉ</Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Set lịch nghỉ buổi học</DialogTitle>
-                  <DialogDescription>
-                    Khi xác nhận: trạng thái buổi chuyển "Nghỉ", không trừ buổi học viên, không cộng buổi giáo viên,
-                    và ngày kết thúc lớp tự dời thêm 1 buổi.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-2">
-                  <Label>Ngày nghỉ</Label>
-                  <Input placeholder="VD: 25/03/2026" value={holidayDate} onChange={(e) => setHolidayDate(e.target.value)} />
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setOpenHoliday(false)}>Hủy</Button>
-                  <Button onClick={confirmHoliday}>Xác nhận lịch nghỉ</Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-              </DialogHeader>
-              <div className="space-y-4">
+          </CardHeader>
+          <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-3 text-sm">
               <Info2 label="Chi nhánh" value={cls.branch} />
               <Info2 label="Giáo viên" value={cls.teacher} />
@@ -540,11 +491,64 @@ export function AdminClasses() {
                 </TableBody>
               </Table>
             </div>
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+          </CardContent>
+        </Card>
+      ) : (
+      <Card>
+        <CardHeader>
+          <CardTitle>Danh sách lớp</CardTitle>
+          <div className="grid grid-cols-2 gap-2 pt-2">
+            <div>
+              <Label className="text-xs text-slate-500">Chi nhánh</Label>
+              <Select
+                value={filterBranch}
+                onValueChange={(v) => { setFilterBranch(v); setFilterClassId("all"); }}
+              >
+                <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tất cả chi nhánh</SelectItem>
+                  {BRANCHES.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs text-slate-500">Lớp</Label>
+              <Select value={filterClassId} onValueChange={setFilterClassId}>
+                <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tất cả lớp</SelectItem>
+                  {classOptions.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader><TableRow>
+              <TableHead>Lớp</TableHead><TableHead>Lịch</TableHead>
+              <TableHead>Chi nhánh</TableHead><TableHead>Giáo viên</TableHead>
+              <TableHead>Syllabus</TableHead><TableHead className="text-right">Học viên</TableHead>
+            </TableRow></TableHeader>
+            <TableBody>
+              {filteredClasses.map((c) => (
+                <TableRow key={c.id} className="cursor-pointer hover:bg-indigo-50" onClick={() => setSelected(c.id)}>
+                  <TableCell className="font-medium text-indigo-700">{c.name}</TableCell>
+                  <TableCell>{c.schedule} · {c.time}</TableCell>
+                  <TableCell>{c.branch}</TableCell>
+                  <TableCell>{c.teacher}</TableCell>
+                  <TableCell className="text-xs">{c.syllabus}</TableCell>
+                  <TableCell className="text-right">{students.filter((s) => s.classId === c.id).length}</TableCell>
+                </TableRow>
+              ))}
+              {filteredClasses.length === 0 && (
+                <TableRow><TableCell colSpan={6} className="text-center text-slate-500 py-6">Không có lớp phù hợp</TableCell></TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+      )}
       <TransferDialog studentId={transferStudentId} onClose={() => setTransferStudentId(null)} />
     </div>
   );
