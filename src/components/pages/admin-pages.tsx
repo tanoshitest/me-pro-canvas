@@ -638,15 +638,22 @@ function Box({ label, value }: { label: string; value: string }) {
 }
 
 /* ============== TRANSFER ============== */
-export function AdminTransfer() {
+export function TransferDialog({ studentId, onClose }: { studentId: string | null; onClose: () => void }) {
   const { students, classes, setStudents } = useApp();
-  const [studentId, setStudentId] = React.useState(students[0].id);
-  const [newClassId, setNewClassId] = React.useState(classes[1].id);
+  const stu = students.find((s) => s.id === studentId) ?? null;
+  const oldClass = stu ? classes.find((c) => c.id === stu.classId) ?? null : null;
+  const otherClasses = oldClass ? classes.filter((c) => c.id !== oldClass.id) : [];
+  const [newClassId, setNewClassId] = React.useState<string>("");
   const [confirmOpen, setConfirmOpen] = React.useState(false);
 
-  const stu = students.find((s) => s.id === studentId)!;
-  const oldClass = classes.find((c) => c.id === stu.classId)!;
-  const newClass = classes.find((c) => c.id === newClassId)!;
+  React.useEffect(() => {
+    if (otherClasses[0]) setNewClassId(otherClasses[0].id);
+  }, [studentId]);
+
+  if (!stu || !oldClass) return null;
+  const newClass = classes.find((c) => c.id === newClassId) ?? otherClasses[0];
+  if (!newClass) return null;
+
   const remaining = stu.bought - stu.attended;
   const need = newClass.totalSessions - remaining;
   const needMore = need > 0;
@@ -655,76 +662,76 @@ export function AdminTransfer() {
   const sameBranch = oldClass.branch === newClass.branch;
 
   const apply = () => {
+    const note = needMore
+      ? `Chuyển ${oldClass.name} → ${newClass.name}: đóng thêm ${need} buổi (${formatVND(amountDue)})`
+      : `Chuyển ${oldClass.name} → ${newClass.name}: bảo lưu ${surplus} buổi`;
     setStudents((prev) => prev.map((s) => s.id === stu.id ? {
       ...s,
       classId: newClass.id,
       branch: newClass.branch,
       bought: needMore ? s.bought + need : s.bought,
       debt: s.debt + amountDue,
+      transferNote: note,
     } : s));
     toast.success("Chuyển lớp thành công", {
       description: needMore
-        ? `Phụ huynh cần đóng thêm ${need} buổi. Tiền: ${formatVND(amountDue)}`
+        ? `Đã ghi công nợ ${formatVND(amountDue)} vào hồ sơ học viên (xem ở Quản lý học viên).`
         : `Học viên còn dư ${surplus} buổi (bảo lưu).`,
     });
     setConfirmOpen(false);
+    onClose();
   };
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
-      <Card>
-        <CardHeader><CardTitle>Chuyển học viên qua lớp mới</CardTitle></CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <Field label="Học viên">
-              <Select value={studentId} onValueChange={setStudentId}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{students.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
-              </Select>
-            </Field>
-            <Field label="Lớp cũ"><Input value={oldClass.name} readOnly /></Field>
-            <Field label="Chi nhánh cũ"><Input value={oldClass.branch} readOnly /></Field>
-            <Field label="Số buổi còn lại lớp cũ"><Input value={remaining.toString()} readOnly /></Field>
-            <Field label="Lớp mới">
-              <Select value={newClassId} onValueChange={setNewClassId}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{classes.filter((c) => c.id !== oldClass.id).map((c) => <SelectItem key={c.id} value={c.id}>{c.name} ({c.branch})</SelectItem>)}</SelectContent>
-              </Select>
-            </Field>
-            <Field label="Chi nhánh mới"><Input value={newClass.branch} readOnly /></Field>
-            <Field label="Số buổi yêu cầu lớp mới"><Input value={newClass.totalSessions.toString()} readOnly /></Field>
-            <Field label="Đơn giá 1 buổi lớp mới"><Input value={formatVND(newClass.pricePerSession)} readOnly /></Field>
-          </div>
-          <div className={`text-xs px-3 py-2 rounded ${sameBranch ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-amber-50 text-amber-700 border border-amber-200"}`}>
-            {sameBranch ? "Chuyển cùng chi nhánh" : "Chuyển khác chi nhánh"} · {oldClass.branch} <ArrowRight className="inline h-3 w-3" /> {newClass.branch}
-          </div>
-          <Button size="lg" className="w-full" onClick={() => setConfirmOpen(true)}>
-            <Repeat className="h-4 w-4" /> Thực hiện chuyển lớp
-          </Button>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader><CardTitle className="flex items-center gap-2"><Info className="h-4 w-4 text-indigo-600" /> Kết quả tính toán</CardTitle></CardHeader>
-        <CardContent className="space-y-2 text-sm">
-          <Row label="Buổi còn lại lớp cũ" value={`${remaining} buổi`} />
-          <Row label="Yêu cầu lớp mới" value={`${newClass.totalSessions} buổi`} />
-          <Row label="Chênh lệch" value={`${need} buổi`} highlight />
-          {needMore ? (
-            <>
-              <div className="border-t pt-2 text-rose-700">
-                Phụ huynh cần đóng thêm <strong>{need}</strong> buổi.
+    <>
+      <Dialog open={!!studentId && !confirmOpen} onOpenChange={(v) => !v && onClose()}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Repeat className="h-5 w-5" /> Chuyển lớp: {stu.name}</DialogTitle>
+            <DialogDescription>Chọn lớp mới (cùng hoặc khác chi nhánh). Hệ thống tự tính chênh lệch buổi và công nợ.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-3">
+              <Field label="Lớp cũ"><Input value={`${oldClass.name} (${oldClass.branch})`} readOnly /></Field>
+              <Field label="Số buổi còn lại"><Input value={remaining.toString()} readOnly /></Field>
+              <Field label="Lớp mới">
+                <Select value={newClassId} onValueChange={setNewClassId}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{otherClasses.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name} · {c.branch} {c.branch === oldClass.branch ? "(cùng CN)" : ""}
+                    </SelectItem>
+                  ))}</SelectContent>
+                </Select>
+              </Field>
+              <Field label="Yêu cầu lớp mới"><Input value={`${newClass.totalSessions} buổi`} readOnly /></Field>
+              <Field label="Đơn giá 1 buổi"><Input value={formatVND(newClass.pricePerSession)} readOnly /></Field>
+              <div className={`text-xs px-3 py-2 rounded ${sameBranch ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-amber-50 text-amber-700 border border-amber-200"}`}>
+                {sameBranch ? "Chuyển cùng chi nhánh" : "Chuyển khác chi nhánh"} · {oldClass.branch} <ArrowRight className="inline h-3 w-3" /> {newClass.branch}
               </div>
-              <Row label="Tiền cần thu" value={formatVND(amountDue)} bold />
-              <div className="text-xs text-slate-500">→ Sẽ tạo công nợ cho học viên.</div>
-            </>
-          ) : (
-            <div className="border-t pt-2 text-emerald-700">
-              Không cần thu thêm, học viên còn dư <strong>{surplus}</strong> buổi → bảo lưu.
             </div>
-          )}
-        </CardContent>
-      </Card>
+            <div className="rounded-lg border bg-slate-50 p-4 space-y-2 text-sm">
+              <div className="font-semibold flex items-center gap-2"><Info className="h-4 w-4 text-indigo-600" /> Kết quả tính toán</div>
+              <Row label="Buổi còn lại lớp cũ" value={`${remaining} buổi`} />
+              <Row label="Yêu cầu lớp mới" value={`${newClass.totalSessions} buổi`} />
+              <Row label="Chênh lệch" value={`${need} buổi`} highlight />
+              {needMore ? (
+                <>
+                  <div className="border-t pt-2 text-rose-700 text-xs">Phụ huynh cần đóng thêm <strong>{need}</strong> buổi.</div>
+                  <Row label="Công nợ phát sinh" value={formatVND(amountDue)} bold />
+                  <div className="text-xs text-slate-500">→ Công nợ sẽ hiển thị trong Quản lý học viên.</div>
+                </>
+              ) : (
+                <div className="border-t pt-2 text-emerald-700 text-xs">Còn dư <strong>{surplus}</strong> buổi → bảo lưu.</div>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={onClose}>Hủy</Button>
+            <Button onClick={() => setConfirmOpen(true)}><Repeat className="h-4 w-4" /> Thực hiện chuyển lớp</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent>
@@ -740,10 +747,10 @@ export function AdminTransfer() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmOpen(false)}>Hủy</Button>
-            <Button onClick={apply}>Xác nhận</Button>
+            <Button onClick={apply}><CheckCircle2 className="h-4 w-4" /> Xác nhận</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }
