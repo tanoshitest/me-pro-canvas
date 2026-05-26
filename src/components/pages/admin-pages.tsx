@@ -1413,6 +1413,7 @@ function SyllabusDetail({ syllabus, onBack }: { syllabus: Syllabus; onBack: () =
           <TabsTrigger value="content"><FileText className="h-4 w-4 mr-1" /> Nội dung syllabus</TabsTrigger>
           <TabsTrigger value="attendance"><ClipboardCheck className="h-4 w-4 mr-1" /> Điểm danh</TabsTrigger>
           <TabsTrigger value="grades"><ListChecks className="h-4 w-4 mr-1" /> Nhập điểm trên lớp</TabsTrigger>
+          <TabsTrigger value="homework"><FileText className="h-4 w-4 mr-1" /> Nhập điểm homeworks</TabsTrigger>
           <TabsTrigger value="report"><BarChart3 className="h-4 w-4 mr-1" /> Báo cáo học vụ</TabsTrigger>
         </TabsList>
 
@@ -1515,6 +1516,10 @@ function SyllabusDetail({ syllabus, onBack }: { syllabus: Syllabus; onBack: () =
 
         <TabsContent value="grades">
           <SyllabusGradesTab />
+        </TabsContent>
+
+        <TabsContent value="homework">
+          <SyllabusHomeworkTab />
         </TabsContent>
 
         <TabsContent value="report">
