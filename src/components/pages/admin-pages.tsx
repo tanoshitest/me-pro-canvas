@@ -1168,6 +1168,7 @@ export function TransferDialog({ studentId, onClose }: { studentId: string | nul
   const remaining = stu.bought - stu.attended;
   const need = newClass.totalSessions - remaining;
   const needMore = need > 0;
+  const isEqual = need === 0;
   const amountDue = needMore ? need * newClass.pricePerSession : 0;
   const surplus = needMore ? 0 : -need;
   const sameBranch = oldClass.branch === newClass.branch;
@@ -1175,7 +1176,9 @@ export function TransferDialog({ studentId, onClose }: { studentId: string | nul
   const apply = () => {
     const note = needMore
       ? `Chuyển ${oldClass.name} → ${newClass.name}: đóng thêm ${need} buổi (${formatVND(amountDue)})`
-      : `Chuyển ${oldClass.name} → ${newClass.name}: bảo lưu ${surplus} buổi`;
+      : isEqual
+        ? `Chuyển ${oldClass.name} → ${newClass.name}: vừa khít, không phát sinh`
+        : `Chuyển ${oldClass.name} → ${newClass.name}: bảo lưu ${surplus} buổi`;
     setStudents((prev) => prev.map((s) => s.id === stu.id ? {
       ...s,
       classId: newClass.id,
@@ -1187,7 +1190,9 @@ export function TransferDialog({ studentId, onClose }: { studentId: string | nul
     toast.success("Chuyển lớp thành công", {
       description: needMore
         ? `Đã ghi công nợ ${formatVND(amountDue)} vào hồ sơ học viên (xem ở Quản lý học viên).`
-        : `Học viên còn dư ${surplus} buổi (bảo lưu).`,
+        : isEqual
+          ? `Số buổi vừa khít, không phát sinh công nợ.`
+          : `Học viên còn dư ${surplus} buổi (bảo lưu sang kỳ sau).`,
     });
     setConfirmOpen(false);
     onClose();
@@ -1231,8 +1236,10 @@ export function TransferDialog({ studentId, onClose }: { studentId: string | nul
                   <Row label="Công nợ phát sinh" value={formatVND(amountDue)} bold />
                   <div className="text-xs text-slate-500">→ Công nợ sẽ hiển thị trong Quản lý học viên.</div>
                 </>
+              ) : isEqual ? (
+                <div className="border-t pt-2 text-indigo-700 text-xs">Số buổi <strong>vừa khít</strong> với lớp mới, không phát sinh công nợ.</div>
               ) : (
-                <div className="border-t pt-2 text-emerald-700 text-xs">Còn dư <strong>{surplus}</strong> buổi → bảo lưu.</div>
+                <div className="border-t pt-2 text-emerald-700 text-xs">Còn dư <strong>{surplus}</strong> buổi → bảo lưu sang kỳ sau.</div>
               )}
             </div>
           </div>
@@ -1253,7 +1260,9 @@ export function TransferDialog({ studentId, onClose }: { studentId: string | nul
             <Row label="Buổi chênh lệch" value={`${need}`} highlight />
             {needMore
               ? <Row label="Công nợ phát sinh" value={formatVND(amountDue)} bold />
-              : <Row label="Số dư bảo lưu" value={`${surplus} buổi`} bold />}
+              : isEqual
+                ? <Row label="Trạng thái" value="Vừa khít · không phát sinh" bold />
+                : <Row label="Số dư bảo lưu" value={`${surplus} buổi`} bold />}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmOpen(false)}>Hủy</Button>

@@ -197,6 +197,36 @@ export const CLASSES: ClassRoom[] = [
       { day: "Chủ nhật",  time: "08:00 - 09:30", room: "P.302" },
     ],
   },
+  {
+    id: "c4", name: "4CLC3 (đang mở)", schedule: "Thứ 3, 5", time: "18:00 - 19:30", branch: "Đội Cấn",
+    teacher: "Cô Mai", room: "P.203", syllabus: "Family & Friends 1",
+    startDate: "15/03/2026", endDate: "15/06/2026",
+    totalSessions: 26, pricePerCourse: 3770000, pricePerSession: 145000,
+    sessions: [
+      { day: "Thứ 3", time: "18:00 - 19:30", room: "P.203" },
+      { day: "Thứ 5", time: "18:00 - 19:30", room: "P.203" },
+    ],
+  },
+  {
+    id: "c5", name: "FF2 Beginner", schedule: "Thứ 2, 6", time: "17:30 - 19:00", branch: "Hoàng Hoa Thám",
+    teacher: "Thầy Hùng", room: "P.106", syllabus: "Family & Friends 2",
+    startDate: "01/03/2026", endDate: "01/09/2026",
+    totalSessions: 36, pricePerCourse: 5220000, pricePerSession: 145000,
+    sessions: [
+      { day: "Thứ 2", time: "17:30 - 19:00", room: "P.106" },
+      { day: "Thứ 6", time: "17:30 - 19:00", room: "P.106" },
+    ],
+  },
+  {
+    id: "c6", name: "CLC4 Luyện thi", schedule: "Thứ 4, 7", time: "18:00 - 19:30", branch: "Ngọc Hà",
+    teacher: "Cô Lan", room: "P.302", syllabus: "Luyện thi CLC lớp 4",
+    startDate: "01/03/2026", endDate: "01/12/2026",
+    totalSessions: 48, pricePerCourse: 7680000, pricePerSession: 160000,
+    sessions: [
+      { day: "Thứ 4", time: "18:00 - 19:30", room: "P.302" },
+      { day: "Thứ 7", time: "09:30 - 11:00", room: "P.302" },
+    ],
+  },
 ];
 
 export interface TuitionTier {
