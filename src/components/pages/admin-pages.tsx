@@ -929,7 +929,6 @@ export function AdminReceipts() {
             <Box label="Phiếu đã hủy" value={String(cancelled.length)} />
             <Box label="Tổng Tiền mặt" value={formatVND(sumBy("Tiền mặt"))} />
             <Box label="Tổng Chuyển khoản" value={formatVND(sumBy("Chuyển khoản"))} />
-            <Box label="Tổng POS" value={formatVND(sumBy("POS"))} />
           </div>
           <div className="border border-amber-300 bg-amber-50 rounded p-3 text-xs text-amber-800 flex gap-2">
             <AlertTriangle className="h-4 w-4 shrink-0" />
