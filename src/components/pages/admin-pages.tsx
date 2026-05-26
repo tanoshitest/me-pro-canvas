@@ -12,12 +12,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useApp } from "@/lib/app-store";
 import {
   BRANCHES, CLASSES, PROMOTIONS, TUITION_CONFIG, formatVND,
+  CLASS_SHIFTS, ROOMS,
   type Receipt, type Branch,
 } from "@/lib/mock-data";
 import { toast } from "sonner";
 import {
   Users, GraduationCap, Wallet, AlertTriangle, Receipt as ReceiptIcon, XCircle,
   TrendingUp, Calendar, Info, CheckCircle2, ArrowRight, CalendarOff, Repeat,
+  Clock, DoorOpen, BookOpen,
 } from "lucide-react";
 
 /* ============== DASHBOARD ============== */
