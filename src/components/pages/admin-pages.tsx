@@ -1851,23 +1851,41 @@ export function AdminSyllabus() {
             </div>
             <div>
               <div className="text-sm font-semibold mb-2">Cấu hình chặng</div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-[200px,1fr] gap-3 items-end">
                 <div>
                   <Label className="text-xs text-slate-500">Số chặng</Label>
-                  <Input className="h-9 mt-1" type="number" min={1} max={20} value={form.stages} onChange={(e) => setForm({ ...form, stages: Number(e.target.value) })} />
+                  <Input className="h-9 mt-1" type="number" min={1} max={20} value={form.stages} onChange={(e) => setStageCount(Number(e.target.value))} />
                 </div>
-                <div>
-                  <Label className="text-xs text-slate-500">Số buổi mỗi chặng</Label>
-                  <Input className="h-9 mt-1" type="number" min={1} max={20} value={form.lessonsPerStage} onChange={(e) => setForm({ ...form, lessonsPerStage: Number(e.target.value) })} />
+                <div className="text-xs text-slate-500">
+                  Tổng: <b>{form.stageConfig.reduce((s, x) => s + (Number(x.lessons) || 0), 0)}</b> buổi ·{" "}
+                  <b>{form.stageConfig.filter((x) => x.bigTest).length}</b> Big Test
                 </div>
               </div>
-              <div className="mt-3 rounded-md border bg-slate-50 p-3">
-                <div className="text-xs font-medium text-slate-600 mb-2">Khung chặng dự kiến · {form.stages} chặng · {Number(form.stages) * Number(form.lessonsPerStage)} buổi</div>
-                <div className="flex flex-wrap gap-2">
-                  {Array.from({ length: Math.max(0, Math.min(20, Number(form.stages) || 0)) }).map((_, i) => (
-                    <div key={i} className="rounded-md border bg-white px-3 py-1.5 text-xs">
-                      <div className="font-semibold text-slate-700">Chặng {i + 1}</div>
-                      <div className="text-slate-500">{form.lessonsPerStage} buổi + Big Test</div>
+              <div className="mt-3 rounded-md border bg-slate-50 p-3 max-h-72 overflow-y-auto">
+                <div className="text-xs font-medium text-slate-600 mb-2">Cấu hình chi tiết từng chặng</div>
+                <div className="space-y-2">
+                  {form.stageConfig.map((st, i) => (
+                    <div key={i} className="flex items-center gap-3 rounded-md border bg-white px-3 py-2">
+                      <div className="font-semibold text-sm text-slate-700 w-20">Chặng {i + 1}</div>
+                      <div className="flex items-center gap-2">
+                        <Label className="text-xs text-slate-500">Số buổi</Label>
+                        <Input
+                          className="h-8 w-20"
+                          type="number"
+                          min={1}
+                          max={50}
+                          value={st.lessons}
+                          onChange={(e) => updateStage(i, { lessons: Number(e.target.value) })}
+                        />
+                      </div>
+                      <label className="flex items-center gap-2 text-xs text-slate-600 ml-auto cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={st.bigTest}
+                          onChange={(e) => updateStage(i, { bigTest: e.target.checked })}
+                        />
+                        Có Big Test
+                      </label>
                     </div>
                   ))}
                 </div>
