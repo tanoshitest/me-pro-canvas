@@ -137,6 +137,12 @@ export function AdminStudents() {
                 <Info2 label="Còn lại" value={(stu.bought - stu.attended).toString()} />
                 <Info2 label="Công nợ" value={formatVND(stu.debt)} />
               </div>
+              {stu.transferNote && (
+                <div className="rounded-md border border-amber-300 bg-amber-50 text-amber-800 text-sm px-3 py-2 flex items-start gap-2">
+                  <Repeat className="h-4 w-4 mt-0.5 shrink-0" />
+                  <span><strong>Lịch sử chuyển lớp:</strong> {stu.transferNote}</span>
+                </div>
+              )}
               <Tabs defaultValue="fee">
                 <TabsList>
                   <TabsTrigger value="fee">Lịch sử học phí</TabsTrigger>
