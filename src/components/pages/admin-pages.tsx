@@ -19,7 +19,7 @@ import { toast } from "sonner";
 import {
   Users, GraduationCap, Wallet, AlertTriangle, Receipt as ReceiptIcon, XCircle,
   TrendingUp, Calendar, Info, CheckCircle2, ArrowRight, CalendarOff, Repeat,
-  Clock, DoorOpen, BookOpen, Tag, Hash,
+  Clock, DoorOpen, BookOpen, Tag, Hash, ArrowLeft,
 } from "lucide-react";
 
 /* ============== DASHBOARD ============== */
@@ -107,38 +107,21 @@ export function AdminStudents() {
 
   return (
     <div className="space-y-4">
-      <Card>
-        <CardHeader><CardTitle>Danh sách học viên</CardTitle></CardHeader>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader><TableRow>
-              <TableHead>Họ tên</TableHead><TableHead>Chi nhánh</TableHead><TableHead>Còn buổi</TableHead><TableHead>Công nợ</TableHead>
-            </TableRow></TableHeader>
-            <TableBody>
-              {students.map((s) => (
-                <TableRow key={s.id} className="cursor-pointer hover:bg-slate-50" onClick={() => setSelected(s.id)}>
-                  <TableCell className="font-medium">{s.name}{s.nickname ? ` (${s.nickname})` : ""}</TableCell>
-                  <TableCell>{s.branch}</TableCell>
-                  <TableCell>{s.bought - s.attended}</TableCell>
-                  <TableCell className={s.debt > 0 ? "text-rose-600 font-semibold" : ""}>{formatVND(s.debt)}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      <Dialog open={!!stu} onOpenChange={(o) => !o && setSelected(null)}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          {stu && cls && (
-            <>
-              <DialogHeader>
-                <DialogTitle>Hồ sơ: {stu.name}</DialogTitle>
-                <DialogDescription>
-                  Mã HV: <span className="font-mono">{stu.id.toUpperCase()}</span> · {stu.branch}
-                </DialogDescription>
-              </DialogHeader>
-              <Tabs defaultValue="personal" className="space-y-3">
+      {stu && cls ? (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
+            <div>
+              <CardTitle>Hồ sơ: {stu.name}</CardTitle>
+              <div className="text-xs text-slate-500 mt-1">
+                Mã HV: <span className="font-mono">{stu.id.toUpperCase()}</span> · {stu.branch}
+              </div>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => setSelected(null)}>
+              <ArrowLeft className="h-4 w-4" /> Quay lại danh sách
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <Tabs defaultValue="personal" className="space-y-3">
               <TabsList className="flex-wrap h-auto">
                 <TabsTrigger value="personal">Học viên</TabsTrigger>
                 <TabsTrigger value="parent">Phụ huynh</TabsTrigger>
@@ -149,7 +132,6 @@ export function AdminStudents() {
                 <TabsTrigger value="ops">Lịch sử</TabsTrigger>
               </TabsList>
 
-              {/* ===== HỌC VIÊN ===== */}
               <TabsContent value="personal" className="mt-3 grid grid-cols-2 gap-3 text-sm">
                 <Info2 label="Mã học viên" value={stu.id.toUpperCase()} />
                 <Info2 label="Họ tên" value={`${stu.name}${stu.nickname ? ` (${stu.nickname})` : ""}`} />
@@ -161,7 +143,6 @@ export function AdminStudents() {
                 <Info2 label="Ghi chú" value={stu.note ?? "-"} className="col-span-2" />
               </TabsContent>
 
-              {/* ===== PHỤ HUYNH ===== */}
               <TabsContent value="parent" className="mt-3 grid grid-cols-2 gap-3 text-sm">
                 <Info2 label="Họ tên phụ huynh" value={stu.parentName ?? "-"} />
                 <Info2 label="Quan hệ" value={stu.parentRelation ?? "-"} />
@@ -169,7 +150,6 @@ export function AdminStudents() {
                 <Info2 label="Email" value={stu.parentEmail ?? "-"} />
               </TabsContent>
 
-              {/* ===== HỌC TẬP ===== */}
               <TabsContent value="academic" className="mt-3 space-y-3 text-sm">
                 <div className="grid grid-cols-2 gap-3">
                   <Info2 label="Chi nhánh" value={stu.branch} />
@@ -186,7 +166,6 @@ export function AdminStudents() {
                 </div>
               </TabsContent>
 
-              {/* ===== HỌC PHÍ ===== */}
               <TabsContent value="fee" className="mt-3 space-y-3 text-sm">
                 <div className="grid grid-cols-2 gap-3">
                   <Info2 label="Tổng buổi đã mua" value={`${stu.bought} buổi`} />
@@ -221,7 +200,6 @@ export function AdminStudents() {
                 </div>
               </TabsContent>
 
-              {/* ===== ĐIỂM DANH (top) ===== */}
               <TabsContent value="att-top" className="mt-3 text-sm">
                 {!stu.attendanceHistory?.length ? (
                   <p className="text-slate-500">Chưa có dữ liệu điểm danh.</p>
@@ -244,7 +222,6 @@ export function AdminStudents() {
                 )}
               </TabsContent>
 
-              {/* ===== KẾT QUẢ (top) ===== */}
               <TabsContent value="grade-top" className="mt-3 text-sm">
                 {!stu.scoreHistory?.length ? (
                   <p className="text-slate-500">Chưa có dữ liệu điểm.</p>
@@ -265,15 +242,34 @@ export function AdminStudents() {
                 )}
               </TabsContent>
 
-              {/* ===== LỊCH SỬ ===== */}
               <TabsContent value="ops" className="mt-3">
                 <StudentHistoryTimeline stu={stu} receipts={stuReceipts} />
               </TabsContent>
-              </Tabs>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+            </Tabs>
+          </CardContent>
+        </Card>
+      ) : (
+      <Card>
+        <CardHeader><CardTitle>Danh sách học viên</CardTitle></CardHeader>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader><TableRow>
+              <TableHead>Họ tên</TableHead><TableHead>Chi nhánh</TableHead><TableHead>Còn buổi</TableHead><TableHead>Công nợ</TableHead>
+            </TableRow></TableHeader>
+            <TableBody>
+              {students.map((s) => (
+                <TableRow key={s.id} className="cursor-pointer hover:bg-slate-50" onClick={() => setSelected(s.id)}>
+                  <TableCell className="font-medium">{s.name}{s.nickname ? ` (${s.nickname})` : ""}</TableCell>
+                  <TableCell>{s.branch}</TableCell>
+                  <TableCell>{s.bought - s.attended}</TableCell>
+                  <TableCell className={s.debt > 0 ? "text-rose-600 font-semibold" : ""}>{formatVND(s.debt)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+      )}
     </div>
   );
 }
@@ -404,91 +400,42 @@ export function AdminClasses() {
 
   return (
     <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>Danh sách lớp</CardTitle>
-          <div className="grid grid-cols-2 gap-2 pt-2">
+      {cls ? (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <div>
-              <Label className="text-xs text-slate-500">Chi nhánh</Label>
-              <Select
-                value={filterBranch}
-                onValueChange={(v) => { setFilterBranch(v); setFilterClassId("all"); }}
-              >
-                <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tất cả chi nhánh</SelectItem>
-                  {BRANCHES.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <CardTitle>Chi tiết lớp: {cls.name}</CardTitle>
+              <div className="text-xs text-slate-500 mt-1">{cls.branch} · {cls.teacher}</div>
             </div>
-            <div>
-              <Label className="text-xs text-slate-500">Lớp</Label>
-              <Select value={filterClassId} onValueChange={setFilterClassId}>
-                <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tất cả lớp</SelectItem>
-                  {classOptions.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+            <div className="flex items-center gap-2">
+              <Dialog open={openHoliday} onOpenChange={setOpenHoliday}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm"><CalendarOff className="h-4 w-4" /> Set lịch nghỉ</Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Set lịch nghỉ buổi học</DialogTitle>
+                    <DialogDescription>
+                      Khi xác nhận: trạng thái buổi chuyển "Nghỉ", không trừ buổi học viên, không cộng buổi giáo viên,
+                      và ngày kết thúc lớp tự dời thêm 1 buổi.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-2">
+                    <Label>Ngày nghỉ</Label>
+                    <Input placeholder="VD: 25/03/2026" value={holidayDate} onChange={(e) => setHolidayDate(e.target.value)} />
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setOpenHoliday(false)}>Hủy</Button>
+                    <Button onClick={confirmHoliday}>Xác nhận lịch nghỉ</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+              <Button variant="outline" size="sm" onClick={() => setSelected(null)}>
+                <ArrowLeft className="h-4 w-4" /> Quay lại danh sách
+              </Button>
             </div>
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader><TableRow>
-              <TableHead>Lớp</TableHead><TableHead>Lịch</TableHead>
-              <TableHead>Chi nhánh</TableHead><TableHead>Giáo viên</TableHead>
-              <TableHead>Syllabus</TableHead><TableHead className="text-right">Học viên</TableHead>
-            </TableRow></TableHeader>
-            <TableBody>
-              {filteredClasses.map((c) => (
-                <TableRow key={c.id} className="cursor-pointer hover:bg-indigo-50" onClick={() => setSelected(c.id)}>
-                  <TableCell className="font-medium text-indigo-700">{c.name}</TableCell>
-                  <TableCell>{c.schedule} · {c.time}</TableCell>
-                  <TableCell>{c.branch}</TableCell>
-                  <TableCell>{c.teacher}</TableCell>
-                  <TableCell className="text-xs">{c.syllabus}</TableCell>
-                  <TableCell className="text-right">{students.filter((s) => s.classId === c.id).length}</TableCell>
-                </TableRow>
-              ))}
-              {filteredClasses.length === 0 && (
-                <TableRow><TableCell colSpan={6} className="text-center text-slate-500 py-6">Không có lớp phù hợp</TableCell></TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      <Dialog open={!!cls} onOpenChange={(o) => !o && setSelected(null)}>
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
-          {cls && (
-            <>
-              <DialogHeader className="flex flex-row items-center justify-between space-y-0">
-                <DialogTitle>Chi tiết lớp: {cls.name}</DialogTitle>
-                <Dialog open={openHoliday} onOpenChange={setOpenHoliday}>
-              <DialogTrigger asChild>
-                    <Button variant="outline" size="sm" className="mr-6"><CalendarOff className="h-4 w-4" /> Set lịch nghỉ</Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Set lịch nghỉ buổi học</DialogTitle>
-                  <DialogDescription>
-                    Khi xác nhận: trạng thái buổi chuyển "Nghỉ", không trừ buổi học viên, không cộng buổi giáo viên,
-                    và ngày kết thúc lớp tự dời thêm 1 buổi.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-2">
-                  <Label>Ngày nghỉ</Label>
-                  <Input placeholder="VD: 25/03/2026" value={holidayDate} onChange={(e) => setHolidayDate(e.target.value)} />
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setOpenHoliday(false)}>Hủy</Button>
-                  <Button onClick={confirmHoliday}>Xác nhận lịch nghỉ</Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-              </DialogHeader>
-              <div className="space-y-4">
+          </CardHeader>
+          <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-3 text-sm">
               <Info2 label="Chi nhánh" value={cls.branch} />
               <Info2 label="Giáo viên" value={cls.teacher} />
@@ -544,11 +491,64 @@ export function AdminClasses() {
                 </TableBody>
               </Table>
             </div>
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+          </CardContent>
+        </Card>
+      ) : (
+      <Card>
+        <CardHeader>
+          <CardTitle>Danh sách lớp</CardTitle>
+          <div className="grid grid-cols-2 gap-2 pt-2">
+            <div>
+              <Label className="text-xs text-slate-500">Chi nhánh</Label>
+              <Select
+                value={filterBranch}
+                onValueChange={(v) => { setFilterBranch(v); setFilterClassId("all"); }}
+              >
+                <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tất cả chi nhánh</SelectItem>
+                  {BRANCHES.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs text-slate-500">Lớp</Label>
+              <Select value={filterClassId} onValueChange={setFilterClassId}>
+                <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tất cả lớp</SelectItem>
+                  {classOptions.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader><TableRow>
+              <TableHead>Lớp</TableHead><TableHead>Lịch</TableHead>
+              <TableHead>Chi nhánh</TableHead><TableHead>Giáo viên</TableHead>
+              <TableHead>Syllabus</TableHead><TableHead className="text-right">Học viên</TableHead>
+            </TableRow></TableHeader>
+            <TableBody>
+              {filteredClasses.map((c) => (
+                <TableRow key={c.id} className="cursor-pointer hover:bg-indigo-50" onClick={() => setSelected(c.id)}>
+                  <TableCell className="font-medium text-indigo-700">{c.name}</TableCell>
+                  <TableCell>{c.schedule} · {c.time}</TableCell>
+                  <TableCell>{c.branch}</TableCell>
+                  <TableCell>{c.teacher}</TableCell>
+                  <TableCell className="text-xs">{c.syllabus}</TableCell>
+                  <TableCell className="text-right">{students.filter((s) => s.classId === c.id).length}</TableCell>
+                </TableRow>
+              ))}
+              {filteredClasses.length === 0 && (
+                <TableRow><TableCell colSpan={6} className="text-center text-slate-500 py-6">Không có lớp phù hợp</TableCell></TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+      )}
       <TransferDialog studentId={transferStudentId} onClose={() => setTransferStudentId(null)} />
     </div>
   );
@@ -1339,6 +1339,130 @@ export function AdminTeachers() {
 
   return (
     <div className="space-y-4">
+      {sel ? (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
+            <div>
+              <CardTitle>{sel.name}</CardTitle>
+              <div className="text-xs text-slate-500 mt-1">{sel.position} · CN {sel.branch} · Vào làm {sel.startDate}</div>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => setSelId(null)}>
+              <ArrowLeft className="h-4 w-4" /> Quay lại danh sách
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <Tabs defaultValue="info" className="space-y-3">
+              <TabsList className="flex-wrap h-auto">
+                <TabsTrigger value="info">Thông tin</TabsTrigger>
+                <TabsTrigger value="contract">Hợp đồng</TabsTrigger>
+                <TabsTrigger value="related">Người liên quan</TabsTrigger>
+                <TabsTrigger value="classes">Lớp phụ trách</TabsTrigger>
+                <TabsTrigger value="att">Chấm công</TabsTrigger>
+                <TabsTrigger value="salary">Lương</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="info" className="grid grid-cols-2 gap-3 text-sm mt-3">
+                <Info2 label="Họ tên" value={sel.name} />
+                <Info2 label="Giới tính" value={sel.gender} />
+                <Info2 label="Ngày sinh" value={sel.dob} />
+                <Info2 label="Email" value={sel.email} />
+                <Info2 label="Số điện thoại" value={sel.phone} />
+                <Info2 label="Chi nhánh" value={sel.branch} />
+                <Info2 label="Địa chỉ" value={sel.address} className="col-span-2" />
+                <Info2 label="Lương cơ bản" value={formatVND(sel.baseSalary)} />
+                <Info2 label="Lương / buổi" value={formatVND(sel.perSessionRate)} />
+              </TabsContent>
+
+              <TabsContent value="contract" className="text-sm mt-3 space-y-2">
+                <div className="rounded-md border bg-slate-50 px-3 py-3 flex items-center justify-between">
+                  <div>
+                    <div className="font-medium">{sel.contract.name}</div>
+                    <div className="text-xs text-slate-500">
+                      Ký {sel.contract.signedAt} · Hết hạn {sel.contract.expiresAt}
+                    </div>
+                    <div className="text-xs text-indigo-600 mt-1 font-mono">📎 {sel.contract.fileName}</div>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => toast.success("Đã tải xuống hợp đồng (demo)")}>
+                    Tải xuống
+                  </Button>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="related" className="text-sm mt-3">
+                {sel.related.length === 0 ? (
+                  <p className="text-slate-500">Chưa có người liên quan.</p>
+                ) : (
+                  <Table><TableHeader><TableRow>
+                    <TableHead>Họ tên</TableHead><TableHead>Quan hệ</TableHead><TableHead>SĐT</TableHead>
+                  </TableRow></TableHeader><TableBody>
+                    {sel.related.map((r, i) => (
+                      <TableRow key={i}>
+                        <TableCell className="font-medium">{r.name}</TableCell>
+                        <TableCell>{r.relation}</TableCell>
+                        <TableCell>{r.phone}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody></Table>
+                )}
+              </TabsContent>
+
+              <TabsContent value="classes" className="text-sm mt-3">
+                {teacherClasses.length === 0 ? (
+                  <p className="text-slate-500">Chưa phụ trách lớp nào.</p>
+                ) : (
+                  <Table><TableHeader><TableRow>
+                    <TableHead>Lớp</TableHead><TableHead>Syllabus</TableHead>
+                    <TableHead>Lịch</TableHead><TableHead>Phòng</TableHead>
+                  </TableRow></TableHeader><TableBody>
+                    {teacherClasses.map((c) => (
+                      <TableRow key={c.id}>
+                        <TableCell className="font-medium">{c.name}</TableCell>
+                        <TableCell>{c.syllabus}</TableCell>
+                        <TableCell className="text-xs">{c.schedule} · {c.time}</TableCell>
+                        <TableCell>{c.room}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody></Table>
+                )}
+              </TabsContent>
+
+              <TabsContent value="att" className="text-sm mt-3">
+                <Table><TableHeader><TableRow>
+                  <TableHead>Tháng</TableHead><TableHead className="text-right">Số buổi</TableHead>
+                  <TableHead className="text-right">Vắng</TableHead><TableHead className="text-right">Đi muộn</TableHead>
+                </TableRow></TableHeader><TableBody>
+                  {sel.attendanceReport.map((a, i) => (
+                    <TableRow key={i}>
+                      <TableCell className="font-medium">{a.month}</TableCell>
+                      <TableCell className="text-right">{a.sessions}</TableCell>
+                      <TableCell className="text-right">{a.absent}</TableCell>
+                      <TableCell className="text-right">{a.late}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody></Table>
+              </TabsContent>
+
+              <TabsContent value="salary" className="text-sm mt-3">
+                <Table><TableHeader><TableRow>
+                  <TableHead>Tháng</TableHead><TableHead className="text-right">Buổi</TableHead>
+                  <TableHead className="text-right">Tổng</TableHead><TableHead className="text-right">Trừ</TableHead>
+                  <TableHead className="text-right">Thực nhận</TableHead>
+                </TableRow></TableHeader><TableBody>
+                  {sel.salaryReport.map((s, i) => (
+                    <TableRow key={i}>
+                      <TableCell className="font-medium">{s.month}</TableCell>
+                      <TableCell className="text-right">{s.sessions}</TableCell>
+                      <TableCell className="text-right">{formatVND(s.gross)}</TableCell>
+                      <TableCell className="text-right text-rose-600">-{formatVND(s.deduct)}</TableCell>
+                      <TableCell className="text-right font-semibold">{formatVND(s.net)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody></Table>
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
+      ) : (
       <Card>
         <CardHeader><CardTitle>Danh sách giáo viên</CardTitle></CardHeader>
         <CardContent className="p-0">
@@ -1364,128 +1488,7 @@ export function AdminTeachers() {
           </Table>
         </CardContent>
       </Card>
-
-      <Dialog open={!!sel} onOpenChange={(o) => !o && setSelId(null)}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          {sel && (
-            <>
-              <DialogHeader>
-                <DialogTitle>{sel.name}</DialogTitle>
-                <DialogDescription>{sel.position} · CN {sel.branch} · Vào làm {sel.startDate}</DialogDescription>
-              </DialogHeader>
-              <Tabs defaultValue="info" className="space-y-3">
-            <TabsList className="flex-wrap h-auto">
-              <TabsTrigger value="info">Thông tin</TabsTrigger>
-              <TabsTrigger value="contract">Hợp đồng</TabsTrigger>
-              <TabsTrigger value="related">Người liên quan</TabsTrigger>
-              <TabsTrigger value="classes">Lớp phụ trách</TabsTrigger>
-              <TabsTrigger value="att">Chấm công</TabsTrigger>
-              <TabsTrigger value="salary">Lương</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="info" className="grid grid-cols-2 gap-3 text-sm mt-3">
-              <Info2 label="Họ tên" value={sel.name} />
-              <Info2 label="Giới tính" value={sel.gender} />
-              <Info2 label="Ngày sinh" value={sel.dob} />
-              <Info2 label="Email" value={sel.email} />
-              <Info2 label="Số điện thoại" value={sel.phone} />
-              <Info2 label="Chi nhánh" value={sel.branch} />
-              <Info2 label="Địa chỉ" value={sel.address} className="col-span-2" />
-              <Info2 label="Lương cơ bản" value={formatVND(sel.baseSalary)} />
-              <Info2 label="Lương / buổi" value={formatVND(sel.perSessionRate)} />
-            </TabsContent>
-
-            <TabsContent value="contract" className="text-sm mt-3 space-y-2">
-              <div className="rounded-md border bg-slate-50 px-3 py-3 flex items-center justify-between">
-                <div>
-                  <div className="font-medium">{sel.contract.name}</div>
-                  <div className="text-xs text-slate-500">
-                    Ký {sel.contract.signedAt} · Hết hạn {sel.contract.expiresAt}
-                  </div>
-                  <div className="text-xs text-indigo-600 mt-1 font-mono">📎 {sel.contract.fileName}</div>
-                </div>
-                <Button variant="outline" size="sm" onClick={() => toast.success("Đã tải xuống hợp đồng (demo)")}>
-                  Tải xuống
-                </Button>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="related" className="text-sm mt-3">
-              {sel.related.length === 0 ? (
-                <p className="text-slate-500">Chưa có người liên quan.</p>
-              ) : (
-                <Table><TableHeader><TableRow>
-                  <TableHead>Họ tên</TableHead><TableHead>Quan hệ</TableHead><TableHead>SĐT</TableHead>
-                </TableRow></TableHeader><TableBody>
-                  {sel.related.map((r, i) => (
-                    <TableRow key={i}>
-                      <TableCell className="font-medium">{r.name}</TableCell>
-                      <TableCell>{r.relation}</TableCell>
-                      <TableCell>{r.phone}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody></Table>
-              )}
-            </TabsContent>
-
-            <TabsContent value="classes" className="text-sm mt-3">
-              {teacherClasses.length === 0 ? (
-                <p className="text-slate-500">Chưa phụ trách lớp nào.</p>
-              ) : (
-                <Table><TableHeader><TableRow>
-                  <TableHead>Lớp</TableHead><TableHead>Syllabus</TableHead>
-                  <TableHead>Lịch</TableHead><TableHead>Phòng</TableHead>
-                </TableRow></TableHeader><TableBody>
-                  {teacherClasses.map((c) => (
-                    <TableRow key={c.id}>
-                      <TableCell className="font-medium">{c.name}</TableCell>
-                      <TableCell>{c.syllabus}</TableCell>
-                      <TableCell className="text-xs">{c.schedule} · {c.time}</TableCell>
-                      <TableCell>{c.room}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody></Table>
-              )}
-            </TabsContent>
-
-            <TabsContent value="att" className="text-sm mt-3">
-              <Table><TableHeader><TableRow>
-                <TableHead>Tháng</TableHead><TableHead className="text-right">Số buổi</TableHead>
-                <TableHead className="text-right">Vắng</TableHead><TableHead className="text-right">Đi muộn</TableHead>
-              </TableRow></TableHeader><TableBody>
-                {sel.attendanceReport.map((a, i) => (
-                  <TableRow key={i}>
-                    <TableCell className="font-medium">{a.month}</TableCell>
-                    <TableCell className="text-right">{a.sessions}</TableCell>
-                    <TableCell className="text-right">{a.absent}</TableCell>
-                    <TableCell className="text-right">{a.late}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody></Table>
-            </TabsContent>
-
-            <TabsContent value="salary" className="text-sm mt-3">
-              <Table><TableHeader><TableRow>
-                <TableHead>Tháng</TableHead><TableHead className="text-right">Buổi</TableHead>
-                <TableHead className="text-right">Tổng</TableHead><TableHead className="text-right">Trừ</TableHead>
-                <TableHead className="text-right">Thực nhận</TableHead>
-              </TableRow></TableHeader><TableBody>
-                {sel.salaryReport.map((s, i) => (
-                  <TableRow key={i}>
-                    <TableCell className="font-medium">{s.month}</TableCell>
-                    <TableCell className="text-right">{s.sessions}</TableCell>
-                    <TableCell className="text-right">{formatVND(s.gross)}</TableCell>
-                    <TableCell className="text-right text-rose-600">-{formatVND(s.deduct)}</TableCell>
-                    <TableCell className="text-right font-semibold">{formatVND(s.net)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody></Table>
-            </TabsContent>
-              </Tabs>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+      )}
     </div>
   );
 }
