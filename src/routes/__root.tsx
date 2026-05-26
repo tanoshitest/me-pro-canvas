@@ -75,11 +75,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { title: "ME PROTOTYPE — Hệ thống quản lý trung tâm ngoại ngữ" },
       { name: "description", content: "Demo quản lý học viên, lớp học, học phí và phiếu thu cho trung tâm ngoại ngữ." },
       { name: "author", content: "ME PROTOTYPE" },
-      { property: "og:title", content: "ME PROTOTYPE" },
-      { property: "og:description", content: "Demo nghiệp vụ trung tâm ngoại ngữ" },
+      { property: "og:title", content: "ME PROTOTYPE — Hệ thống quản lý trung tâm ngoại ngữ" },
+      { property: "og:description", content: "Demo quản lý học viên, lớp học, học phí và phiếu thu cho trung tâm ngoại ngữ." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:title", content: "ME PROTOTYPE — Hệ thống quản lý trung tâm ngoại ngữ" },
+      { name: "twitter:description", content: "Demo quản lý học viên, lớp học, học phí và phiếu thu cho trung tâm ngoại ngữ." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/61e2904e-643e-44a6-a38c-f261373e5925/id-preview-4d367318--57879b64-d5af-4e8f-831d-f58fd38d8c73.lovable.app-1779763886028.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/61e2904e-643e-44a6-a38c-f261373e5925/id-preview-4d367318--57879b64-d5af-4e8f-831d-f58fd38d8c73.lovable.app-1779763886028.png" },
     ],
     links: [
       {
