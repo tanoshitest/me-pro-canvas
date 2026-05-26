@@ -19,7 +19,7 @@ import { toast } from "sonner";
 import {
   Users, GraduationCap, Wallet, AlertTriangle, Receipt as ReceiptIcon, XCircle,
   TrendingUp, Calendar, Info, CheckCircle2, ArrowRight, CalendarOff, Repeat,
-  Clock, DoorOpen, BookOpen,
+  Clock, DoorOpen, BookOpen, Tag,
 } from "lucide-react";
 
 /* ============== DASHBOARD ============== */
@@ -481,6 +481,7 @@ export function AdminTuition() {
         <TabsTrigger value="shifts"><Clock className="h-4 w-4" /> Ca học</TabsTrigger>
         <TabsTrigger value="rooms"><DoorOpen className="h-4 w-4" /> Phòng học</TabsTrigger>
         <TabsTrigger value="fee"><BookOpen className="h-4 w-4" /> Học phí</TabsTrigger>
+        <TabsTrigger value="promotions"><Tag className="h-4 w-4" /> Khuyến mãi</TabsTrigger>
       </TabsList>
 
       <TabsContent value="shifts">
@@ -579,29 +580,25 @@ export function AdminTuition() {
           ))}
         </div>
       </TabsContent>
-    </Tabs>
-  );
-}
-
-/* ============== PROMOTIONS ============== */
-export function AdminPromotions() {
-  return (
-    <Card>
-      <CardHeader><CardTitle>Danh sách khuyến mãi</CardTitle></CardHeader>
-      <CardContent>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {PROMOTIONS.map((p) => (
-            <div key={p.id} className="border rounded-lg p-4 bg-white flex items-center justify-between">
-              <div>
-                <div className="font-medium">{p.label}</div>
-                <div className="text-xs text-slate-500">{p.type === "fixed" ? "Giảm tiền cố định" : "Giảm theo %"}</div>
-              </div>
-              <Badge variant="secondary">{p.type === "fixed" ? formatVND(p.value) : `${p.value}%`}</Badge>
+      <TabsContent value="promotions">
+        <Card>
+          <CardHeader><CardTitle>Danh sách khuyến mãi</CardTitle></CardHeader>
+          <CardContent>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {PROMOTIONS.map((p) => (
+                <div key={p.id} className="border rounded-lg p-4 bg-white flex items-center justify-between">
+                  <div>
+                    <div className="font-medium">{p.label}</div>
+                    <div className="text-xs text-slate-500">{p.type === "fixed" ? "Giảm tiền cố định" : "Giảm theo %"}</div>
+                  </div>
+                  <Badge variant="secondary">{p.type === "fixed" ? formatVND(p.value) : `${p.value}%`}</Badge>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
+          </CardContent>
+        </Card>
+      </TabsContent>
+    </Tabs>
   );
 }
 
