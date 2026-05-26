@@ -1,6 +1,7 @@
 import * as React from "react";
 import {
-  RECEIPTS_SEED, STUDENTS, CLASSES, type Receipt, type Student, type ClassRoom, type Role,
+  RECEIPTS_SEED, STUDENTS, CLASSES, CASH_RECEIPT_CONFIG_SEED,
+  type Receipt, type Student, type ClassRoom, type Role, type CashReceiptConfig,
 } from "./mock-data";
 
 type Ctx = {
@@ -8,6 +9,7 @@ type Ctx = {
   students: Student[]; setStudents: React.Dispatch<React.SetStateAction<Student[]>>;
   classes: ClassRoom[]; setClasses: React.Dispatch<React.SetStateAction<ClassRoom[]>>;
   receipts: Receipt[]; setReceipts: React.Dispatch<React.SetStateAction<Receipt[]>>;
+  cashConfig: CashReceiptConfig[]; setCashConfig: React.Dispatch<React.SetStateAction<CashReceiptConfig[]>>;
   page: string; setPage: (p: string) => void;
 };
 
@@ -18,6 +20,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [students, setStudents] = React.useState<Student[]>(STUDENTS);
   const [classes, setClasses] = React.useState<ClassRoom[]>(CLASSES);
   const [receipts, setReceipts] = React.useState<Receipt[]>(RECEIPTS_SEED);
+  const [cashConfig, setCashConfig] = React.useState<CashReceiptConfig[]>(CASH_RECEIPT_CONFIG_SEED);
   const [page, setPage] = React.useState<string>("dashboard");
 
   React.useEffect(() => {
@@ -28,7 +31,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [role]);
 
   return (
-    <AppCtx.Provider value={{ role, setRole, students, setStudents, classes, setClasses, receipts, setReceipts, page, setPage }}>
+    <AppCtx.Provider value={{ role, setRole, students, setStudents, classes, setClasses, receipts, setReceipts, cashConfig, setCashConfig, page, setPage }}>
       {children}
     </AppCtx.Provider>
   );
