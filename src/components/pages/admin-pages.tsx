@@ -600,6 +600,57 @@ export function AdminTuition() {
           </CardContent>
         </Card>
       </TabsContent>
+
+      <TabsContent value="receipts">
+        <Card>
+          <CardHeader>
+            <CardTitle>Cấu hình số phiếu thu tiền mặt</CardTitle>
+            <p className="text-xs text-slate-500">
+              Mỗi chi nhánh có dải số phiếu thu giấy riêng. Khi thu tiền mặt, hệ thống tự sinh mã phiếu kế tiếp theo dải đã cấu hình.
+              Phiếu chuyển khoản dùng mã tự sinh chung (CK-xxxx).
+            </p>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader><TableRow>
+                <TableHead>Chi nhánh</TableHead>
+                <TableHead>Tiền tố</TableHead>
+                <TableHead>Số bắt đầu</TableHead>
+                <TableHead>Số kết thúc</TableHead>
+                <TableHead>Số đã dùng</TableHead>
+                <TableHead>Số kế tiếp</TableHead>
+              </TableRow></TableHeader>
+              <TableBody>
+                {cashConfig.map((c) => {
+                  const next = Math.max(c.current + 1, c.start);
+                  const exhausted = next > c.end;
+                  return (
+                    <TableRow key={c.branch}>
+                      <TableCell className="font-medium">{c.branch}</TableCell>
+                      <TableCell>
+                        <Input className="w-24" value={c.prefix}
+                          onChange={(e) => setCashConfig((prev) => prev.map((x) => x.branch === c.branch ? { ...x, prefix: e.target.value.toUpperCase() } : x))} />
+                      </TableCell>
+                      <TableCell>
+                        <Input className="w-28" type="number" value={c.start}
+                          onChange={(e) => setCashConfig((prev) => prev.map((x) => x.branch === c.branch ? { ...x, start: Number(e.target.value) } : x))} />
+                      </TableCell>
+                      <TableCell>
+                        <Input className="w-28" type="number" value={c.end}
+                          onChange={(e) => setCashConfig((prev) => prev.map((x) => x.branch === c.branch ? { ...x, end: Number(e.target.value) } : x))} />
+                      </TableCell>
+                      <TableCell>{c.current}</TableCell>
+                      <TableCell className={`font-mono ${exhausted ? "text-red-600" : "text-indigo-700"}`}>
+                        {exhausted ? "Đã hết dải" : `${c.prefix}-${String(next).padStart(6, "0")}`}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </TabsContent>
     </Tabs>
   );
 }
