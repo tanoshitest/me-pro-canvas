@@ -879,11 +879,13 @@ export function CollectFeeDialog({ studentId, onClose }: { studentId: string | n
   const [date, setDate] = React.useState("26/05/2026");
   const [note, setNote] = React.useState("");
   const [confirmOpen, setConfirmOpen] = React.useState(false);
+  const receivedTouched = React.useRef(false);
 
   React.useEffect(() => {
     if (studentId) {
-      setPkg("1"); setPromoId("p0"); setExtra(0); setReceived(0);
+      setPkg("1"); setPromoId("p0"); setExtra(0);
       setMethod("Tiền mặt"); setNote("");
+      receivedTouched.current = false;
     }
   }, [studentId]);
 
@@ -910,6 +912,12 @@ export function CollectFeeDialog({ studentId, onClose }: { studentId: string | n
   const discount = promo.type === "fixed" ? promo.value : Math.round((base * promo.value) / 100);
   const total = Math.max(0, base - discount + Number(extra));
   const debt = Math.max(0, total - Number(received));
+
+  // Mặc định "Thực thu" = "Thành tiền" để công nợ = 0 (học viên đã đóng đủ).
+  // Nếu nhân viên tự nhập số khác thì giữ nguyên giá trị họ nhập.
+  React.useEffect(() => {
+    if (!receivedTouched.current) setReceived(total);
+  }, [total]);
 
   const submit = () => {
     if (!receiptNo.trim()) {
@@ -977,7 +985,11 @@ export function CollectFeeDialog({ studentId, onClose }: { studentId: string | n
                 <Input type="number" value={extra} onChange={(e) => setExtra(Number(e.target.value))} />
               </Field>
               <Field label="Thực thu (VNĐ)">
-                <Input type="number" value={received} onChange={(e) => setReceived(Number(e.target.value))} />
+                <Input
+                  type="number"
+                  value={received}
+                  onChange={(e) => { receivedTouched.current = true; setReceived(Number(e.target.value)); }}
+                />
               </Field>
               <Field label="Phương thức">
                 <Select value={method} onValueChange={(v) => setMethod(v as Receipt["method"])}>
