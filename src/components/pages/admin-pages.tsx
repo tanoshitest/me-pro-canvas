@@ -26,7 +26,7 @@ import {
   Users, GraduationCap, Wallet, AlertTriangle, Receipt as ReceiptIcon, XCircle,
   TrendingUp, Calendar, Info, CheckCircle2, ArrowRight, CalendarOff, Repeat,
   Clock, DoorOpen, BookOpen, Tag, Hash, ArrowLeft,
-  Layers, FileText, ClipboardCheck, BarChart3, ExternalLink, Plus, Pencil, Copy, Trash2, Download, FileSpreadsheet, ListChecks, Target, ChevronRight,
+  Layers, FileText, ClipboardCheck, BarChart3, ExternalLink, Plus, Pencil, Copy, Trash2, Download, FileSpreadsheet, ListChecks, Target, ChevronRight, ChevronLeft,
   CalendarIcon,
 } from "lucide-react";
 
