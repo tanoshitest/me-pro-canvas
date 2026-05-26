@@ -748,8 +748,7 @@ export function TransferDialog({ studentId, onClose }: { studentId: string | nul
                   ))}</SelectContent>
                 </Select>
               </Field>
-              <Field label="Yêu cầu lớp mới"><Input value={`${newClass.totalSessions} buổi`} readOnly /></Field>
-              <Field label="Đơn giá 1 buổi"><Input value={formatVND(newClass.pricePerSession)} readOnly /></Field>
+              <Field label="Số buổi còn lại của lớp mới"><Input value={`${newClass.totalSessions} buổi`} readOnly /></Field>
               <div className={`text-xs px-3 py-2 rounded ${sameBranch ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-amber-50 text-amber-700 border border-amber-200"}`}>
                 {sameBranch ? "Chuyển cùng chi nhánh" : "Chuyển khác chi nhánh"} · {oldClass.branch} <ArrowRight className="inline h-3 w-3" /> {newClass.branch}
               </div>
@@ -757,7 +756,7 @@ export function TransferDialog({ studentId, onClose }: { studentId: string | nul
             <div className="rounded-lg border bg-slate-50 p-4 space-y-2 text-sm">
               <div className="font-semibold flex items-center gap-2"><Info className="h-4 w-4 text-indigo-600" /> Kết quả tính toán</div>
               <Row label="Buổi còn lại lớp cũ" value={`${remaining} buổi`} />
-              <Row label="Yêu cầu lớp mới" value={`${newClass.totalSessions} buổi`} />
+              <Row label="Số buổi còn lại của lớp mới" value={`${newClass.totalSessions} buổi`} />
               <Row label="Chênh lệch" value={`${need} buổi`} highlight />
               {needMore ? (
                 <>
