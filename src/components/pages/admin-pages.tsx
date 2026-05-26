@@ -902,22 +902,21 @@ export function CollectFeeDialog({ studentId, onClose }: { studentId: string | n
     }
   }, [studentId, method, stu, cashConfig, receipts.length]);
 
-  if (!stu || !cls) return null;
-  const cashCfg = cashConfig.find((c) => c.branch === stu.branch);
-  const cashExhausted = method === "Tiền mặt" && (!cashCfg || Math.max(cashCfg.current + 1, cashCfg.start) > cashCfg.end);
-
-  const sessionsToAdd = Number(pkg) * cls.totalSessions;
-  const base = cls.pricePerCourse * Number(pkg);
+  const sessionsToAdd = stu && cls ? Number(pkg) * cls.totalSessions : 0;
+  const base = cls ? cls.pricePerCourse * Number(pkg) : 0;
   const promo = PROMOTIONS.find((p) => p.id === promoId)!;
   const discount = promo.type === "fixed" ? promo.value : Math.round((base * promo.value) / 100);
   const total = Math.max(0, base - discount + Number(extra));
   const debt = Math.max(0, total - Number(received));
 
   // Mặc định "Thực thu" = "Thành tiền" để công nợ = 0 (học viên đã đóng đủ).
-  // Nếu nhân viên tự nhập số khác thì giữ nguyên giá trị họ nhập.
   React.useEffect(() => {
     if (!receivedTouched.current) setReceived(total);
   }, [total]);
+
+  if (!stu || !cls) return null;
+  const cashCfg = cashConfig.find((c) => c.branch === stu.branch);
+  const cashExhausted = method === "Tiền mặt" && (!cashCfg || Math.max(cashCfg.current + 1, cashCfg.start) > cashCfg.end);
 
   const submit = () => {
     if (!receiptNo.trim()) {
