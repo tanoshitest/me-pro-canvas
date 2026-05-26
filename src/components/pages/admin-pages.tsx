@@ -308,6 +308,13 @@ export function AdminClasses() {
               <Info2 label="Ngày bắt đầu" value={cls.startDate} />
               <Info2 label="Ngày kết thúc dự kiến" value={cls.endDate} />
               <Info2 label="Số buổi / khóa" value={cls.totalSessions.toString()} />
+              <Info2
+                label="Tiến độ"
+                value={`${Math.min(
+                  cls.totalSessions,
+                  Math.max(0, ...students.filter((s) => s.classId === cls.id).map((s) => s.attended)),
+                )}/${cls.totalSessions} buổi`}
+              />
               <Info2 label="Học phí" value={formatVND(cls.pricePerCourse)} />
             </div>
 
