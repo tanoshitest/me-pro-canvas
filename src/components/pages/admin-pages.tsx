@@ -1499,9 +1499,9 @@ function StatBox({ icon: Icon, label, value, color }: { icon: React.ComponentTyp
   );
 }
 
-function SyllabusContentTree({ stages }: { stages: typeof SYLLABUS_STAGES }) {
-  type Sel = { kind: "lesson"; stageId: string; lessonId: string } | { kind: "bigtest"; stageId: string };
-  const [sel, setSel] = React.useState<Sel>({ kind: "lesson", stageId: stages[0].id, lessonId: stages[0].lessons[0].id });
+type SyllabusSel = { kind: "lesson"; stageId: string; lessonId: string } | { kind: "bigtest"; stageId: string };
+
+function SyllabusContentTree({ stages, sel, setSel }: { stages: typeof SYLLABUS_STAGES; sel: SyllabusSel; setSel: React.Dispatch<React.SetStateAction<SyllabusSel>> }) {
   const [openStages, setOpenStages] = React.useState<Record<string, boolean>>(() =>
     Object.fromEntries(stages.map((s, i) => [s.id, i === 0])),
   );
