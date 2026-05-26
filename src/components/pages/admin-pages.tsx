@@ -482,6 +482,7 @@ export function AdminTuition() {
         <TabsTrigger value="rooms"><DoorOpen className="h-4 w-4" /> Phòng học</TabsTrigger>
         <TabsTrigger value="fee"><BookOpen className="h-4 w-4" /> Học phí</TabsTrigger>
         <TabsTrigger value="promotions"><Tag className="h-4 w-4" /> Khuyến mãi</TabsTrigger>
+        <TabsTrigger value="receipts"><Hash className="h-4 w-4" /> Phiếu thu</TabsTrigger>
       </TabsList>
 
       <TabsContent value="shifts">
