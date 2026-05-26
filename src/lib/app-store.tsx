@@ -21,11 +21,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [classes, setClasses] = React.useState<ClassRoom[]>(CLASSES);
   const [receipts, setReceipts] = React.useState<Receipt[]>(RECEIPTS_SEED);
   const [cashConfig, setCashConfig] = React.useState<CashReceiptConfig[]>(CASH_RECEIPT_CONFIG_SEED);
-  const [page, setPage] = React.useState<string>("dashboard");
+  const [page, setPage] = React.useState<string>("students");
 
   React.useEffect(() => {
     // reset to default page for each role
-    if (role === "admin") setPage("dashboard");
+    if (role === "admin") setPage("students");
     if (role === "teacher") setPage("today");
     if (role === "student") setPage("info");
   }, [role]);
