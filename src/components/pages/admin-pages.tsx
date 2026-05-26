@@ -113,6 +113,16 @@ export function AdminStudents() {
   const paid = stuReceipts.filter((r) => r.status === "Hiệu lực").reduce((s, r) => s + r.amount, 0);
   const remaining = stu ? Math.max(0, stu.bought - stu.attended) : 0;
 
+  type StudentStatus = "Chưa xếp lớp" | "Đang học" | "Nghỉ học" | "Bảo lưu";
+  const [studentStatus, setStudentStatus] = React.useState<Record<string, StudentStatus>>({});
+  const getStuStatus = (id: string): StudentStatus =>
+    studentStatus[id] ?? "Đang học";
+  const stuStatusColor = (s: StudentStatus) =>
+    s === "Đang học" ? "bg-emerald-100 text-emerald-700 border-emerald-200"
+    : s === "Chưa xếp lớp" ? "bg-amber-100 text-amber-700 border-amber-200"
+    : s === "Bảo lưu" ? "bg-blue-100 text-blue-700 border-blue-200"
+    : "bg-rose-100 text-rose-700 border-rose-200";
+
   const emptyStu = () => ({
     name: "", nickname: "", branch: "" as Branch | "", classId: "",
     dob: "", gender: "Nam" as "Nam" | "Nữ", school: "", address: "", email: "",
@@ -153,7 +163,20 @@ export function AdminStudents() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <div>
-              <CardTitle>Hồ sơ: {stu.name}</CardTitle>
+              <div className="flex items-center gap-3">
+                <CardTitle>Hồ sơ: {stu.name}</CardTitle>
+                <Select value={getStuStatus(stu.id)} onValueChange={(v) => setStudentStatus((p) => ({ ...p, [stu.id]: v as StudentStatus }))}>
+                  <SelectTrigger className={`h-7 w-auto px-2.5 text-xs font-medium border ${stuStatusColor(getStuStatus(stu.id))}`}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Chưa xếp lớp">Chưa xếp lớp</SelectItem>
+                    <SelectItem value="Đang học">Đang học</SelectItem>
+                    <SelectItem value="Nghỉ học">Nghỉ học</SelectItem>
+                    <SelectItem value="Bảo lưu">Bảo lưu</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="text-xs text-slate-500 mt-1">
                 Mã HV: <span className="font-mono">{stu.id.toUpperCase()}</span> · {stu.branch}
               </div>
@@ -2553,6 +2576,14 @@ export function AdminTeachers() {
     `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
 
+  type TeacherStatus = "Đang dạy" | "Nghỉ";
+  const [teacherStatus, setTeacherStatus] = React.useState<Record<string, TeacherStatus>>({});
+  const getTStatus = (id: string): TeacherStatus => teacherStatus[id] ?? "Đang dạy";
+  const tStatusColor = (s: TeacherStatus) =>
+    s === "Đang dạy"
+      ? "bg-emerald-100 text-emerald-700 border-emerald-200"
+      : "bg-rose-100 text-rose-700 border-rose-200";
+
   const emptyT = () => ({
     name: "", email: "", phone: "", dob: "", gender: "Nữ" as "Nam" | "Nữ",
     address: "", startDate: "",
@@ -2600,7 +2631,18 @@ export function AdminTeachers() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <div>
-              <CardTitle>{sel.name}</CardTitle>
+              <div className="flex items-center gap-3">
+                <CardTitle>{sel.name}</CardTitle>
+                <Select value={getTStatus(sel.id)} onValueChange={(v) => setTeacherStatus((p) => ({ ...p, [sel.id]: v as TeacherStatus }))}>
+                  <SelectTrigger className={`h-7 w-auto px-2.5 text-xs font-medium border ${tStatusColor(getTStatus(sel.id))}`}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Đang dạy">Đang dạy</SelectItem>
+                    <SelectItem value="Nghỉ">Nghỉ</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="text-xs text-slate-500 mt-1">{sel.position} · CN {sel.branch} · Vào làm {sel.startDate}</div>
             </div>
             <Button variant="outline" size="sm" onClick={() => setSelId(null)}>
