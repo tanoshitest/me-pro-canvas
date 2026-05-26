@@ -106,7 +106,7 @@ export function AdminStudents() {
   const remaining = stu ? Math.max(0, stu.bought - stu.attended) : 0;
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[2fr_3fr]">
+    <div className="space-y-4">
       <Card>
         <CardHeader><CardTitle>Danh sách học viên</CardTitle></CardHeader>
         <CardContent className="p-0">
@@ -116,7 +116,7 @@ export function AdminStudents() {
             </TableRow></TableHeader>
             <TableBody>
               {students.map((s) => (
-                <TableRow key={s.id} className={`cursor-pointer ${selected === s.id ? "bg-indigo-50" : ""}`} onClick={() => setSelected(s.id)}>
+                <TableRow key={s.id} className="cursor-pointer hover:bg-slate-50" onClick={() => setSelected(s.id)}>
                   <TableCell className="font-medium">{s.name}{s.nickname ? ` (${s.nickname})` : ""}</TableCell>
                   <TableCell>{s.branch}</TableCell>
                   <TableCell>{s.bought - s.attended}</TableCell>
@@ -128,16 +128,17 @@ export function AdminStudents() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{stu ? `Hồ sơ: ${stu.name}` : "Chọn 1 học viên để xem chi tiết"}</CardTitle>
-          {stu && <p className="text-xs text-slate-500">Mã HV: <span className="font-mono">{stu.id.toUpperCase()}</span> · {stu.branch}</p>}
-        </CardHeader>
-        <CardContent>
-          {!stu || !cls ? (
-            <p className="text-slate-500">Nhấp vào học viên ở bên trái.</p>
-          ) : (
-            <Tabs defaultValue="personal" className="space-y-3">
+      <Dialog open={!!stu} onOpenChange={(o) => !o && setSelected(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          {stu && cls && (
+            <>
+              <DialogHeader>
+                <DialogTitle>Hồ sơ: {stu.name}</DialogTitle>
+                <DialogDescription>
+                  Mã HV: <span className="font-mono">{stu.id.toUpperCase()}</span> · {stu.branch}
+                </DialogDescription>
+              </DialogHeader>
+              <Tabs defaultValue="personal" className="space-y-3">
               <TabsList className="flex-wrap h-auto">
                 <TabsTrigger value="personal">Học viên</TabsTrigger>
                 <TabsTrigger value="parent">Phụ huynh</TabsTrigger>
@@ -268,10 +269,11 @@ export function AdminStudents() {
               <TabsContent value="ops" className="mt-3">
                 <StudentHistoryTimeline stu={stu} receipts={stuReceipts} />
               </TabsContent>
-            </Tabs>
+              </Tabs>
+            </>
           )}
-        </CardContent>
-      </Card>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
