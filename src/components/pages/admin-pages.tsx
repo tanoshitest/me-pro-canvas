@@ -1645,7 +1645,6 @@ function SyllabusAttendanceTab({ sel }: { sel: SyllabusSel }) {
   const stages = SYLLABUS_STAGES;
   const stage = stages.find((s) => s.id === sel.stageId)!;
   const lesson = sel.kind === "lesson" ? stage.lessons.find((l) => l.id === sel.lessonId) ?? null : null;
-  const [classId, setClassId] = React.useState<string>("all");
   const [q, setQ] = React.useState("");
   const [rows, setRows] = React.useState(SYLLABUS_STUDENTS);
 
@@ -1677,21 +1676,11 @@ function SyllabusAttendanceTab({ sel }: { sel: SyllabusSel }) {
               </>
             )}
           </div>
-          <div className="flex items-center gap-2">
-            <Select value={classId} onValueChange={setClassId}>
-              <SelectTrigger className="h-8 w-40"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tất cả lớp</SelectItem>
-                {CLASSES.slice(0, 5).map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Input className="h-8 w-56" placeholder="Tìm học viên..." value={q} onChange={(e) => setQ(e.target.value)} />
-          </div>
+          <Input className="h-8 w-56" placeholder="Tìm học viên..." value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
 
         <div className="flex gap-2">
           <Button size="sm" onClick={() => toast.success("Đã lưu điểm danh")}><CheckCircle2 className="h-4 w-4" /> Lưu điểm danh</Button>
-          <Button size="sm" variant="outline" onClick={() => toast.info("Đã sao chép điểm danh buổi trước")}><Copy className="h-4 w-4" /> Sao chép buổi trước</Button>
         </div>
 
         <div className="border rounded-md overflow-x-auto">
