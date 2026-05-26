@@ -338,8 +338,16 @@ export interface Syllabus {
   ageGroup: string;
   totalLessons: number;
   description: string;
+  stages?: number;
+  bigTests?: number;
+  status?: "Đang dùng" | "Bản nháp" | "Lưu trữ";
+  createdAt?: string;
+  createdBy?: string;
 }
 export const SYLLABI: Syllabus[] = [
+  { id: "syN5",  code: "JLPT-N5", name: "JLPT N5 Foundation",      level: "N5", ageGroup: "Người mới bắt đầu", totalLessons: 20, stages: 5, bigTests: 5, status: "Đang dùng", createdAt: "10/01/2025", createdBy: "Cô Mai",  description: "Lộ trình nền tảng JLPT N5: bảng chữ, từ vựng, ngữ pháp cơ bản và luyện đề." },
+  { id: "syA1",  code: "GT-A1",   name: "Giao tiếp sơ cấp A1",     level: "A1", ageGroup: "Người đi làm",       totalLessons: 20, stages: 5, bigTests: 5, status: "Đang dùng", createdAt: "15/02/2025", createdBy: "Thầy Nam", description: "Giao tiếp tiếng Nhật sơ cấp theo tình huống đời sống và công sở." },
+  { id: "syN4",  code: "JLPT-N4", name: "JLPT N4 Intensive",       level: "N4", ageGroup: "Đã học xong N5",     totalLessons: 20, stages: 5, bigTests: 5, status: "Bản nháp", createdAt: "05/03/2025", createdBy: "Cô Hà",   description: "Tăng tốc JLPT N4: ngữ pháp nâng cao, đọc hiểu, nghe hiểu và luyện đề." },
   { id: "sy01", code: "FF1",   name: "Family & Friends 1",      level: "Starter",      ageGroup: "Mẫu giáo - Lớp 1", totalLessons: 24, description: "Làm quen tiếng Anh qua bài hát, từ vựng cơ bản về gia đình, đồ vật." },
   { id: "sy02", code: "FF2",   name: "Family & Friends 2",      level: "Beginner",     ageGroup: "Lớp 2 - 3",         totalLessons: 24, description: "Mở rộng vốn từ, câu đơn giản, đọc hiểu đoạn ngắn." },
   { id: "sy03", code: "FF3",   name: "Family & Friends 3",      level: "Elementary",   ageGroup: "Lớp 3 - 4",         totalLessons: 24, description: "Ngữ pháp cơ bản: thì hiện tại, quá khứ đơn, kỹ năng viết câu." },
@@ -350,6 +358,126 @@ export const SYLLABI: Syllabus[] = [
   { id: "sy08", code: "MOV",   name: "Movers Practice",         level: "A1",           ageGroup: "Lớp 3 - 5",         totalLessons: 24, description: "Luyện thi chứng chỉ Cambridge Movers, full 3 kỹ năng." },
   { id: "sy09", code: "FLY",   name: "Flyers Practice",         level: "A2",           ageGroup: "Lớp 4 - 6",         totalLessons: 24, description: "Luyện thi Cambridge Flyers, chiến lược làm bài và mẹo nghe." },
   { id: "sy10", code: "KET",   name: "KET for Schools",         level: "A2",           ageGroup: "Lớp 6 - 7",         totalLessons: 24, description: "Luyện thi KET, kỹ năng viết email và đoạn văn ngắn." },
+];
+
+/* ===== Syllabus chi tiết (demo dùng chung cho mọi syllabus khi mở chi tiết) ===== */
+export interface SyllabusLesson {
+  id: string;
+  index: number;
+  unit: string;
+  objective: string;
+  content: string;
+  homework: string;
+  material: string;
+  note: string;
+}
+export interface SyllabusBigTest {
+  id: string;
+  name: string;
+  material: string;
+  note: string;
+}
+export interface SyllabusStage {
+  id: string;
+  name: string;
+  goal: string;
+  lessons: SyllabusLesson[];
+  bigTest: SyllabusBigTest;
+}
+
+const mkLessons = (prefix: string, units: { unit: string; objective: string; content: string; homework: string; note: string }[]): SyllabusLesson[] =>
+  units.map((u, i) => ({
+    id: `${prefix}-l${i + 1}`,
+    index: i + 1,
+    unit: u.unit,
+    objective: u.objective,
+    content: u.content,
+    homework: u.homework,
+    material: `https://drive.google.com/mock/${prefix}-unit-${String(i + 1).padStart(2, "0")}`,
+    note: u.note,
+  }));
+
+export const SYLLABUS_STAGES: SyllabusStage[] = [
+  {
+    id: "st1", name: "Chặng 1: Làm quen tiếng Nhật cơ bản",
+    goal: "Học viên nhận diện bảng chữ, phát âm chuẩn, viết được Hiragana và Katakana cơ bản.",
+    lessons: mkLessons("s1", [
+      { unit: "Hiragana cơ bản", objective: "Học viên nhận diện và viết được nhóm chữ Hiragana đầu tiên", content: "Giới thiệu bảng chữ cái, luyện phát âm, luyện viết từng hàng chữ", homework: "Viết mỗi chữ 5 dòng, học thuộc hàng あ・か・さ", note: "Giáo viên kiểm tra phát âm từng học viên" },
+      { unit: "Hiragana mở rộng", objective: "Hoàn thiện toàn bộ bảng Hiragana", content: "Luyện hàng た・な・は・ま・や・ら・わ, ghép từ đơn giản", homework: "Viết 20 từ vựng cơ bản bằng Hiragana", note: "Chú ý nét viết đúng thứ tự" },
+      { unit: "Katakana cơ bản", objective: "Nhận diện Katakana và từ ngoại lai", content: "Giới thiệu Katakana, so sánh với Hiragana, từ ngoại lai thường gặp", homework: "Viết tên mình và 10 từ ngoại lai bằng Katakana", note: "Lưu ý phân biệt シ/ツ, ソ/ン" },
+      { unit: "Chào hỏi & tự giới thiệu", objective: "Sử dụng được mẫu câu chào hỏi và tự giới thiệu", content: "はじめまして, わたしは～です, よろしくおねがいします", homework: "Quay video tự giới thiệu 30 giây", note: "Khuyến khích học viên nói trước lớp" },
+    ]),
+    bigTest: { id: "bt1", name: "Big Test 1: Bảng chữ và chào hỏi", material: "https://drive.google.com/mock/bigtest-01", note: "Kiểm tra chữ cái, từ vựng và mẫu câu cơ bản" },
+  },
+  {
+    id: "st2", name: "Chặng 2: Ngữ pháp và mẫu câu nền tảng",
+    goal: "Nắm vững các mẫu câu khẳng định, phủ định, nghi vấn và trợ từ cơ bản.",
+    lessons: mkLessons("s2", [
+      { unit: "Trợ từ は・が・を", objective: "Sử dụng đúng các trợ từ cơ bản", content: "Phân biệt は và が, vai trò của を trong câu", homework: "Đặt 10 câu sử dụng đầy đủ trợ từ", note: "Làm thêm bài tập trong sách Minna" },
+      { unit: "Danh từ và tính từ", objective: "Mô tả người, vật bằng tính từ -i và -na", content: "Cấu trúc N は A です, phân loại tính từ", homework: "Viết đoạn văn 5 câu mô tả gia đình", note: "Nhắc lại quy tắc chia tính từ" },
+      { unit: "Động từ nhóm I & II", objective: "Chia động từ thể ます", content: "Phân loại nhóm động từ, chia thể ます/ません", homework: "Hoàn thành bảng chia 20 động từ", note: "Kiểm tra miệng đầu buổi sau" },
+      { unit: "Mẫu câu nghi vấn", objective: "Đặt câu hỏi cơ bản bằng tiếng Nhật", content: "～か, từ để hỏi なに, どこ, いつ, だれ", homework: "Phỏng vấn bạn cùng lớp 5 câu hỏi", note: "Tổ chức hoạt động theo cặp" },
+    ]),
+    bigTest: { id: "bt2", name: "Big Test 2: Ngữ pháp nền tảng", material: "https://drive.google.com/mock/bigtest-02", note: "Trắc nghiệm ngữ pháp và viết câu" },
+  },
+  {
+    id: "st3", name: "Chặng 3: Giao tiếp tình huống thường ngày",
+    goal: "Giao tiếp được trong các tình huống mua sắm, nhà hàng, hỏi đường.",
+    lessons: mkLessons("s3", [
+      { unit: "Tại nhà hàng", objective: "Gọi món và thanh toán bằng tiếng Nhật", content: "Mẫu câu gọi món, hỏi giá, đếm số tiền", homework: "Đóng vai gọi món qua video", note: "In sẵn menu mẫu cho lớp" },
+      { unit: "Đi mua sắm", objective: "Hỏi giá, hỏi size, mặc cả lịch sự", content: "いくらですか, ありますか, từ vựng quần áo", homework: "Học 30 từ vựng mua sắm", note: "Mang vật mẫu để luyện hội thoại" },
+      { unit: "Hỏi đường", objective: "Hỏi và chỉ đường đơn giản", content: "Từ chỉ hướng, phương tiện giao thông", homework: "Vẽ sơ đồ và mô tả bằng tiếng Nhật", note: "Cho học viên thực hành trên bản đồ Tokyo" },
+      { unit: "Gọi điện & hẹn gặp", objective: "Thực hiện cuộc gọi cơ bản", content: "もしもし, hẹn giờ, hẹn địa điểm", homework: "Ghi âm hội thoại 1 phút", note: "Lưu ý kính ngữ cơ bản" },
+    ]),
+    bigTest: { id: "bt3", name: "Big Test 3: Hội thoại tình huống", material: "https://drive.google.com/mock/bigtest-03", note: "Thi nói theo tình huống bốc thăm" },
+  },
+  {
+    id: "st4", name: "Chặng 4: Luyện đọc hiểu và nghe hiểu",
+    goal: "Đọc đoạn văn ngắn, nghe hiểu hội thoại đời sống.",
+    lessons: mkLessons("s4", [
+      { unit: "Đọc hiểu đoạn ngắn", objective: "Hiểu ý chính đoạn 100-150 chữ", content: "Chiến lược đọc lướt, đọc kỹ, gạch keyword", homework: "Đọc 3 bài và trả lời câu hỏi", note: "Bài đọc lấy từ đề N5 mẫu" },
+      { unit: "Nghe hội thoại ngắn", objective: "Nghe hiểu hội thoại 30 giây", content: "Luyện nghe theo chủ đề, ghi chú từ khóa", homework: "Nghe 5 đoạn audio và tóm tắt", note: "Phát file audio trước buổi học" },
+      { unit: "Đọc thông báo, lịch", objective: "Đọc hiểu thông báo, lịch trình", content: "Từ vựng ngày tháng, giờ, địa điểm", homework: "Dịch 3 mẫu thông báo Nhật", note: "Sưu tầm thông báo thực tế" },
+      { unit: "Nghe & ghi chép", objective: "Vừa nghe vừa ghi chép thông tin", content: "Luyện ghi nhanh số, tên, địa điểm", homework: "Làm 1 đề nghe N5 mini", note: "Chấm tại lớp, phản hồi từng học viên" },
+    ]),
+    bigTest: { id: "bt4", name: "Big Test 4: Đọc - Nghe", material: "https://drive.google.com/mock/bigtest-04", note: "Mô phỏng đề thi N5 phần đọc và nghe" },
+  },
+  {
+    id: "st5", name: "Chặng 5: Ôn tập tổng hợp và kiểm tra cuối khóa",
+    goal: "Tổng ôn kiến thức 4 chặng và làm đề thi thử hoàn chỉnh.",
+    lessons: mkLessons("s5", [
+      { unit: "Tổng ôn từ vựng", objective: "Hệ thống lại 500 từ vựng đã học", content: "Trò chơi flashcard, kiểm tra theo chủ đề", homework: "Hoàn thành bộ 200 flashcard", note: "Chia nhóm thi đấu" },
+      { unit: "Tổng ôn ngữ pháp", objective: "Tóm tắt toàn bộ ngữ pháp N5", content: "Mindmap ngữ pháp, bài tập tổng hợp", homework: "Làm 50 câu trắc nghiệm ngữ pháp", note: "Phát sổ tay ngữ pháp tóm tắt" },
+      { unit: "Đề thi thử số 1", objective: "Làm trọn vẹn đề N5 mẫu", content: "Thi thử thời gian thật, chấm và chữa", homework: "Sửa lỗi sai và viết lại", note: "Mô phỏng phòng thi nghiêm túc" },
+      { unit: "Đề thi thử số 2 & tổng kết", objective: "Đánh giá năng lực cuối khóa", content: "Thi thử lần 2, phản hồi cá nhân hóa", homework: "Lập kế hoạch học tiếp lên N4", note: "Trao chứng nhận hoàn thành khóa học" },
+    ]),
+    bigTest: { id: "bt5", name: "Big Test 5: Thi cuối khóa", material: "https://drive.google.com/mock/bigtest-05", note: "Thi cuối khóa tính điểm chứng nhận" },
+  },
+];
+
+/* ===== Demo điểm danh & điểm số (dùng chung) ===== */
+export interface SyllabusStudentRow {
+  id: string;
+  code: string;
+  name: string;
+  attendance: "Có mặt" | "Vắng có phép" | "Vắng không phép";
+  attendanceNote: string;
+  grades: Record<string, number>;
+  gradeNote: string;
+}
+export const SYLLABUS_GRADE_COLUMNS: string[] = ["Quiz 1", "Homework", "Speaking", "Mini Test"];
+
+export const SYLLABUS_STUDENTS: SyllabusStudentRow[] = [
+  { id: "ss1",  code: "HV001", name: "Nguyễn Hồng Diệp",   attendance: "Có mặt",          attendanceNote: "Tham gia tích cực",        grades: { "Quiz 1": 9,  Homework: 10, Speaking: 8.5, "Mini Test": 9   }, gradeNote: "Học đều, phát âm tốt" },
+  { id: "ss2",  code: "HV002", name: "Trần Minh Khang",     attendance: "Có mặt",          attendanceNote: "",                          grades: { "Quiz 1": 8,  Homework: 8,  Speaking: 7,   "Mini Test": 8   }, gradeNote: "Cần luyện thêm nghe" },
+  { id: "ss3",  code: "HV003", name: "Lê Thanh Hà",         attendance: "Vắng có phép",    attendanceNote: "Đi khám bệnh",             grades: { "Quiz 1": 7,  Homework: 9,  Speaking: 8,   "Mini Test": 7.5 }, gradeNote: "" },
+  { id: "ss4",  code: "HV004", name: "Phạm Quang Huy",      attendance: "Vắng không phép", attendanceNote: "Không liên lạc được",      grades: { "Quiz 1": 5,  Homework: 6,  Speaking: 5,   "Mini Test": 6   }, gradeNote: "Cần gọi phụ huynh" },
+  { id: "ss5",  code: "HV005", name: "Đỗ Khánh Linh",       attendance: "Có mặt",          attendanceNote: "",                          grades: { "Quiz 1": 10, Homework: 10, Speaking: 9.5, "Mini Test": 9.5 }, gradeNote: "Học sinh xuất sắc" },
+  { id: "ss6",  code: "HV006", name: "Hoàng Đức Anh",       attendance: "Có mặt",          attendanceNote: "Đi muộn 5 phút",           grades: { "Quiz 1": 7.5,Homework: 7,  Speaking: 7,   "Mini Test": 7   }, gradeNote: "" },
+  { id: "ss7",  code: "HV007", name: "Vũ Thu Trang",        attendance: "Vắng có phép",    attendanceNote: "Đi du lịch cùng gia đình", grades: { "Quiz 1": 8,  Homework: 8,  Speaking: 7.5, "Mini Test": 8   }, gradeNote: "" },
+  { id: "ss8",  code: "HV008", name: "Bùi Gia Bảo",         attendance: "Có mặt",          attendanceNote: "",                          grades: { "Quiz 1": 6,  Homework: 7,  Speaking: 6.5, "Mini Test": 6.5 }, gradeNote: "Cần bổ sung từ vựng" },
+  { id: "ss9",  code: "HV009", name: "Ngô Mai Phương",      attendance: "Có mặt",          attendanceNote: "",                          grades: { "Quiz 1": 9,  Homework: 9,  Speaking: 9,   "Mini Test": 8.5 }, gradeNote: "Rất chủ động phát biểu" },
+  { id: "ss10", code: "HV010", name: "Đặng Hải Nam",        attendance: "Vắng không phép", attendanceNote: "Tự ý nghỉ",                grades: { "Quiz 1": 4,  Homework: 5,  Speaking: 5,   "Mini Test": 5   }, gradeNote: "Cảnh báo học vụ" },
 ];
 export interface Teacher {
   id: string;

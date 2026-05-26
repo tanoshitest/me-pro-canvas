@@ -9,10 +9,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useApp } from "@/lib/app-store";
 import {
   BRANCHES, CLASSES, PROMOTIONS, TUITION_CONFIG, formatVND,
   CLASS_SHIFTS, ROOMS, SYLLABI, TEACHERS,
+  SYLLABUS_STAGES, SYLLABUS_STUDENTS, SYLLABUS_GRADE_COLUMNS,
+  type Syllabus,
   type Receipt, type Branch, type Student,
 } from "@/lib/mock-data";
 import { toast } from "sonner";
@@ -20,6 +23,7 @@ import {
   Users, GraduationCap, Wallet, AlertTriangle, Receipt as ReceiptIcon, XCircle,
   TrendingUp, Calendar, Info, CheckCircle2, ArrowRight, CalendarOff, Repeat,
   Clock, DoorOpen, BookOpen, Tag, Hash, ArrowLeft,
+  Layers, FileText, ClipboardCheck, BarChart3, ExternalLink, Plus, Pencil, Copy, Trash2, Download, FileSpreadsheet, ListChecks, Target,
 } from "lucide-react";
 
 /* ============== DASHBOARD ============== */
@@ -1278,15 +1282,24 @@ export function TransferDialog({ studentId, onClose }: { studentId: string | nul
 /* ============== SYLLABUS ============== */
 export function AdminSyllabus() {
   const [q, setQ] = React.useState("");
+  const [selId, setSelId] = React.useState<string | null>(null);
+  const sel = SYLLABI.find((s) => s.id === selId) ?? null;
   const list = SYLLABI.filter((s) =>
     `${s.code} ${s.name} ${s.level} ${s.ageGroup}`.toLowerCase().includes(q.toLowerCase()),
   );
+
+  if (sel) {
+    return <SyllabusDetail syllabus={sel} onBack={() => setSelId(null)} />;
+  }
 
   return (
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle>Danh mục syllabus</CardTitle>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <CardTitle className="flex items-center gap-2"><BookOpen className="h-5 w-5" /> Danh mục syllabus</CardTitle>
+            <Button size="sm"><Plus className="h-4 w-4" /> Tạo syllabus</Button>
+          </div>
           <Input
             placeholder="Tìm theo mã, tên, cấp độ..."
             value={q}
@@ -1300,28 +1313,514 @@ export function AdminSyllabus() {
               <TableRow>
                 <TableHead>Mã</TableHead>
                 <TableHead>Tên syllabus</TableHead>
-                <TableHead>Cấp độ</TableHead>
-                <TableHead>Độ tuổi</TableHead>
-                <TableHead className="text-right">Số buổi</TableHead>
+                <TableHead>Khóa / Level</TableHead>
+                <TableHead className="text-center">Chặng</TableHead>
+                <TableHead className="text-center">Buổi</TableHead>
+                <TableHead className="text-center">Big Test</TableHead>
+                <TableHead>Trạng thái</TableHead>
+                <TableHead>Ngày tạo</TableHead>
+                <TableHead>Người tạo</TableHead>
+                <TableHead className="text-right">Thao tác</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {list.map((s) => (
-                <TableRow key={s.id}>
+                <TableRow key={s.id} className="cursor-pointer" onClick={() => setSelId(s.id)}>
                   <TableCell className="font-mono text-xs">{s.code}</TableCell>
                   <TableCell className="font-medium">{s.name}</TableCell>
                   <TableCell><Badge variant="secondary">{s.level}</Badge></TableCell>
-                  <TableCell className="text-xs text-slate-600">{s.ageGroup}</TableCell>
-                  <TableCell className="text-right">{s.totalLessons}</TableCell>
+                  <TableCell className="text-center">{s.stages ?? 5}</TableCell>
+                  <TableCell className="text-center">{s.totalLessons}</TableCell>
+                  <TableCell className="text-center">{s.bigTests ?? 5}</TableCell>
+                  <TableCell>
+                    <Badge variant={s.status === "Bản nháp" ? "outline" : s.status === "Lưu trữ" ? "secondary" : "default"}>
+                      {s.status ?? "Đang dùng"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-xs text-slate-600">{s.createdAt ?? "—"}</TableCell>
+                  <TableCell className="text-xs text-slate-600">{s.createdBy ?? "—"}</TableCell>
+                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex justify-end gap-1">
+                      <Button size="icon" variant="ghost" title="Xem" onClick={() => setSelId(s.id)}><BookOpen className="h-4 w-4" /></Button>
+                      <Button size="icon" variant="ghost" title="Sửa"><Pencil className="h-4 w-4" /></Button>
+                      <Button size="icon" variant="ghost" title="Nhân bản"><Copy className="h-4 w-4" /></Button>
+                      <Button size="icon" variant="ghost" title="Xóa" className="text-rose-600"><Trash2 className="h-4 w-4" /></Button>
+                    </div>
+                  </TableCell>
                 </TableRow>
               ))}
               {list.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-slate-500 py-6">
+                  <TableCell colSpan={10} className="text-center text-slate-500 py-6">
                     Không tìm thấy syllabus phù hợp.
                   </TableCell>
                 </TableRow>
               )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+/* ----- Syllabus detail ----- */
+function SyllabusDetail({ syllabus, onBack }: { syllabus: Syllabus; onBack: () => void }) {
+  const stages = SYLLABUS_STAGES;
+  const totalLessons = stages.reduce((s, st) => s + st.lessons.length, 0);
+  const totalBigTests = stages.length;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2">
+        <Button variant="ghost" size="sm" onClick={onBack}><ArrowLeft className="h-4 w-4" /> Quay lại danh sách</Button>
+      </div>
+
+      <Card>
+        <CardContent className="p-5 space-y-4">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-xs text-slate-500">
+                <span className="font-mono">{syllabus.code}</span>
+                <span>•</span>
+                <span>{syllabus.ageGroup}</span>
+              </div>
+              <div className="text-2xl font-bold">{syllabus.name}</div>
+              <div className="text-sm text-slate-600 max-w-2xl">{syllabus.description}</div>
+              <div className="flex items-center gap-2 pt-2">
+                <Badge variant="secondary">{syllabus.level}</Badge>
+                <Badge variant={syllabus.status === "Bản nháp" ? "outline" : "default"}>{syllabus.status ?? "Đang dùng"}</Badge>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm"><Plus className="h-4 w-4" /> Thêm chặng</Button>
+              <Button size="sm" variant="outline"><Pencil className="h-4 w-4" /> Sửa syllabus</Button>
+              <Button size="sm" variant="outline"><Download className="h-4 w-4" /> Xuất file</Button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2">
+            <StatBox icon={Layers} label="Tổng số chặng" value={stages.length} color="bg-indigo-500" />
+            <StatBox icon={BookOpen} label="Tổng số buổi" value={totalLessons} color="bg-emerald-500" />
+            <StatBox icon={ClipboardCheck} label="Tổng số Big Test" value={totalBigTests} color="bg-amber-500" />
+            <StatBox icon={Users} label="Học viên đang học" value={SYLLABUS_STUDENTS.length} color="bg-rose-500" />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Tabs defaultValue="content">
+        <TabsList>
+          <TabsTrigger value="content"><FileText className="h-4 w-4 mr-1" /> Nội dung syllabus</TabsTrigger>
+          <TabsTrigger value="attendance"><ClipboardCheck className="h-4 w-4 mr-1" /> Điểm danh</TabsTrigger>
+          <TabsTrigger value="grades"><ListChecks className="h-4 w-4 mr-1" /> Nhập điểm trên lớp</TabsTrigger>
+          <TabsTrigger value="report"><BarChart3 className="h-4 w-4 mr-1" /> Báo cáo học vụ</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="content" className="space-y-3">
+          <Accordion type="multiple" defaultValue={[stages[0].id]} className="space-y-2">
+            {stages.map((st) => (
+              <AccordionItem key={st.id} value={st.id} className="border rounded-lg bg-card px-4">
+                <AccordionTrigger className="hover:no-underline">
+                  <div className="flex items-center gap-3 text-left">
+                    <div className="h-8 w-8 rounded-md bg-indigo-100 text-indigo-700 grid place-content-center">
+                      <Layers className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <div className="font-semibold">{st.name}</div>
+                      <div className="text-xs text-slate-500 flex items-center gap-1"><Target className="h-3 w-3" /> {st.goal}</div>
+                    </div>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm font-semibold flex items-center gap-2"><BookOpen className="h-4 w-4 text-emerald-600" /> Buổi học ({st.lessons.length})</div>
+                    <Button size="sm" variant="outline"><Plus className="h-4 w-4" /> Thêm buổi học</Button>
+                  </div>
+                  <div className="overflow-x-auto border rounded-md">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-14">Buổi</TableHead>
+                          <TableHead>Tên Unit</TableHead>
+                          <TableHead>Mục tiêu</TableHead>
+                          <TableHead>Nội dung chi tiết</TableHead>
+                          <TableHead>Homeworks</TableHead>
+                          <TableHead>Tài liệu</TableHead>
+                          <TableHead>Lưu ý</TableHead>
+                          <TableHead className="text-right">Thao tác</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {st.lessons.map((l) => (
+                          <TableRow key={l.id}>
+                            <TableCell className="text-center font-semibold">{l.index}</TableCell>
+                            <TableCell className="font-medium">{l.unit}</TableCell>
+                            <TableCell className="text-xs text-slate-600 max-w-[200px]">{l.objective}</TableCell>
+                            <TableCell className="text-xs text-slate-600 max-w-[220px]">{l.content}</TableCell>
+                            <TableCell className="text-xs text-slate-600 max-w-[180px]">{l.homework}</TableCell>
+                            <TableCell>
+                              <Button asChild size="sm" variant="outline">
+                                <a href={l.material} target="_blank" rel="noreferrer"><ExternalLink className="h-3 w-3" /> Mở tài liệu</a>
+                              </Button>
+                            </TableCell>
+                            <TableCell className="text-xs text-slate-600 max-w-[180px]">{l.note}</TableCell>
+                            <TableCell className="text-right">
+                              <Button size="icon" variant="ghost"><Pencil className="h-4 w-4" /></Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2">
+                    <div className="text-sm font-semibold flex items-center gap-2"><ClipboardCheck className="h-4 w-4 text-amber-600" /> Big Test</div>
+                    <Button size="sm" variant="outline"><Plus className="h-4 w-4" /> Thêm Big Test</Button>
+                  </div>
+                  <div className="overflow-x-auto border rounded-md">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Tên Big Test</TableHead>
+                          <TableHead>Tài liệu</TableHead>
+                          <TableHead>Lưu ý</TableHead>
+                          <TableHead className="text-right">Thao tác</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        <TableRow>
+                          <TableCell className="font-medium">{st.bigTest.name}</TableCell>
+                          <TableCell>
+                            <Button asChild size="sm" variant="outline">
+                              <a href={st.bigTest.material} target="_blank" rel="noreferrer"><ExternalLink className="h-3 w-3" /> Mở tài liệu</a>
+                            </Button>
+                          </TableCell>
+                          <TableCell className="text-xs text-slate-600">{st.bigTest.note}</TableCell>
+                          <TableCell className="text-right">
+                            <Button size="icon" variant="ghost"><Pencil className="h-4 w-4" /></Button>
+                          </TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+        </TabsContent>
+
+        <TabsContent value="attendance">
+          <SyllabusAttendanceTab />
+        </TabsContent>
+
+        <TabsContent value="grades">
+          <SyllabusGradesTab />
+        </TabsContent>
+
+        <TabsContent value="report">
+          <SyllabusReportTab />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+function StatBox({ icon: Icon, label, value, color }: { icon: React.ComponentType<{ className?: string }>; label: string; value: React.ReactNode; color: string }) {
+  return (
+    <div className="rounded-lg border bg-card p-3 flex items-center gap-3">
+      <div className={`h-10 w-10 rounded-md ${color} text-white grid place-content-center`}>
+        <Icon className="h-5 w-5" />
+      </div>
+      <div>
+        <div className="text-xs text-slate-500">{label}</div>
+        <div className="text-lg font-bold">{value}</div>
+      </div>
+    </div>
+  );
+}
+
+function SyllabusAttendanceTab() {
+  const stages = SYLLABUS_STAGES;
+  const [stageId, setStageId] = React.useState(stages[0].id);
+  const stage = stages.find((s) => s.id === stageId)!;
+  const [lessonId, setLessonId] = React.useState(stage.lessons[0].id);
+  const [classId, setClassId] = React.useState<string>("all");
+  const [q, setQ] = React.useState("");
+  const [rows, setRows] = React.useState(SYLLABUS_STUDENTS);
+
+  React.useEffect(() => {
+    setLessonId(stages.find((s) => s.id === stageId)!.lessons[0].id);
+  }, [stageId, stages]);
+
+  const filtered = rows.filter((r) => `${r.code} ${r.name}`.toLowerCase().includes(q.toLowerCase()));
+
+  const update = (id: string, patch: Partial<typeof rows[number]>) =>
+    setRows((rs) => rs.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2"><ClipboardCheck className="h-5 w-5" /> Điểm danh học viên</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <div>
+            <Label className="text-xs">Chọn chặng</Label>
+            <Select value={stageId} onValueChange={setStageId}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {stages.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs">Buổi học</Label>
+            <Select value={lessonId} onValueChange={setLessonId}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {stage.lessons.map((l) => <SelectItem key={l.id} value={l.id}>Buổi {l.index} · {l.unit}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs">Lớp</Label>
+            <Select value={classId} onValueChange={setClassId}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tất cả lớp</SelectItem>
+                {CLASSES.slice(0, 5).map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs">Tìm học viên</Label>
+            <Input placeholder="Tên hoặc mã..." value={q} onChange={(e) => setQ(e.target.value)} />
+          </div>
+        </div>
+
+        <div className="flex gap-2">
+          <Button size="sm" onClick={() => toast.success("Đã lưu điểm danh")}><CheckCircle2 className="h-4 w-4" /> Lưu điểm danh</Button>
+          <Button size="sm" variant="outline" onClick={() => toast.info("Đã sao chép điểm danh buổi trước")}><Copy className="h-4 w-4" /> Sao chép buổi trước</Button>
+        </div>
+
+        <div className="border rounded-md overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-24">Mã HV</TableHead>
+                <TableHead>Tên học viên</TableHead>
+                <TableHead className="w-48">Trạng thái</TableHead>
+                <TableHead>Ghi chú</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtered.map((r) => (
+                <TableRow key={r.id}>
+                  <TableCell className="font-mono text-xs">{r.code}</TableCell>
+                  <TableCell className="font-medium">{r.name}</TableCell>
+                  <TableCell>
+                    <Select value={r.attendance} onValueChange={(v) => update(r.id, { attendance: v as typeof r.attendance })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Có mặt">Có mặt</SelectItem>
+                        <SelectItem value="Vắng có phép">Vắng có phép</SelectItem>
+                        <SelectItem value="Vắng không phép">Vắng không phép</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+                  <TableCell>
+                    <Input value={r.attendanceNote} onChange={(e) => update(r.id, { attendanceNote: e.target.value })} placeholder="Ghi chú..." />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function SyllabusGradesTab() {
+  const [cols, setCols] = React.useState<string[]>(SYLLABUS_GRADE_COLUMNS);
+  const [rows, setRows] = React.useState(SYLLABUS_STUDENTS);
+  const [newCol, setNewCol] = React.useState("");
+
+  const addCol = () => {
+    const name = newCol.trim();
+    if (!name) return;
+    if (cols.includes(name)) { toast.error("Cột điểm đã tồn tại"); return; }
+    setCols((c) => [...c, name]);
+    setRows((rs) => rs.map((r) => ({ ...r, grades: { ...r.grades, [name]: 0 } })));
+    setNewCol("");
+    toast.success(`Đã thêm cột "${name}"`);
+  };
+
+  const updateGrade = (id: string, col: string, val: string) => {
+    const n = Number(val);
+    setRows((rs) => rs.map((r) => (r.id === id ? { ...r, grades: { ...r.grades, [col]: Number.isFinite(n) ? n : 0 } } : r)));
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2"><ListChecks className="h-5 w-5" /> Nhập điểm trên lớp</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex items-end gap-2 flex-wrap">
+          <div>
+            <Label className="text-xs">Tên cột điểm mới</Label>
+            <Input value={newCol} onChange={(e) => setNewCol(e.target.value)} placeholder="Ví dụ: Dictation, Speaking Test..." className="w-64" />
+          </div>
+          <Button size="sm" onClick={addCol}><Plus className="h-4 w-4" /> Thêm cột điểm</Button>
+          <div className="flex-1" />
+          <Button size="sm" onClick={() => toast.success("Đã lưu điểm")}><CheckCircle2 className="h-4 w-4" /> Lưu điểm</Button>
+          <Button size="sm" variant="outline" onClick={() => toast.info("Đã xuất bảng điểm")}><FileSpreadsheet className="h-4 w-4" /> Xuất bảng điểm</Button>
+        </div>
+
+        <div className="border rounded-md overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-24">Mã HV</TableHead>
+                <TableHead>Tên học viên</TableHead>
+                {cols.map((c) => <TableHead key={c} className="text-center w-28">{c}</TableHead>)}
+                <TableHead>Ghi chú</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map((r) => (
+                <TableRow key={r.id}>
+                  <TableCell className="font-mono text-xs">{r.code}</TableCell>
+                  <TableCell className="font-medium">{r.name}</TableCell>
+                  {cols.map((c) => (
+                    <TableCell key={c} className="text-center">
+                      <Input
+                        type="number" step="0.5" min={0} max={10}
+                        value={r.grades[c] ?? 0}
+                        onChange={(e) => updateGrade(r.id, c, e.target.value)}
+                        className="h-8 text-center"
+                      />
+                    </TableCell>
+                  ))}
+                  <TableCell>
+                    <Input
+                      value={r.gradeNote}
+                      onChange={(e) => setRows((rs) => rs.map((x) => x.id === r.id ? { ...x, gradeNote: e.target.value } : x))}
+                      placeholder="Ghi chú..."
+                    />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function SyllabusReportTab() {
+  const total = SYLLABUS_STUDENTS.length;
+  const attendRate = Math.round((SYLLABUS_STUDENTS.filter((s) => s.attendance === "Có mặt").length / total) * 100);
+  const highAbsent = SYLLABUS_STUDENTS.filter((s) => s.attendance === "Vắng không phép").length;
+  const avg = (
+    SYLLABUS_STUDENTS.reduce((s, r) => s + Object.values(r.grades).reduce((a, b) => a + b, 0) / Object.values(r.grades).length, 0) / total
+  ).toFixed(1);
+
+  const cards = [
+    { label: "Tổng số học viên", value: total, icon: Users, color: "bg-indigo-500" },
+    { label: "Tỷ lệ đi học", value: `${attendRate}%`, icon: CheckCircle2, color: "bg-emerald-500" },
+    { label: "HV vắng nhiều", value: highAbsent, icon: AlertTriangle, color: "bg-rose-500" },
+    { label: "Điểm trung bình lớp", value: avg, icon: BarChart3, color: "bg-amber-500" },
+    { label: "Số buổi đã học", value: 12, icon: BookOpen, color: "bg-blue-500" },
+    { label: "Số buổi còn lại", value: 8, icon: Calendar, color: "bg-slate-500" },
+  ];
+
+  const perLesson = [85, 90, 78, 92, 88, 75, 80, 95, 82, 90, 86, 88];
+  const perColumn = SYLLABUS_GRADE_COLUMNS.map((c) => ({
+    col: c,
+    avg: (SYLLABUS_STUDENTS.reduce((s, r) => s + (r.grades[c] ?? 0), 0) / total),
+  }));
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardContent className="p-4">
+          <div className="text-xs text-slate-500 italic">
+            Báo cáo học vụ đang ở phiên bản demo. Dữ liệu chi tiết sẽ được phát triển ở giai đoạn sau.
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {cards.map((c) => (
+          <Card key={c.label}>
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className={`h-10 w-10 rounded-md ${c.color} text-white grid place-content-center`}>
+                <c.icon className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="text-xs text-slate-500">{c.label}</div>
+                <div className="text-lg font-bold">{c.value}</div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader><CardTitle className="text-base flex items-center gap-2"><BarChart3 className="h-4 w-4" /> Tỷ lệ điểm danh theo buổi</CardTitle></CardHeader>
+          <CardContent>
+            <div className="flex items-end gap-2 h-40">
+              {perLesson.map((v, i) => (
+                <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                  <div className="w-full rounded-t bg-indigo-500" style={{ height: `${v}%` }} />
+                  <div className="text-[10px] text-slate-500">B{i + 1}</div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle className="text-base flex items-center gap-2"><BarChart3 className="h-4 w-4" /> Điểm trung bình theo cột điểm</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            {perColumn.map((c) => (
+              <div key={c.col}>
+                <div className="flex justify-between text-xs mb-1">
+                  <span>{c.col}</span>
+                  <span className="font-semibold">{c.avg.toFixed(1)} / 10</span>
+                </div>
+                <div className="h-2 bg-slate-100 rounded overflow-hidden">
+                  <div className="h-full bg-emerald-500" style={{ width: `${c.avg * 10}%` }} />
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader><CardTitle className="text-base flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-rose-500" /> Học viên cần lưu ý</CardTitle></CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Mã HV</TableHead>
+                <TableHead>Tên</TableHead>
+                <TableHead>Lý do</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {SYLLABUS_STUDENTS.filter((s) => s.attendance === "Vắng không phép" || (s.grades["Quiz 1"] ?? 10) < 6).map((s) => (
+                <TableRow key={s.id}>
+                  <TableCell className="font-mono text-xs">{s.code}</TableCell>
+                  <TableCell className="font-medium">{s.name}</TableCell>
+                  <TableCell className="text-xs text-slate-600">{s.gradeNote || s.attendanceNote || "Cần theo dõi"}</TableCell>
+                </TableRow>
+              ))}
             </TableBody>
           </Table>
         </CardContent>
