@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useApp } from "@/lib/app-store";
 import {
   BRANCHES, CLASSES, PROMOTIONS, TUITION_CONFIG, formatVND,
-  CLASS_SHIFTS, ROOMS, SYLLABI,
+  CLASS_SHIFTS, ROOMS, SYLLABI, TEACHERS,
   type Receipt, type Branch, type Student,
 } from "@/lib/mock-data";
 import { toast } from "sonner";
