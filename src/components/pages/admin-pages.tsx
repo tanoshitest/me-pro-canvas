@@ -1720,8 +1720,8 @@ export function AdminSyllabus() {
   };
 
   const submitSyllabus = () => {
-    if (!form.name.trim() || !form.code.trim()) {
-      toast.error("Vui lòng nhập mã và tên syllabus.");
+    if (!form.name.trim()) {
+      toast.error("Vui lòng nhập tên syllabus.");
       return;
     }
     const stages = Math.max(1, Number(form.stages) || 1);
@@ -1731,9 +1731,10 @@ export function AdminSyllabus() {
     const id = `sy${Date.now()}`;
     const today = new Date();
     const created = `${String(today.getDate()).padStart(2, "0")}/${String(today.getMonth() + 1).padStart(2, "0")}/${today.getFullYear()}`;
+    const autoCode = form.name.trim().split(/\s+/).map((w) => w[0]).join("").toUpperCase().slice(0, 6) || "SY";
     const newItem: Syllabus = {
-      id, code: form.code.trim().toUpperCase(), name: form.name.trim(),
-      level: form.level.trim() || "—", ageGroup: form.ageGroup.trim() || "—",
+      id, code: autoCode, name: form.name.trim(),
+      level: form.level || "Cấp 1", ageGroup: form.ageGroup.trim() || "—",
       totalLessons,
       stages, bigTests,
       status: "Bản nháp", createdAt: created, createdBy: "Admin",
@@ -1833,13 +1834,16 @@ export function AdminSyllabus() {
                 <Label className="text-xs text-slate-500">Tên syllabus</Label>
                 <Input className="h-9 mt-1" placeholder="VD: Family & Friends 5" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
               </div>
-              <div>
-                <Label className="text-xs text-slate-500">Mã syllabus</Label>
-                <Input className="h-9 mt-1" placeholder="VD: FF5" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} />
-              </div>
-              <div>
-                <Label className="text-xs text-slate-500">Cấp độ / Level</Label>
-                <Input className="h-9 mt-1" placeholder="VD: Intermediate" value={form.level} onChange={(e) => setForm({ ...form, level: e.target.value })} />
+              <div className="col-span-2">
+                <Label className="text-xs text-slate-500">Cấp độ</Label>
+                <Select value={form.level || "Cấp 1"} onValueChange={(v) => setForm({ ...form, level: v })}>
+                  <SelectTrigger className="h-9 mt-1"><SelectValue placeholder="Chọn cấp độ" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Cấp 1">Cấp 1</SelectItem>
+                    <SelectItem value="Cấp 2">Cấp 2</SelectItem>
+                    <SelectItem value="Chất lượng cao">Chất lượng cao</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="col-span-2">
                 <Label className="text-xs text-slate-500">Đối tượng học</Label>
