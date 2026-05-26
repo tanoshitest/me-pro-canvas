@@ -1400,11 +1400,22 @@ export function CollectFeeDialog({ studentId, onClose }: { studentId: string | n
               <Row label="Học phí gốc" value={formatVND(base)} />
               <Row label="Ưu đãi" value={`- ${formatVND(discount)}`} />
               <Row label="Thu khác" value={`+ ${formatVND(Number(extra))}`} />
-              <div className="border-t pt-2"><Row label="Thành tiền" value={formatVND(total)} bold /></div>
+              <div className="border-t pt-2 space-y-1">
+                <Row label="Học phí mới" value={formatVND(newCharge)} />
+                {oldDebt > 0 && (
+                  <>
+                    <Row label="Công nợ học phí cũ" value={formatVND(tuitionDebt)} highlight />
+                    {transferDebt > 0 && (
+                      <Row label="Nợ phát sinh chuyển lớp" value={formatVND(transferDebt)} highlight />
+                    )}
+                  </>
+                )}
+              </div>
+              <div className="border-t pt-2"><Row label="Tổng phải thu" value={formatVND(total)} bold /></div>
               {hasNewCharge ? (
                 <>
                   <Row label="Thực thu lần này" value={formatVND(Number(received))} />
-                  <Row label="Công nợ mới sau cập nhật" value={formatVND(newDebtAfter)} highlight={newDebtAfter > 0} />
+                  <Row label="Công nợ sau cập nhật" value={formatVND(newDebtAfter)} highlight={newDebtAfter > 0} />
                 </>
               ) : (
                 <div className="text-xs text-slate-500 italic pt-1">Chọn gói hoặc nhập "Thu khác" để cập nhật học phí.</div>
