@@ -1823,18 +1823,19 @@ export function AdminSyllabus() {
       </Card>
 
       <Dialog open={openAdd} onOpenChange={setOpenAdd}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-5xl">
           <DialogHeader>
             <DialogTitle>Tạo syllabus mới</DialogTitle>
             <DialogDescription>Nhập thông tin chung và cấu hình số chặng. Sau khi tạo, bấm vào syllabus để cấu hình chi tiết từng chặng.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="col-span-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-3">
+              <div className="text-sm font-semibold text-slate-700">Thông tin chung</div>
+              <div>
                 <Label className="text-xs text-slate-500">Tên syllabus</Label>
                 <Input className="h-9 mt-1" placeholder="VD: Family & Friends 5" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
               </div>
-              <div className="col-span-2">
+              <div>
                 <Label className="text-xs text-slate-500">Cấp độ</Label>
                 <Select value={form.level || "Cấp 1"} onValueChange={(v) => setForm({ ...form, level: v })}>
                   <SelectTrigger className="h-9 mt-1"><SelectValue placeholder="Chọn cấp độ" /></SelectTrigger>
@@ -1845,13 +1846,53 @@ export function AdminSyllabus() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="col-span-2">
+              <div>
                 <Label className="text-xs text-slate-500">Đối tượng học</Label>
                 <Input className="h-9 mt-1" placeholder="VD: Lớp 5 - 6" value={form.ageGroup} onChange={(e) => setForm({ ...form, ageGroup: e.target.value })} />
               </div>
+              <div>
+                <Label className="text-xs text-slate-500">Số chặng</Label>
+                <Input className="h-9 mt-1" type="number" min={1} max={20} value={form.stages} onChange={(e) => setStageCount(Number(e.target.value))} />
+              </div>
+              <div className="text-xs text-slate-500 pt-1">
+                Tổng: <b>{form.stageConfig.reduce((s, x) => s + (Number(x.lessons) || 0), 0)}</b> buổi ·{" "}
+                <b>{form.stageConfig.filter((x) => x.bigTest).length}</b> Big Test
+              </div>
             </div>
-            <div>
-              <div className="text-sm font-semibold mb-2">Cấu hình chặng</div>
+            <div className="flex flex-col min-h-0">
+              <div className="text-sm font-semibold text-slate-700 mb-2">Cấu hình chi tiết từng chặng</div>
+              <div className="rounded-md border bg-slate-50 p-3 max-h-[60vh] overflow-y-auto flex-1">
+                <div className="space-y-2">
+                  {form.stageConfig.map((st, i) => (
+                    <div key={i} className="flex items-center gap-3 rounded-md border bg-white px-3 py-2">
+                      <div className="font-semibold text-sm text-slate-700 w-20">Chặng {i + 1}</div>
+                      <div className="flex items-center gap-2">
+                        <Label className="text-xs text-slate-500">Số buổi</Label>
+                        <Input
+                          className="h-8 w-20"
+                          type="number"
+                          min={1}
+                          max={50}
+                          value={st.lessons}
+                          onChange={(e) => updateStage(i, { lessons: Number(e.target.value) })}
+                        />
+                      </div>
+                      <label className="flex items-center gap-2 text-xs text-slate-600 ml-auto cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={st.bigTest}
+                          onChange={(e) => updateStage(i, { bigTest: e.target.checked })}
+                        />
+                        Có Big Test
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+          {/* legacy block removed */}
+          <div className="hidden">
               <div className="grid grid-cols-[200px,1fr] gap-3 items-end">
                 <div>
                   <Label className="text-xs text-slate-500">Số chặng</Label>
@@ -1891,7 +1932,6 @@ export function AdminSyllabus() {
                   ))}
                 </div>
               </div>
-            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpenAdd(false)}>Hủy</Button>
