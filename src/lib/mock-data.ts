@@ -52,6 +52,7 @@ export interface ClassRoom {
   startDate: string;
   endDate: string;
   totalSessions: number;
+  remainingSessions: number;
   pricePerCourse: number;
   pricePerSession: number;
   sessions?: { day: string; time: string; room: string }[];
@@ -74,7 +75,7 @@ export interface Receipt {
 export const STUDENTS: Student[] = [
   {
     id: "s1", name: "Hồng Diệp", nickname: "Kirito", branch: "Đội Cấn", classId: "c1",
-    bought: 48, attended: 22, debt: 0,
+    bought: 32, attended: 22, debt: 0,
     dob: "12/05/2016", gender: "Nữ", school: "Tiểu học Nguyễn Trãi",
     address: "12 Đội Cấn, Ba Đình, Hà Nội", email: "hongdiep.kirito@gmail.com",
     note: "Bé nhút nhát, cần khuyến khích nói nhiều hơn.",
@@ -171,7 +172,7 @@ export const CLASSES: ClassRoom[] = [
     id: "c1", name: "4CLC1", schedule: "Thứ 3, 6", time: "18:00 - 19:30", branch: "Đội Cấn",
     teacher: "Cô Mai", room: "P.201", syllabus: "Family & Friends 1",
     startDate: "01/03/2026", endDate: "30/06/2026",
-    totalSessions: 24, pricePerCourse: 3480000, pricePerSession: 145000,
+    totalSessions: 24, remainingSessions: 18, pricePerCourse: 3480000, pricePerSession: 145000,
     sessions: [
       { day: "Thứ 3", time: "18:30 - 19:30", room: "P.201" },
       { day: "Thứ 6", time: "19:00 - 20:30", room: "P.202" },
@@ -181,7 +182,7 @@ export const CLASSES: ClassRoom[] = [
     id: "c2", name: "4CLC2", schedule: "Thứ 2, 4", time: "18:00 - 19:30", branch: "Hoàng Hoa Thám",
     teacher: "Thầy Hùng", room: "P.105", syllabus: "Family & Friends 1",
     startDate: "05/03/2026", endDate: "05/07/2026",
-    totalSessions: 24, pricePerCourse: 3480000, pricePerSession: 145000,
+    totalSessions: 24, remainingSessions: 24, pricePerCourse: 3480000, pricePerSession: 145000,
     sessions: [
       { day: "Thứ 2", time: "18:00 - 19:30", room: "P.105" },
       { day: "Thứ 4", time: "18:00 - 19:30", room: "P.106" },
@@ -191,7 +192,7 @@ export const CLASSES: ClassRoom[] = [
     id: "c3", name: "FF1 Kids", schedule: "Thứ 7, CN", time: "08:00 - 09:30", branch: "Ngọc Hà",
     teacher: "Cô Lan", room: "P.301", syllabus: "Family & Friends 1",
     startDate: "10/02/2026", endDate: "10/05/2026",
-    totalSessions: 24, pricePerCourse: 3480000, pricePerSession: 145000,
+    totalSessions: 24, remainingSessions: 20, pricePerCourse: 3480000, pricePerSession: 145000,
     sessions: [
       { day: "Thứ 7",     time: "08:00 - 09:30", room: "P.301" },
       { day: "Chủ nhật",  time: "08:00 - 09:30", room: "P.302" },
@@ -201,7 +202,7 @@ export const CLASSES: ClassRoom[] = [
     id: "c4", name: "4CLC3 (đang mở)", schedule: "Thứ 3, 5", time: "18:00 - 19:30", branch: "Đội Cấn",
     teacher: "Cô Mai", room: "P.203", syllabus: "Family & Friends 1",
     startDate: "15/03/2026", endDate: "15/06/2026",
-    totalSessions: 26, pricePerCourse: 3770000, pricePerSession: 145000,
+    totalSessions: 24, remainingSessions: 22, pricePerCourse: 3480000, pricePerSession: 145000,
     sessions: [
       { day: "Thứ 3", time: "18:00 - 19:30", room: "P.203" },
       { day: "Thứ 5", time: "18:00 - 19:30", room: "P.203" },
@@ -211,7 +212,7 @@ export const CLASSES: ClassRoom[] = [
     id: "c5", name: "FF2 Beginner", schedule: "Thứ 2, 6", time: "17:30 - 19:00", branch: "Hoàng Hoa Thám",
     teacher: "Thầy Hùng", room: "P.106", syllabus: "Family & Friends 2",
     startDate: "01/03/2026", endDate: "01/09/2026",
-    totalSessions: 36, pricePerCourse: 5220000, pricePerSession: 145000,
+    totalSessions: 24, remainingSessions: 10, pricePerCourse: 3480000, pricePerSession: 145000,
     sessions: [
       { day: "Thứ 2", time: "17:30 - 19:00", room: "P.106" },
       { day: "Thứ 6", time: "17:30 - 19:00", room: "P.106" },
@@ -221,7 +222,7 @@ export const CLASSES: ClassRoom[] = [
     id: "c6", name: "CLC4 Luyện thi", schedule: "Thứ 4, 7", time: "18:00 - 19:30", branch: "Ngọc Hà",
     teacher: "Cô Lan", room: "P.302", syllabus: "Luyện thi CLC lớp 4",
     startDate: "01/03/2026", endDate: "01/12/2026",
-    totalSessions: 48, pricePerCourse: 7680000, pricePerSession: 160000,
+    totalSessions: 24, remainingSessions: 4, pricePerCourse: 3840000, pricePerSession: 160000,
     sessions: [
       { day: "Thứ 4", time: "18:00 - 19:30", room: "P.302" },
       { day: "Thứ 7", time: "09:30 - 11:00", room: "P.302" },
