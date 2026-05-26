@@ -1277,10 +1277,14 @@ export function CollectFeeDialog({ studentId, onClose }: { studentId: string | n
   const base = cls ? cls.pricePerCourse * Number(pkg) : 0;
   const promo = PROMOTIONS.find((p) => p.id === promoId)!;
   const discount = promo.type === "fixed" ? promo.value : Math.round((base * promo.value) / 100);
-  const total = Math.max(0, base - discount + Number(extra));
+  const newCharge = Math.max(0, base - discount + Number(extra));
+  const oldDebt = stu?.debt ?? 0;
+  const transferDebt = stu?.transferDebt ?? 0;
+  const tuitionDebt = Math.max(0, oldDebt - transferDebt);
+  const total = newCharge + oldDebt;
   const debt = Math.max(0, total - Number(received));
 
-  // Mặc định "Thực thu" = "Thành tiền" để công nợ = 0 (học viên đã đóng đủ).
+  // Mặc định "Thực thu" = "Thành tiền" (gồm cả nợ cũ) để công nợ về 0.
   React.useEffect(() => {
     if (!receivedTouched.current) setReceived(total);
   }, [total]);
@@ -1289,7 +1293,7 @@ export function CollectFeeDialog({ studentId, onClose }: { studentId: string | n
   const cashCfg = cashConfig.find((c) => c.branch === stu.branch);
   const cashExhausted = method === "Tiền mặt" && (!cashCfg || Math.max(cashCfg.current + 1, cashCfg.start) > cashCfg.end);
   const hasNewCharge = total > 0;
-  const newDebtAfter = Math.max(0, stu.debt + debt);
+  const newDebtAfter = debt;
 
   const submit = () => {
     if (!receiptNo.trim()) {
@@ -1313,7 +1317,7 @@ export function CollectFeeDialog({ studentId, onClose }: { studentId: string | n
         : c));
     }
     setStudents((prev) => prev.map((s) => s.id === stu.id
-      ? { ...s, bought: s.bought + sessionsToAdd, debt: s.debt + debt }
+      ? { ...s, bought: s.bought + sessionsToAdd, debt, transferDebt: debt === 0 ? 0 : s.transferDebt }
       : s));
     toast.success("Đã tạo phiếu thu", {
       description: `Cộng ${sessionsToAdd} buổi vào ví ${stu.name}. Phiếu: ${id}.`,
@@ -1396,11 +1400,22 @@ export function CollectFeeDialog({ studentId, onClose }: { studentId: string | n
               <Row label="Học phí gốc" value={formatVND(base)} />
               <Row label="Ưu đãi" value={`- ${formatVND(discount)}`} />
               <Row label="Thu khác" value={`+ ${formatVND(Number(extra))}`} />
-              <div className="border-t pt-2"><Row label="Thành tiền" value={formatVND(total)} bold /></div>
+              <div className="border-t pt-2 space-y-1">
+                <Row label="Học phí mới" value={formatVND(newCharge)} />
+                {oldDebt > 0 && (
+                  <>
+                    <Row label="Công nợ học phí cũ" value={formatVND(tuitionDebt)} highlight />
+                    {transferDebt > 0 && (
+                      <Row label="Nợ phát sinh chuyển lớp" value={formatVND(transferDebt)} highlight />
+                    )}
+                  </>
+                )}
+              </div>
+              <div className="border-t pt-2"><Row label="Tổng phải thu" value={formatVND(total)} bold /></div>
               {hasNewCharge ? (
                 <>
                   <Row label="Thực thu lần này" value={formatVND(Number(received))} />
-                  <Row label="Công nợ mới sau cập nhật" value={formatVND(newDebtAfter)} highlight={newDebtAfter > 0} />
+                  <Row label="Công nợ sau cập nhật" value={formatVND(newDebtAfter)} highlight={newDebtAfter > 0} />
                 </>
               ) : (
                 <div className="text-xs text-slate-500 italic pt-1">Chọn gói hoặc nhập "Thu khác" để cập nhật học phí.</div>

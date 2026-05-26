@@ -12,6 +12,7 @@ export interface Student {
   bought: number;
   attended: number;
   debt: number;
+  transferDebt?: number; // công nợ phát sinh do chuyển lớp
   transferNote?: string;
   // Personal
   dob?: string;            // dd/mm/yyyy
@@ -119,7 +120,7 @@ export const STUDENTS: Student[] = [
   },
   {
     id: "s2", name: "Đăng Khoa", nickname: "Bing", branch: "Đội Cấn", classId: "c1",
-    bought: 24, attended: 20, debt: 500000,
+    bought: 24, attended: 20, debt: 500000, transferDebt: 200000,
     dob: "08/09/2015", gender: "Nam", school: "Tiểu học Kim Đồng",
     address: "45 Liễu Giai, Ba Đình, Hà Nội", email: "",
     note: "Hiếu động, học tốt phần Listening.",
