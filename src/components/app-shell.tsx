@@ -3,6 +3,7 @@ import {
   Users, GraduationCap, BookOpen, Wallet, ClipboardCheck, UserCog, CalendarRange,
   CalendarDays, ClipboardList, User, Building2, BadgeInfo, PanelLeftClose, PanelLeftOpen,
   UserPlus,
+  Briefcase,
 } from "lucide-react";
 import { useApp } from "@/lib/app-store";
 import { cn } from "@/lib/utils";
@@ -23,6 +24,7 @@ const NAV: Record<string, NavItem[]> = {
     { id: "schedule-admin", label: "Lịch dạy", icon: CalendarRange },
     { id: "attendance-report", label: "Báo cáo chấm công", icon: ClipboardList },
     { id: "salary-report", label: "Báo cáo lương", icon: Wallet },
+    { id: "work-management", label: "Quản lý công việc", icon: Briefcase, disabled: true },
     { id: "tuition", label: "Cấu hình", icon: BookOpen },
   ],
   teacher: [
@@ -71,27 +73,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <button
                 key={item.id}
                 onClick={() => { if (!item.disabled) setPage(item.id); }}
-                disabled={item.disabled}
-                title={collapsed ? item.label : item.disabled ? "Sắp ra mắt" : undefined}
+                title={collapsed ? item.label : undefined}
                 className={cn(
                   "w-full flex items-center gap-3 py-2.5 rounded-md text-sm font-medium transition-colors text-left cursor-pointer",
                   collapsed ? "px-0 justify-center" : "px-3",
-                  item.disabled
-                    ? "text-slate-400 cursor-not-allowed hover:bg-transparent"
-                    : active
+                  active
                     ? "bg-indigo-50 text-indigo-700"
                     : "text-slate-700 hover:bg-slate-100",
                 )}
               >
                 <Icon className="h-4 w-4 shrink-0" />
-                {!collapsed && (
-                  <span className="flex items-center gap-2">
-                    {item.label}
-                    {item.disabled && (
-                      <span className="text-[10px] font-medium uppercase tracking-wide text-slate-400">Sắp ra mắt</span>
-                    )}
-                  </span>
-                )}
+                {!collapsed && <span>{item.label}</span>}
               </button>
             );
           })}
