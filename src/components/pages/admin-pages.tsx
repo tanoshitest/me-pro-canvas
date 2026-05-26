@@ -529,7 +529,7 @@ export function AdminClasses() {
   const updateSession = (i: number, patch: Partial<NewSession>) => {
     setForm((f) => ({ ...f, sessions: f.sessions.map((s, idx) => idx === i ? { ...s, ...patch } : s) }));
   };
-  const addSession = () => setForm((f) => ({ ...f, sessions: [...f.sessions, { day: "Thứ 4", time: "18:00 - 19:30", room: "" }] }));
+  const addSession = () => setForm((f) => ({ ...f, sessions: [...f.sessions, { day: "Thứ 4", shiftId: "", room: "" }] }));
   const removeSession = (i: number) => setForm((f) => ({ ...f, sessions: f.sessions.filter((_, idx) => idx !== i) }));
 
   // Auto-generate end date: count occurrences of selected weekdays starting from startDate until reaching totalSessions
@@ -818,14 +818,38 @@ export function AdminClasses() {
                   </SelectContent>
                 </Select>
               </div>
-              <div>
-                <Label className="text-xs text-slate-500">Ngày bắt đầu</Label>
-                <Input className="h-9 mt-1" placeholder="DD/MM/YYYY" value={form.startDate} onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))} />
-              </div>
-              <div>
-                <Label className="text-xs text-slate-500">Ngày kết thúc dự kiến</Label>
-                <Input className="h-9 mt-1" placeholder="DD/MM/YYYY" value={form.endDate} onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))} />
-              </div>
+               <div>
+                 <Label className="text-xs text-slate-500">Ngày bắt đầu</Label>
+                 <Popover>
+                   <PopoverTrigger asChild>
+                     <Button
+                       variant="outline"
+                       className={cn("h-9 mt-1 w-full justify-start font-normal", !form.startDate && "text-muted-foreground")}
+                     >
+                       <CalendarIcon className="h-4 w-4 mr-2" />
+                       {form.startDate ? fmtDate(form.startDate) : "Chọn ngày"}
+                     </Button>
+                   </PopoverTrigger>
+                   <PopoverContent className="w-auto p-0" align="start">
+                     <CalendarUI
+                       mode="single"
+                       selected={form.startDate}
+                       onSelect={(d) => setForm((f) => ({ ...f, startDate: d ?? undefined }))}
+                       initialFocus
+                     />
+                   </PopoverContent>
+                 </Popover>
+               </div>
+               <div>
+                 <Label className="text-xs text-slate-500">Ngày kết thúc dự kiến</Label>
+                 <Input
+                   className="h-9 mt-1 bg-slate-50"
+                   value={computedEndDate ? fmtDate(computedEndDate) : ""}
+                   placeholder="Tự động tính theo lịch học"
+                   disabled
+                 />
+                 <p className="text-[11px] text-slate-400 mt-1">Tự sinh từ ngày bắt đầu + lịch học</p>
+               </div>
               <div>
                 <Label className="text-xs text-slate-500">Số buổi / khóa</Label>
                 <Input className="h-9 mt-1 bg-slate-50" value={DEFAULT_TOTAL_SESSIONS} disabled />
@@ -866,11 +890,11 @@ export function AdminClasses() {
                         {DAY_OPTIONS.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
                       </SelectContent>
                     </Select>
-                    <Select value={s.time} onValueChange={(v) => updateSession(i, { time: v })}>
+                    <Select value={s.shiftId} onValueChange={(v) => updateSession(i, { shiftId: v })}>
                       <SelectTrigger className="h-9"><SelectValue placeholder="Chọn khung giờ" /></SelectTrigger>
                       <SelectContent>
                         {CLASS_SHIFTS.map((sh) => (
-                          <SelectItem key={sh.id} value={sh.time}>{sh.time} · {sh.label}</SelectItem>
+                          <SelectItem key={sh.id} value={sh.id}>{sh.time} · {sh.label}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
