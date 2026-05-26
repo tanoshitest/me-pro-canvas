@@ -3,7 +3,7 @@ import { AppProvider, useApp } from "@/lib/app-store";
 import { AppShell } from "@/components/app-shell";
 import {
   AdminDashboard, AdminStudents, AdminClasses, AdminTuition, AdminPromotions,
-  AdminCollect, AdminReceipts, AdminTransfer,
+  AdminCollect, AdminReceipts,
 } from "@/components/pages/admin-pages";
 import { TeacherToday, TeacherSyllabus } from "@/components/pages/teacher-pages";
 import {
@@ -26,7 +26,6 @@ function PageRouter() {
       case "promotions": return <AdminPromotions />;
       case "collect": return <AdminCollect />;
       case "receipts": return <AdminReceipts />;
-      case "transfer": return <AdminTransfer />;
     }
   }
   if (role === "teacher") {
