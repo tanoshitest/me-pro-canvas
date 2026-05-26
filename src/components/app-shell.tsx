@@ -1,6 +1,6 @@
 import * as React from "react";
 import {
-  Users, GraduationCap, BookOpen, Wallet, ClipboardCheck,
+  Users, GraduationCap, BookOpen, Wallet, ClipboardCheck, UserCog, CalendarRange,
   CalendarDays, ClipboardList, User, Building2, BadgeInfo, PanelLeftClose, PanelLeftOpen,
 } from "lucide-react";
 import { useApp } from "@/lib/app-store";
@@ -13,10 +13,14 @@ type NavItem = { id: string; label: string; icon: React.ComponentType<{ classNam
 
 const NAV: Record<string, NavItem[]> = {
   admin: [
+    { id: "teachers", label: "Quản lý giáo viên", icon: UserCog },
     { id: "students", label: "Quản lý học viên", icon: Users },
     { id: "syllabus", label: "Quản lý syllabus", icon: ClipboardCheck },
     { id: "classes", label: "Quản lý lớp học", icon: GraduationCap },
     { id: "fees", label: "Quản lý học phí", icon: Wallet },
+    { id: "schedule-admin", label: "Lịch dạy", icon: CalendarRange },
+    { id: "attendance-report", label: "Báo cáo chấm công", icon: ClipboardList },
+    { id: "salary-report", label: "Báo cáo lương", icon: Wallet },
     { id: "tuition", label: "Cấu hình", icon: BookOpen },
   ],
   teacher: [
