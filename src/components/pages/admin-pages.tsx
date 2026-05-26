@@ -19,7 +19,7 @@ import { toast } from "sonner";
 import {
   Users, GraduationCap, Wallet, AlertTriangle, Receipt as ReceiptIcon, XCircle,
   TrendingUp, Calendar, Info, CheckCircle2, ArrowRight, CalendarOff, Repeat,
-  Clock, DoorOpen, BookOpen, Tag,
+  Clock, DoorOpen, BookOpen, Tag, Hash,
 } from "lucide-react";
 
 /* ============== DASHBOARD ============== */
@@ -475,6 +475,7 @@ function shiftDate(d: string, days: number) {
 
 /* ============== SETTINGS (Cấu hình) ============== */
 export function AdminTuition() {
+  const { cashConfig, setCashConfig } = useApp();
   return (
     <Tabs defaultValue="shifts" className="space-y-4">
       <TabsList>
@@ -482,6 +483,7 @@ export function AdminTuition() {
         <TabsTrigger value="rooms"><DoorOpen className="h-4 w-4" /> Phòng học</TabsTrigger>
         <TabsTrigger value="fee"><BookOpen className="h-4 w-4" /> Học phí</TabsTrigger>
         <TabsTrigger value="promotions"><Tag className="h-4 w-4" /> Khuyến mãi</TabsTrigger>
+        <TabsTrigger value="receipts"><Hash className="h-4 w-4" /> Phiếu thu</TabsTrigger>
       </TabsList>
 
       <TabsContent value="shifts">
@@ -598,13 +600,64 @@ export function AdminTuition() {
           </CardContent>
         </Card>
       </TabsContent>
+
+      <TabsContent value="receipts">
+        <Card>
+          <CardHeader>
+            <CardTitle>Cấu hình số phiếu thu tiền mặt</CardTitle>
+            <p className="text-xs text-slate-500">
+              Mỗi chi nhánh có dải số phiếu thu giấy riêng. Khi thu tiền mặt, hệ thống tự sinh mã phiếu kế tiếp theo dải đã cấu hình.
+              Phiếu chuyển khoản dùng mã tự sinh chung (CK-xxxx).
+            </p>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader><TableRow>
+                <TableHead>Chi nhánh</TableHead>
+                <TableHead>Tiền tố</TableHead>
+                <TableHead>Số bắt đầu</TableHead>
+                <TableHead>Số kết thúc</TableHead>
+                <TableHead>Số đã dùng</TableHead>
+                <TableHead>Số kế tiếp</TableHead>
+              </TableRow></TableHeader>
+              <TableBody>
+                {cashConfig.map((c) => {
+                  const next = Math.max(c.current + 1, c.start);
+                  const exhausted = next > c.end;
+                  return (
+                    <TableRow key={c.branch}>
+                      <TableCell className="font-medium">{c.branch}</TableCell>
+                      <TableCell>
+                        <Input className="w-24" value={c.prefix}
+                          onChange={(e) => setCashConfig((prev) => prev.map((x) => x.branch === c.branch ? { ...x, prefix: e.target.value.toUpperCase() } : x))} />
+                      </TableCell>
+                      <TableCell>
+                        <Input className="w-28" type="number" value={c.start}
+                          onChange={(e) => setCashConfig((prev) => prev.map((x) => x.branch === c.branch ? { ...x, start: Number(e.target.value) } : x))} />
+                      </TableCell>
+                      <TableCell>
+                        <Input className="w-28" type="number" value={c.end}
+                          onChange={(e) => setCashConfig((prev) => prev.map((x) => x.branch === c.branch ? { ...x, end: Number(e.target.value) } : x))} />
+                      </TableCell>
+                      <TableCell>{c.current}</TableCell>
+                      <TableCell className={`font-mono ${exhausted ? "text-red-600" : "text-indigo-700"}`}>
+                        {exhausted ? "Đã hết dải" : `${c.prefix}-${String(next).padStart(6, "0")}`}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </TabsContent>
     </Tabs>
   );
 }
 
 /* ============== COLLECT FEE (dialog) ============== */
 export function CollectFeeDialog({ studentId, onClose }: { studentId: string | null; onClose: () => void }) {
-  const { students, classes, receipts, setReceipts, setStudents } = useApp();
+  const { students, classes, receipts, setReceipts, setStudents, cashConfig, setCashConfig } = useApp();
   const stu = students.find((s) => s.id === studentId) ?? null;
   const cls = stu ? classes.find((c) => c.id === stu.classId) ?? null : null;
 
@@ -621,11 +674,26 @@ export function CollectFeeDialog({ studentId, onClose }: { studentId: string | n
   React.useEffect(() => {
     if (studentId) {
       setPkg("1"); setPromoId("p0"); setExtra(0); setReceived(0);
-      setMethod("Tiền mặt"); setReceiptNo(""); setNote("");
+      setMethod("Tiền mặt"); setNote("");
     }
   }, [studentId]);
 
+  // Auto-generate receipt number whenever student or method changes
+  React.useEffect(() => {
+    if (!stu) return;
+    if (method === "Tiền mặt") {
+      const cfg = cashConfig.find((c) => c.branch === stu.branch);
+      if (!cfg) { setReceiptNo(""); return; }
+      const next = Math.max(cfg.current + 1, cfg.start);
+      setReceiptNo(next > cfg.end ? "" : `${cfg.prefix}-${String(next).padStart(6, "0")}`);
+    } else {
+      setReceiptNo(`CK-${String(100000 + receipts.length + 1).slice(1)}`);
+    }
+  }, [studentId, method, stu, cashConfig, receipts.length]);
+
   if (!stu || !cls) return null;
+  const cashCfg = cashConfig.find((c) => c.branch === stu.branch);
+  const cashExhausted = method === "Tiền mặt" && (!cashCfg || Math.max(cashCfg.current + 1, cashCfg.start) > cashCfg.end);
 
   const sessionsToAdd = Number(pkg) * cls.totalSessions;
   const base = cls.pricePerCourse * Number(pkg);
@@ -635,21 +703,26 @@ export function CollectFeeDialog({ studentId, onClose }: { studentId: string | n
   const debt = Math.max(0, total - Number(received));
 
   const submit = () => {
-    if (method === "Tiền mặt" && !receiptNo.trim()) {
-      toast.error("Cần nhập số phiếu thu (tiền mặt)", { description: "VD: DC-000125" });
+    if (!receiptNo.trim()) {
+      toast.error("Không sinh được số phiếu thu", { description: "Kiểm tra cấu hình dải phiếu thu của chi nhánh." });
       return;
     }
     setConfirmOpen(true);
   };
 
   const finalize = () => {
-    const id = receiptNo.trim() || `${stu.branch.slice(0, 2).toUpperCase()}-${String(1000 + receipts.length).slice(1)}`;
+    const id = receiptNo.trim();
     const newReceipt: Receipt = {
       id, studentId: stu.id, studentName: stu.name, branch: stu.branch,
       amount: Number(received), method, status: "Hiệu lực",
       createdBy: "Admin (demo)", createdAt: date, note,
     };
     setReceipts((prev) => [newReceipt, ...prev]);
+    if (method === "Tiền mặt") {
+      setCashConfig((prev) => prev.map((c) => c.branch === stu.branch
+        ? { ...c, current: Math.max(c.current + 1, c.start) }
+        : c));
+    }
     setStudents((prev) => prev.map((s) => s.id === stu.id
       ? { ...s, bought: s.bought + sessionsToAdd, debt: s.debt + debt }
       : s));
@@ -703,12 +776,11 @@ export function CollectFeeDialog({ studentId, onClose }: { studentId: string | n
                   <SelectContent>
                     <SelectItem value="Tiền mặt">Tiền mặt</SelectItem>
                     <SelectItem value="Chuyển khoản">Chuyển khoản</SelectItem>
-                    <SelectItem value="POS">POS</SelectItem>
                   </SelectContent>
                 </Select>
               </Field>
-              <Field label={`Số phiếu thu ${method === "Tiền mặt" ? "(bắt buộc)" : "(auto)"}`}>
-                <Input placeholder="VD: DC-000125" value={receiptNo} onChange={(e) => setReceiptNo(e.target.value)} />
+              <Field label={`Số phiếu thu (auto · ${method === "Tiền mặt" ? "dải " + stu.branch : "chuyển khoản"})`}>
+                <Input value={receiptNo} readOnly className="font-mono bg-slate-50" placeholder={cashExhausted ? "Đã hết dải phiếu — cấu hình lại" : ""} />
               </Field>
               <Field label="Ngày thu"><Input value={date} onChange={(e) => setDate(e.target.value)} /></Field>
               <Field label="Ghi chú" className="col-span-2"><Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} /></Field>
@@ -857,7 +929,6 @@ export function AdminReceipts() {
             <Box label="Phiếu đã hủy" value={String(cancelled.length)} />
             <Box label="Tổng Tiền mặt" value={formatVND(sumBy("Tiền mặt"))} />
             <Box label="Tổng Chuyển khoản" value={formatVND(sumBy("Chuyển khoản"))} />
-            <Box label="Tổng POS" value={formatVND(sumBy("POS"))} />
           </div>
           <div className="border border-amber-300 bg-amber-50 rounded p-3 text-xs text-amber-800 flex gap-2">
             <AlertTriangle className="h-4 w-4 shrink-0" />

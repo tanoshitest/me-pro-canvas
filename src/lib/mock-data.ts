@@ -37,7 +37,7 @@ export interface Receipt {
   studentName: string;
   branch: Branch;
   amount: number;
-  method: "Tiền mặt" | "Chuyển khoản" | "POS";
+  method: "Tiền mặt" | "Chuyển khoản";
   status: "Hiệu lực" | "Đã hủy";
   createdBy: string;
   createdAt: string;
@@ -122,7 +122,7 @@ export const PROMOTIONS = [
 export const RECEIPTS_SEED: Receipt[] = [
   { id: "DC-000123", studentId: "s1", studentName: "Hồng Diệp", branch: "Đội Cấn", amount: 6612000, method: "Chuyển khoản", status: "Hiệu lực", createdBy: "Admin Lan", createdAt: "02/03/2026" },
   { id: "DC-000124", studentId: "s2", studentName: "Đăng Khoa", branch: "Đội Cấn", amount: 3480000, method: "Tiền mặt", status: "Hiệu lực", createdBy: "Admin Lan", createdAt: "02/03/2026" },
-  { id: "HH-000045", studentId: "s3", studentName: "Mimi", branch: "Hoàng Hoa Thám", amount: 3480000, method: "POS", status: "Hiệu lực", createdBy: "Admin Hà", createdAt: "06/03/2026" },
+  { id: "HH-000045", studentId: "s3", studentName: "Mimi", branch: "Hoàng Hoa Thám", amount: 3480000, method: "Chuyển khoản", status: "Hiệu lực", createdBy: "Admin Hà", createdAt: "06/03/2026" },
   { id: "NH-000077", studentId: "s4", studentName: "Lại Thế Thái Dương", branch: "Ngọc Hà", amount: 12945600, method: "Chuyển khoản", status: "Hiệu lực", createdBy: "Admin Thảo", createdAt: "11/02/2026" },
   { id: "DC-000120", studentId: "s5", studentName: "Nguyễn Ngọc Linh", branch: "Đội Cấn", amount: 3480000, method: "Tiền mặt", status: "Đã hủy", createdBy: "Admin Lan", createdAt: "28/02/2026", cancelLog: { by: "Admin Lan", at: "01/03/2026 09:15", reason: "Phụ huynh hủy đăng ký" } },
 ];
@@ -148,6 +148,19 @@ export const ROOMS: ClassRoomConfig[] = [
   { id: "r5", name: "P.106", branch: "Hoàng Hoa Thám", capacity: 22 },
   { id: "r6", name: "P.301", branch: "Ngọc Hà", capacity: 18 },
   { id: "r7", name: "P.302", branch: "Ngọc Hà", capacity: 20 },
+];
+
+export interface CashReceiptConfig {
+  branch: Branch;
+  prefix: string;
+  start: number;
+  end: number;
+  current: number;
+}
+export const CASH_RECEIPT_CONFIG_SEED: CashReceiptConfig[] = [
+  { branch: "Đội Cấn",        prefix: "DC", start: 125, end: 999, current: 124 },
+  { branch: "Hoàng Hoa Thám", prefix: "HH", start: 46,  end: 999, current: 45  },
+  { branch: "Ngọc Hà",        prefix: "NH", start: 78,  end: 999, current: 77  },
 ];
 
 export const SYLLABUS_LESSONS = [
