@@ -2576,6 +2576,14 @@ export function AdminTeachers() {
     `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
 
+  type TeacherStatus = "Đang dạy" | "Nghỉ";
+  const [teacherStatus, setTeacherStatus] = React.useState<Record<string, TeacherStatus>>({});
+  const getTStatus = (id: string): TeacherStatus => teacherStatus[id] ?? "Đang dạy";
+  const tStatusColor = (s: TeacherStatus) =>
+    s === "Đang dạy"
+      ? "bg-emerald-100 text-emerald-700 border-emerald-200"
+      : "bg-rose-100 text-rose-700 border-rose-200";
+
   const emptyT = () => ({
     name: "", email: "", phone: "", dob: "", gender: "Nữ" as "Nam" | "Nữ",
     address: "", startDate: "",
@@ -2623,7 +2631,18 @@ export function AdminTeachers() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <div>
-              <CardTitle>{sel.name}</CardTitle>
+              <div className="flex items-center gap-3">
+                <CardTitle>{sel.name}</CardTitle>
+                <Select value={getTStatus(sel.id)} onValueChange={(v) => setTeacherStatus((p) => ({ ...p, [sel.id]: v as TeacherStatus }))}>
+                  <SelectTrigger className={`h-7 w-auto px-2.5 text-xs font-medium border ${tStatusColor(getTStatus(sel.id))}`}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Đang dạy">Đang dạy</SelectItem>
+                    <SelectItem value="Nghỉ">Nghỉ</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="text-xs text-slate-500 mt-1">{sel.position} · CN {sel.branch} · Vào làm {sel.startDate}</div>
             </div>
             <Button variant="outline" size="sm" onClick={() => setSelId(null)}>
