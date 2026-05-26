@@ -41,10 +41,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = React.useState(false);
 
   return (
-    <div className="flex min-h-screen bg-slate-50 text-slate-900">
+    <div className="flex h-screen overflow-hidden bg-slate-50 text-slate-900">
       {/* Sidebar */}
       <aside className={cn(
-        "shrink-0 border-r border-slate-200 bg-white flex flex-col transition-[width] duration-200",
+        "shrink-0 border-r border-slate-200 bg-white flex flex-col transition-[width] duration-200 h-screen sticky top-0",
         collapsed ? "w-16" : "w-64",
       )}>
         <div className={cn("h-16 flex items-center gap-2 border-b border-slate-200", collapsed ? "px-3 justify-center" : "px-5")}>
@@ -92,8 +92,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Main */}
-      <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 sticky top-0 z-30">
+      <div className="flex-1 flex flex-col min-w-0 h-screen">
+        <header className="h-16 shrink-0 bg-white border-b border-slate-200 flex items-center justify-between px-6 z-30">
           <div className="flex items-center gap-3">
             <Button
               variant="ghost"
