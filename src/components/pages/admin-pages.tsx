@@ -938,9 +938,7 @@ export function AdminFees() {
       const remain = s.bought - s.attended;
       const status = s.debt > 0
         ? { key: "debt", label: "Còn nợ", variant: "destructive" as const }
-        : remain <= 3
-          ? { key: "low", label: "Sắp hết buổi", variant: "secondary" as const }
-          : { key: "ok", label: "Đã đóng đủ", variant: "default" as const };
+        : { key: "ok", label: "Đã đóng đủ", variant: "default" as const };
       return { s, remain, status };
     })
     .filter((r) => filterStatus === "all" || r.status.key === filterStatus);
@@ -995,7 +993,6 @@ export function AdminFees() {
                 <SelectContent>
                   <SelectItem value="all">Tất cả</SelectItem>
                   <SelectItem value="debt">Còn nợ</SelectItem>
-                  <SelectItem value="low">Sắp hết buổi</SelectItem>
                   <SelectItem value="ok">Đã đóng đủ</SelectItem>
                 </SelectContent>
               </Select>
