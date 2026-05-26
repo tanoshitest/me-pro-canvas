@@ -1414,6 +1414,8 @@ function SyllabusDetail({ syllabus, onBack }: { syllabus: Syllabus; onBack: () =
 
   return (
     <div className="space-y-4">
+      <Tabs defaultValue="content">
+      <div className="sticky top-0 z-30 -mx-4 px-4 pt-1 pb-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 space-y-2 border-b">
       <Card>
         <CardContent className="p-3">
           <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -1441,14 +1443,14 @@ function SyllabusDetail({ syllabus, onBack }: { syllabus: Syllabus; onBack: () =
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="content">
-        <TabsList>
+      <TabsList>
           <TabsTrigger value="content"><FileText className="h-4 w-4 mr-1" /> Nội dung syllabus</TabsTrigger>
           <TabsTrigger value="attendance"><ClipboardCheck className="h-4 w-4 mr-1" /> Điểm danh</TabsTrigger>
           <TabsTrigger value="grades"><ListChecks className="h-4 w-4 mr-1" /> Nhập điểm trên lớp</TabsTrigger>
           <TabsTrigger value="homework"><FileText className="h-4 w-4 mr-1" /> Nhập điểm homeworks</TabsTrigger>
           <TabsTrigger value="report"><BarChart3 className="h-4 w-4 mr-1" /> Báo cáo học vụ</TabsTrigger>
-        </TabsList>
+      </TabsList>
+      </div>
 
         <TabsContent value="content" className="space-y-3">
           <SyllabusContentTree stages={stages} sel={sel} setSel={setSel} />
