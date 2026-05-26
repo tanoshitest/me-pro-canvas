@@ -17,7 +17,7 @@ import {
 import { toast } from "sonner";
 import {
   Users, GraduationCap, Wallet, AlertTriangle, Receipt as ReceiptIcon, XCircle,
-  TrendingUp, Calendar, Info, CheckCircle2, ArrowRight, CalendarOff,
+  TrendingUp, Calendar, Info, CheckCircle2, ArrowRight, CalendarOff, Repeat,
 } from "lucide-react";
 
 /* ============== DASHBOARD ============== */
