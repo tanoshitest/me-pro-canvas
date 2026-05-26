@@ -1720,7 +1720,6 @@ export function AdminSyllabus() {
   };
 
   const submitSyllabus = () => {
-    if (!form.name.trim() || !form.code.trim()) {
     if (!form.name.trim()) {
       toast.error("Vui lòng nhập tên syllabus.");
       return;
@@ -1732,9 +1731,10 @@ export function AdminSyllabus() {
     const id = `sy${Date.now()}`;
     const today = new Date();
     const created = `${String(today.getDate()).padStart(2, "0")}/${String(today.getMonth() + 1).padStart(2, "0")}/${today.getFullYear()}`;
+    const autoCode = form.name.trim().split(/\s+/).map((w) => w[0]).join("").toUpperCase().slice(0, 6) || "SY";
     const newItem: Syllabus = {
-      id, code: form.code.trim().toUpperCase(), name: form.name.trim(),
-      level: form.level.trim() || "—", ageGroup: form.ageGroup.trim() || "—",
+      id, code: autoCode, name: form.name.trim(),
+      level: form.level || "Cấp 1", ageGroup: form.ageGroup.trim() || "—",
       totalLessons,
       stages, bigTests,
       status: "Bản nháp", createdAt: created, createdBy: "Admin",
