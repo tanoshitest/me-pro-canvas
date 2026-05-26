@@ -194,6 +194,7 @@ export function AdminClasses() {
   const cls = classes.find((c) => c.id === selected);
   const [openHoliday, setOpenHoliday] = React.useState(false);
   const [holidayDate, setHolidayDate] = React.useState("");
+  const [transferStudentId, setTransferStudentId] = React.useState<string | null>(null);
 
   const confirmHoliday = () => {
     if (!cls || !holidayDate) return;
@@ -269,13 +270,18 @@ export function AdminClasses() {
             <div>
               <div className="font-semibold mb-2">Học viên lớp</div>
               <Table>
-                <TableHeader><TableRow><TableHead>Tên</TableHead><TableHead>Đã học/Mua</TableHead><TableHead>Công nợ</TableHead></TableRow></TableHeader>
+                <TableHeader><TableRow><TableHead>Tên</TableHead><TableHead>Đã học/Mua</TableHead><TableHead>Công nợ</TableHead><TableHead></TableHead></TableRow></TableHeader>
                 <TableBody>
                   {students.filter((s) => s.classId === cls.id).map((s) => (
                     <TableRow key={s.id}>
                       <TableCell>{s.name}{s.nickname ? ` (${s.nickname})` : ""}</TableCell>
                       <TableCell>{s.attended} / {s.bought}</TableCell>
                       <TableCell>{formatVND(s.debt)}</TableCell>
+                      <TableCell>
+                        <Button variant="outline" size="sm" onClick={() => setTransferStudentId(s.id)}>
+                          <Repeat className="h-3.5 w-3.5" /> Chuyển lớp
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -296,6 +302,7 @@ export function AdminClasses() {
           </CardContent>
         </Card>
       )}
+      <TransferDialog studentId={transferStudentId} onClose={() => setTransferStudentId(null)} />
     </div>
   );
 }
