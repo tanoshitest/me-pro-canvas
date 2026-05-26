@@ -1339,6 +1339,130 @@ export function AdminTeachers() {
 
   return (
     <div className="space-y-4">
+      {sel ? (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
+            <div>
+              <CardTitle>{sel.name}</CardTitle>
+              <div className="text-xs text-slate-500 mt-1">{sel.position} · CN {sel.branch} · Vào làm {sel.startDate}</div>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => setSelId(null)}>
+              <ArrowLeft className="h-4 w-4" /> Quay lại danh sách
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <Tabs defaultValue="info" className="space-y-3">
+              <TabsList className="flex-wrap h-auto">
+                <TabsTrigger value="info">Thông tin</TabsTrigger>
+                <TabsTrigger value="contract">Hợp đồng</TabsTrigger>
+                <TabsTrigger value="related">Người liên quan</TabsTrigger>
+                <TabsTrigger value="classes">Lớp phụ trách</TabsTrigger>
+                <TabsTrigger value="att">Chấm công</TabsTrigger>
+                <TabsTrigger value="salary">Lương</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="info" className="grid grid-cols-2 gap-3 text-sm mt-3">
+                <Info2 label="Họ tên" value={sel.name} />
+                <Info2 label="Giới tính" value={sel.gender} />
+                <Info2 label="Ngày sinh" value={sel.dob} />
+                <Info2 label="Email" value={sel.email} />
+                <Info2 label="Số điện thoại" value={sel.phone} />
+                <Info2 label="Chi nhánh" value={sel.branch} />
+                <Info2 label="Địa chỉ" value={sel.address} className="col-span-2" />
+                <Info2 label="Lương cơ bản" value={formatVND(sel.baseSalary)} />
+                <Info2 label="Lương / buổi" value={formatVND(sel.perSessionRate)} />
+              </TabsContent>
+
+              <TabsContent value="contract" className="text-sm mt-3 space-y-2">
+                <div className="rounded-md border bg-slate-50 px-3 py-3 flex items-center justify-between">
+                  <div>
+                    <div className="font-medium">{sel.contract.name}</div>
+                    <div className="text-xs text-slate-500">
+                      Ký {sel.contract.signedAt} · Hết hạn {sel.contract.expiresAt}
+                    </div>
+                    <div className="text-xs text-indigo-600 mt-1 font-mono">📎 {sel.contract.fileName}</div>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => toast.success("Đã tải xuống hợp đồng (demo)")}>
+                    Tải xuống
+                  </Button>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="related" className="text-sm mt-3">
+                {sel.related.length === 0 ? (
+                  <p className="text-slate-500">Chưa có người liên quan.</p>
+                ) : (
+                  <Table><TableHeader><TableRow>
+                    <TableHead>Họ tên</TableHead><TableHead>Quan hệ</TableHead><TableHead>SĐT</TableHead>
+                  </TableRow></TableHeader><TableBody>
+                    {sel.related.map((r, i) => (
+                      <TableRow key={i}>
+                        <TableCell className="font-medium">{r.name}</TableCell>
+                        <TableCell>{r.relation}</TableCell>
+                        <TableCell>{r.phone}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody></Table>
+                )}
+              </TabsContent>
+
+              <TabsContent value="classes" className="text-sm mt-3">
+                {teacherClasses.length === 0 ? (
+                  <p className="text-slate-500">Chưa phụ trách lớp nào.</p>
+                ) : (
+                  <Table><TableHeader><TableRow>
+                    <TableHead>Lớp</TableHead><TableHead>Syllabus</TableHead>
+                    <TableHead>Lịch</TableHead><TableHead>Phòng</TableHead>
+                  </TableRow></TableHeader><TableBody>
+                    {teacherClasses.map((c) => (
+                      <TableRow key={c.id}>
+                        <TableCell className="font-medium">{c.name}</TableCell>
+                        <TableCell>{c.syllabus}</TableCell>
+                        <TableCell className="text-xs">{c.schedule} · {c.time}</TableCell>
+                        <TableCell>{c.room}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody></Table>
+                )}
+              </TabsContent>
+
+              <TabsContent value="att" className="text-sm mt-3">
+                <Table><TableHeader><TableRow>
+                  <TableHead>Tháng</TableHead><TableHead className="text-right">Số buổi</TableHead>
+                  <TableHead className="text-right">Vắng</TableHead><TableHead className="text-right">Đi muộn</TableHead>
+                </TableRow></TableHeader><TableBody>
+                  {sel.attendanceReport.map((a, i) => (
+                    <TableRow key={i}>
+                      <TableCell className="font-medium">{a.month}</TableCell>
+                      <TableCell className="text-right">{a.sessions}</TableCell>
+                      <TableCell className="text-right">{a.absent}</TableCell>
+                      <TableCell className="text-right">{a.late}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody></Table>
+              </TabsContent>
+
+              <TabsContent value="salary" className="text-sm mt-3">
+                <Table><TableHeader><TableRow>
+                  <TableHead>Tháng</TableHead><TableHead className="text-right">Buổi</TableHead>
+                  <TableHead className="text-right">Tổng</TableHead><TableHead className="text-right">Trừ</TableHead>
+                  <TableHead className="text-right">Thực nhận</TableHead>
+                </TableRow></TableHeader><TableBody>
+                  {sel.salaryReport.map((s, i) => (
+                    <TableRow key={i}>
+                      <TableCell className="font-medium">{s.month}</TableCell>
+                      <TableCell className="text-right">{s.sessions}</TableCell>
+                      <TableCell className="text-right">{formatVND(s.gross)}</TableCell>
+                      <TableCell className="text-right text-rose-600">-{formatVND(s.deduct)}</TableCell>
+                      <TableCell className="text-right font-semibold">{formatVND(s.net)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody></Table>
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
+      ) : (
       <Card>
         <CardHeader><CardTitle>Danh sách giáo viên</CardTitle></CardHeader>
         <CardContent className="p-0">
@@ -1364,128 +1488,7 @@ export function AdminTeachers() {
           </Table>
         </CardContent>
       </Card>
-
-      <Dialog open={!!sel} onOpenChange={(o) => !o && setSelId(null)}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          {sel && (
-            <>
-              <DialogHeader>
-                <DialogTitle>{sel.name}</DialogTitle>
-                <DialogDescription>{sel.position} · CN {sel.branch} · Vào làm {sel.startDate}</DialogDescription>
-              </DialogHeader>
-              <Tabs defaultValue="info" className="space-y-3">
-            <TabsList className="flex-wrap h-auto">
-              <TabsTrigger value="info">Thông tin</TabsTrigger>
-              <TabsTrigger value="contract">Hợp đồng</TabsTrigger>
-              <TabsTrigger value="related">Người liên quan</TabsTrigger>
-              <TabsTrigger value="classes">Lớp phụ trách</TabsTrigger>
-              <TabsTrigger value="att">Chấm công</TabsTrigger>
-              <TabsTrigger value="salary">Lương</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="info" className="grid grid-cols-2 gap-3 text-sm mt-3">
-              <Info2 label="Họ tên" value={sel.name} />
-              <Info2 label="Giới tính" value={sel.gender} />
-              <Info2 label="Ngày sinh" value={sel.dob} />
-              <Info2 label="Email" value={sel.email} />
-              <Info2 label="Số điện thoại" value={sel.phone} />
-              <Info2 label="Chi nhánh" value={sel.branch} />
-              <Info2 label="Địa chỉ" value={sel.address} className="col-span-2" />
-              <Info2 label="Lương cơ bản" value={formatVND(sel.baseSalary)} />
-              <Info2 label="Lương / buổi" value={formatVND(sel.perSessionRate)} />
-            </TabsContent>
-
-            <TabsContent value="contract" className="text-sm mt-3 space-y-2">
-              <div className="rounded-md border bg-slate-50 px-3 py-3 flex items-center justify-between">
-                <div>
-                  <div className="font-medium">{sel.contract.name}</div>
-                  <div className="text-xs text-slate-500">
-                    Ký {sel.contract.signedAt} · Hết hạn {sel.contract.expiresAt}
-                  </div>
-                  <div className="text-xs text-indigo-600 mt-1 font-mono">📎 {sel.contract.fileName}</div>
-                </div>
-                <Button variant="outline" size="sm" onClick={() => toast.success("Đã tải xuống hợp đồng (demo)")}>
-                  Tải xuống
-                </Button>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="related" className="text-sm mt-3">
-              {sel.related.length === 0 ? (
-                <p className="text-slate-500">Chưa có người liên quan.</p>
-              ) : (
-                <Table><TableHeader><TableRow>
-                  <TableHead>Họ tên</TableHead><TableHead>Quan hệ</TableHead><TableHead>SĐT</TableHead>
-                </TableRow></TableHeader><TableBody>
-                  {sel.related.map((r, i) => (
-                    <TableRow key={i}>
-                      <TableCell className="font-medium">{r.name}</TableCell>
-                      <TableCell>{r.relation}</TableCell>
-                      <TableCell>{r.phone}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody></Table>
-              )}
-            </TabsContent>
-
-            <TabsContent value="classes" className="text-sm mt-3">
-              {teacherClasses.length === 0 ? (
-                <p className="text-slate-500">Chưa phụ trách lớp nào.</p>
-              ) : (
-                <Table><TableHeader><TableRow>
-                  <TableHead>Lớp</TableHead><TableHead>Syllabus</TableHead>
-                  <TableHead>Lịch</TableHead><TableHead>Phòng</TableHead>
-                </TableRow></TableHeader><TableBody>
-                  {teacherClasses.map((c) => (
-                    <TableRow key={c.id}>
-                      <TableCell className="font-medium">{c.name}</TableCell>
-                      <TableCell>{c.syllabus}</TableCell>
-                      <TableCell className="text-xs">{c.schedule} · {c.time}</TableCell>
-                      <TableCell>{c.room}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody></Table>
-              )}
-            </TabsContent>
-
-            <TabsContent value="att" className="text-sm mt-3">
-              <Table><TableHeader><TableRow>
-                <TableHead>Tháng</TableHead><TableHead className="text-right">Số buổi</TableHead>
-                <TableHead className="text-right">Vắng</TableHead><TableHead className="text-right">Đi muộn</TableHead>
-              </TableRow></TableHeader><TableBody>
-                {sel.attendanceReport.map((a, i) => (
-                  <TableRow key={i}>
-                    <TableCell className="font-medium">{a.month}</TableCell>
-                    <TableCell className="text-right">{a.sessions}</TableCell>
-                    <TableCell className="text-right">{a.absent}</TableCell>
-                    <TableCell className="text-right">{a.late}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody></Table>
-            </TabsContent>
-
-            <TabsContent value="salary" className="text-sm mt-3">
-              <Table><TableHeader><TableRow>
-                <TableHead>Tháng</TableHead><TableHead className="text-right">Buổi</TableHead>
-                <TableHead className="text-right">Tổng</TableHead><TableHead className="text-right">Trừ</TableHead>
-                <TableHead className="text-right">Thực nhận</TableHead>
-              </TableRow></TableHeader><TableBody>
-                {sel.salaryReport.map((s, i) => (
-                  <TableRow key={i}>
-                    <TableCell className="font-medium">{s.month}</TableCell>
-                    <TableCell className="text-right">{s.sessions}</TableCell>
-                    <TableCell className="text-right">{formatVND(s.gross)}</TableCell>
-                    <TableCell className="text-right text-rose-600">-{formatVND(s.deduct)}</TableCell>
-                    <TableCell className="text-right font-semibold">{formatVND(s.net)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody></Table>
-            </TabsContent>
-              </Tabs>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+      )}
     </div>
   );
 }
