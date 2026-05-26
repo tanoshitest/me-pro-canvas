@@ -480,7 +480,24 @@ export function AdminClasses() {
               <Info2 label="Chi nhánh" value={cls.branch} />
               <Info2 label="Giáo viên" value={cls.teacher} />
               <Info2 label="Syllabus" value={cls.syllabus} />
-              <Info2 label="Lịch học" value={`${cls.schedule} · ${cls.time}`} />
+              <div className="rounded-md border bg-slate-50 px-3 py-2 col-span-1">
+                <div className="text-xs text-slate-500 mb-1">Lịch học</div>
+                {cls.sessions?.length ? (
+                  <div className="space-y-0.5">
+                    {cls.sessions.map((sess, i) => (
+                      <div key={i} className="font-medium text-sm">
+                        <span className="text-slate-700">{sess.day}</span>
+                        <span className="text-slate-400 mx-1">·</span>
+                        <span>{sess.time}</span>
+                        <span className="text-slate-400 mx-1">·</span>
+                        <span className="text-indigo-700">{sess.room}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="font-medium">{cls.schedule} · {cls.time} · {cls.room}</div>
+                )}
+              </div>
               <Info2 label="Ngày bắt đầu" value={cls.startDate} />
               <Info2 label="Ngày kết thúc dự kiến" value={cls.endDate} />
               <Info2 label="Số buổi / khóa" value={cls.totalSessions.toString()} />
