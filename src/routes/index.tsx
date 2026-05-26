@@ -2,8 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AppProvider, useApp } from "@/lib/app-store";
 import { AppShell } from "@/components/app-shell";
 import {
-  AdminDashboard, AdminStudents, AdminClasses, AdminTuition,
-  AdminReceipts, AdminFees,
+  AdminStudents, AdminClasses, AdminTuition, AdminFees, AdminSyllabus,
 } from "@/components/pages/admin-pages";
 import { TeacherToday, TeacherSyllabus } from "@/components/pages/teacher-pages";
 import {
@@ -19,12 +18,11 @@ function PageRouter() {
   const { role, page } = useApp();
   if (role === "admin") {
     switch (page) {
-      case "dashboard": return <AdminDashboard />;
       case "students": return <AdminStudents />;
+      case "syllabus": return <AdminSyllabus />;
       case "classes": return <AdminClasses />;
       case "fees": return <AdminFees />;
       case "tuition": return <AdminTuition />;
-      case "receipts": return <AdminReceipts />;
     }
   }
   if (role === "teacher") {
