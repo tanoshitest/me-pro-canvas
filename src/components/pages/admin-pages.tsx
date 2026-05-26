@@ -2198,7 +2198,34 @@ function SyllabusDetail({ syllabus, onBack, embedded }: { syllabus: Syllabus; on
       )}
 
       <div className="space-y-3">
-        <SyllabusContentTree stages={stages} sel={sel} setSel={setSel} />
+        {embedded ? (
+          <Tabs defaultValue="content" className="space-y-3">
+            <TabsList className="flex-wrap h-auto">
+              <TabsTrigger value="content">Nội dung syllabus</TabsTrigger>
+              <TabsTrigger value="attendance">Điểm danh</TabsTrigger>
+              <TabsTrigger value="grades">Nhập điểm trên lớp</TabsTrigger>
+              <TabsTrigger value="homework">Nhập điểm homeworks</TabsTrigger>
+              <TabsTrigger value="report">Báo cáo học vụ</TabsTrigger>
+            </TabsList>
+            <TabsContent value="content">
+              <SyllabusContentTree stages={stages} sel={sel} setSel={setSel} />
+            </TabsContent>
+            <TabsContent value="attendance">
+              <SyllabusAttendanceTab sel={sel} />
+            </TabsContent>
+            <TabsContent value="grades">
+              <SyllabusGradesTab />
+            </TabsContent>
+            <TabsContent value="homework">
+              <SyllabusHomeworkTab sel={sel} />
+            </TabsContent>
+            <TabsContent value="report">
+              <SyllabusReportTab />
+            </TabsContent>
+          </Tabs>
+        ) : (
+          <SyllabusContentTree stages={stages} sel={sel} setSel={setSel} />
+        )}
       </div>
     </div>
   );
