@@ -2367,6 +2367,10 @@ export function AdminTeachers() {
   const sel = allTeachers.find((t) => t.id === selId) ?? null;
   const teacherClasses = sel ? classes.filter((c) => sel.classes.includes(c.id)) : [];
 
+  const fmtDate = (d: Date) =>
+    `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+
   const emptyT = () => ({
     name: "", email: "", phone: "", dob: "", gender: "Nữ" as "Nam" | "Nữ",
     address: "", startDate: "",
