@@ -2166,9 +2166,8 @@ function SyllabusDetail({ syllabus, onBack, embedded }: { syllabus: Syllabus; on
 
   return (
     <div className="space-y-4">
-      <Tabs defaultValue="content">
-      <div className="sticky top-0 z-30 -mx-4 px-4 pt-1 pb-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 space-y-2 border-b">
       {!embedded && (
+      <div className="sticky top-0 z-30 -mx-4 px-4 pt-1 pb-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b">
       <Card>
         <CardContent className="p-3">
           <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -2195,37 +2194,12 @@ function SyllabusDetail({ syllabus, onBack, embedded }: { syllabus: Syllabus; on
           </div>
         </CardContent>
       </Card>
+      </div>
       )}
 
-      <TabsList>
-          <TabsTrigger value="content"><FileText className="h-4 w-4 mr-1" /> Nội dung syllabus</TabsTrigger>
-          <TabsTrigger value="attendance"><ClipboardCheck className="h-4 w-4 mr-1" /> Điểm danh</TabsTrigger>
-          <TabsTrigger value="grades"><ListChecks className="h-4 w-4 mr-1" /> Nhập điểm trên lớp</TabsTrigger>
-          <TabsTrigger value="homework"><FileText className="h-4 w-4 mr-1" /> Nhập điểm homeworks</TabsTrigger>
-          <TabsTrigger value="report"><BarChart3 className="h-4 w-4 mr-1" /> Báo cáo học vụ</TabsTrigger>
-      </TabsList>
+      <div className="space-y-3">
+        <SyllabusContentTree stages={stages} sel={sel} setSel={setSel} />
       </div>
-
-        <TabsContent value="content" className="space-y-3">
-          <SyllabusContentTree stages={stages} sel={sel} setSel={setSel} />
-        </TabsContent>
-
-        <TabsContent value="attendance">
-          <SyllabusAttendanceTab sel={sel} />
-        </TabsContent>
-
-        <TabsContent value="grades">
-          <SyllabusGradesTab />
-        </TabsContent>
-
-        <TabsContent value="homework">
-          <SyllabusHomeworkTab sel={sel} />
-        </TabsContent>
-
-        <TabsContent value="report">
-          <SyllabusReportTab />
-        </TabsContent>
-      </Tabs>
     </div>
   );
 }
