@@ -222,6 +222,10 @@ export function AdminStudents() {
 
               {/* ===== LỊCH SỬ VẬN HÀNH ===== */}
               <TabsContent value="ops" className="mt-3">
+                {null}
+              </TabsContent>
+              {/* placeholder to be replaced */}
+              <TabsContent value="ops" className="mt-3">
                 <Tabs defaultValue="att" className="space-y-3">
                   <TabsList className="flex-wrap h-auto">
                     <TabsTrigger value="att">Điểm danh</TabsTrigger>
