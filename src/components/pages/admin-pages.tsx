@@ -332,17 +332,6 @@ export function AdminClasses() {
               </Table>
             </div>
 
-            <div>
-              <div className="font-semibold mb-2">Bảng điểm danh theo buổi</div>
-              <div className="grid grid-cols-6 gap-2 text-xs">
-                {Array.from({ length: 12 }).map((_, i) => (
-                  <div key={i} className="border rounded p-2 text-center bg-slate-50">
-                    <div className="font-medium">B{i + 1}</div>
-                    <div className="text-slate-500">{i < 5 ? "✓ Đủ" : i === 5 ? "Nghỉ" : "—"}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
           </CardContent>
         </Card>
       )}
