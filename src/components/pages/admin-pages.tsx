@@ -1408,46 +1408,35 @@ export function AdminSyllabus() {
 /* ----- Syllabus detail ----- */
 function SyllabusDetail({ syllabus, onBack }: { syllabus: Syllabus; onBack: () => void }) {
   const stages = SYLLABUS_STAGES;
-  const totalLessons = stages.reduce((s, st) => s + st.lessons.length, 0);
-  const totalBigTests = stages.length;
 
   type Sel = { kind: "lesson"; stageId: string; lessonId: string } | { kind: "bigtest"; stageId: string };
   const [sel, setSel] = React.useState<Sel>({ kind: "lesson", stageId: stages[0].id, lessonId: stages[0].lessons[0].id });
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="sm" onClick={onBack}><ArrowLeft className="h-4 w-4" /> Quay lại danh sách</Button>
-      </div>
-
       <Card>
-        <CardContent className="p-5 space-y-4">
-          <div className="flex items-start justify-between gap-4 flex-wrap">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2 text-xs text-slate-500">
-                <span className="font-mono">{syllabus.code}</span>
-                <span>•</span>
-                <span>{syllabus.ageGroup}</span>
-              </div>
-              <div className="text-2xl font-bold">{syllabus.name}</div>
-              <div className="text-sm text-slate-600 max-w-2xl">{syllabus.description}</div>
-              <div className="flex items-center gap-2 pt-2">
-                <Badge variant="secondary">{syllabus.level}</Badge>
-                <Badge variant={syllabus.status === "Bản nháp" ? "outline" : "default"}>{syllabus.status ?? "Đang dùng"}</Badge>
+        <CardContent className="p-3">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-3 min-w-0">
+              <Button variant="ghost" size="sm" onClick={onBack}><ArrowLeft className="h-4 w-4" /></Button>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 text-[11px] text-slate-500">
+                  <span className="font-mono">{syllabus.code}</span>
+                  <span>•</span>
+                  <span className="truncate">{syllabus.ageGroup}</span>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="text-base font-bold truncate">{syllabus.name}</div>
+                  <Badge variant="secondary" className="text-[10px]">{syllabus.level}</Badge>
+                  <Badge variant={syllabus.status === "Bản nháp" ? "outline" : "default"} className="text-[10px]">{syllabus.status ?? "Đang dùng"}</Badge>
+                </div>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-1.5">
               <Button size="sm"><Plus className="h-4 w-4" /> Thêm chặng</Button>
-              <Button size="sm" variant="outline"><Pencil className="h-4 w-4" /> Sửa syllabus</Button>
-              <Button size="sm" variant="outline"><Download className="h-4 w-4" /> Xuất file</Button>
+              <Button size="sm" variant="outline"><Pencil className="h-4 w-4" /> Sửa</Button>
+              <Button size="sm" variant="outline"><Download className="h-4 w-4" /> Xuất</Button>
             </div>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2">
-            <StatBox icon={Layers} label="Tổng số chặng" value={stages.length} color="bg-indigo-500" />
-            <StatBox icon={BookOpen} label="Tổng số buổi" value={totalLessons} color="bg-emerald-500" />
-            <StatBox icon={ClipboardCheck} label="Tổng số Big Test" value={totalBigTests} color="bg-amber-500" />
-            <StatBox icon={Users} label="Học viên đang học" value={SYLLABUS_STUDENTS.length} color="bg-rose-500" />
           </div>
         </CardContent>
       </Card>
