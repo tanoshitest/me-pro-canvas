@@ -384,6 +384,66 @@ export function AdminClasses() {
   const [filterBranch, setFilterBranch] = React.useState<string>("all");
   const [filterClassId, setFilterClassId] = React.useState<string>("all");
 
+  // Create class dialog
+  const DEFAULT_TOTAL_SESSIONS = 24;
+  const DAY_OPTIONS = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật"];
+  type NewSession = { day: string; time: string; room: string };
+  const emptyForm = () => ({
+    branch: "" as Branch | "",
+    name: "",
+    teacher: "",
+    syllabus: "",
+    startDate: "",
+    endDate: "",
+    sessions: [{ day: "Thứ 2", time: "18:00 - 19:30", room: "" }] as NewSession[],
+  });
+  const [openCreate, setOpenCreate] = React.useState(false);
+  const [form, setForm] = React.useState(emptyForm());
+  const branchRooms = ROOMS.filter((r) => !form.branch || r.branch === form.branch);
+  const branchTeachers = TEACHERS.filter((t) => !form.branch || t.branch === form.branch);
+
+  const updateSession = (i: number, patch: Partial<NewSession>) => {
+    setForm((f) => ({ ...f, sessions: f.sessions.map((s, idx) => idx === i ? { ...s, ...patch } : s) }));
+  };
+  const addSession = () => setForm((f) => ({ ...f, sessions: [...f.sessions, { day: "Thứ 4", time: "18:00 - 19:30", room: "" }] }));
+  const removeSession = (i: number) => setForm((f) => ({ ...f, sessions: f.sessions.filter((_, idx) => idx !== i) }));
+
+  const submitCreate = () => {
+    if (!form.branch || !form.name.trim() || !form.teacher || !form.syllabus || !form.startDate || !form.endDate) {
+      toast.error("Vui lòng điền đầy đủ thông tin lớp.");
+      return;
+    }
+    if (form.sessions.length === 0 || form.sessions.some((s) => !s.day || !s.time || !s.room)) {
+      toast.error("Vui lòng cấu hình đầy đủ lịch học và phòng cho từng buổi.");
+      return;
+    }
+    const sy = SYLLABI.find((s) => s.id === form.syllabus);
+    const id = `c${Date.now()}`;
+    setClasses((prev) => [
+      ...prev,
+      {
+        id,
+        name: form.name.trim(),
+        schedule: form.sessions.map((s) => s.day).join(", "),
+        time: form.sessions[0].time,
+        branch: form.branch as Branch,
+        teacher: form.teacher,
+        room: form.sessions[0].room,
+        syllabus: sy ? `${sy.code} · ${sy.name}` : form.syllabus,
+        startDate: form.startDate,
+        endDate: form.endDate,
+        totalSessions: DEFAULT_TOTAL_SESSIONS,
+        remainingSessions: DEFAULT_TOTAL_SESSIONS,
+        pricePerCourse: 0,
+        pricePerSession: 0,
+        sessions: form.sessions,
+      },
+    ]);
+    toast.success(`Đã tạo lớp ${form.name.trim()}`);
+    setOpenCreate(false);
+    setForm(emptyForm());
+  };
+
   const filteredClasses = classes.filter((c) =>
     (filterBranch === "all" || c.branch === filterBranch) &&
     (filterClassId === "all" || c.id === filterClassId),
@@ -500,7 +560,12 @@ export function AdminClasses() {
       ) : (
       <Card>
         <CardHeader>
-          <CardTitle>Danh sách lớp</CardTitle>
+          <div className="flex items-center justify-between gap-2">
+            <CardTitle>Danh sách lớp</CardTitle>
+            <Button size="sm" onClick={() => { setForm(emptyForm()); setOpenCreate(true); }}>
+              <Plus className="h-4 w-4" /> Tạo lớp
+            </Button>
+          </div>
           <div className="grid grid-cols-2 gap-2 pt-2">
             <div>
               <Label className="text-xs text-slate-500">Chi nhánh</Label>
@@ -554,6 +619,103 @@ export function AdminClasses() {
       </Card>
       )}
       <TransferDialog studentId={transferStudentId} onClose={() => setTransferStudentId(null)} />
+
+      <Dialog open={openCreate} onOpenChange={setOpenCreate}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Tạo lớp học mới</DialogTitle>
+            <DialogDescription>
+              Cấu hình thông tin lớp. Số buổi mặc định là {DEFAULT_TOTAL_SESSIONS} (có thể chỉnh ở tab Cấu hình).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs text-slate-500">Chi nhánh</Label>
+                <Select
+                  value={form.branch}
+                  onValueChange={(v) => setForm((f) => ({ ...f, branch: v as Branch, teacher: "", sessions: f.sessions.map((s) => ({ ...s, room: "" })) }))}
+                >
+                  <SelectTrigger className="h-9 mt-1"><SelectValue placeholder="Chọn chi nhánh" /></SelectTrigger>
+                  <SelectContent>
+                    {BRANCHES.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs text-slate-500">Tên lớp</Label>
+                <Input className="h-9 mt-1" placeholder="VD: 4CLC2" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+              </div>
+              <div>
+                <Label className="text-xs text-slate-500">Giáo viên</Label>
+                <Select value={form.teacher} onValueChange={(v) => setForm((f) => ({ ...f, teacher: v }))}>
+                  <SelectTrigger className="h-9 mt-1"><SelectValue placeholder={form.branch ? "Chọn giáo viên" : "Chọn chi nhánh trước"} /></SelectTrigger>
+                  <SelectContent>
+                    {branchTeachers.map((t) => <SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs text-slate-500">Syllabus</Label>
+                <Select value={form.syllabus} onValueChange={(v) => setForm((f) => ({ ...f, syllabus: v }))}>
+                  <SelectTrigger className="h-9 mt-1"><SelectValue placeholder="Chọn syllabus" /></SelectTrigger>
+                  <SelectContent>
+                    {SYLLABI.map((s) => <SelectItem key={s.id} value={s.id}>{s.code} · {s.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs text-slate-500">Ngày bắt đầu</Label>
+                <Input className="h-9 mt-1" placeholder="DD/MM/YYYY" value={form.startDate} onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))} />
+              </div>
+              <div>
+                <Label className="text-xs text-slate-500">Ngày kết thúc dự kiến</Label>
+                <Input className="h-9 mt-1" placeholder="DD/MM/YYYY" value={form.endDate} onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))} />
+              </div>
+              <div>
+                <Label className="text-xs text-slate-500">Số buổi / khóa</Label>
+                <Input className="h-9 mt-1 bg-slate-50" value={DEFAULT_TOTAL_SESSIONS} disabled />
+                <p className="text-[11px] text-slate-400 mt-1">Cấu hình tại tab Cấu hình</p>
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <Label className="text-sm font-semibold">Lịch học &amp; phòng học</Label>
+                <Button type="button" variant="outline" size="sm" onClick={addSession}>
+                  <Plus className="h-3.5 w-3.5" /> Thêm buổi
+                </Button>
+              </div>
+              <div className="space-y-2">
+                {form.sessions.map((s, i) => (
+                  <div key={i} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 items-center">
+                    <Select value={s.day} onValueChange={(v) => updateSession(i, { day: v })}>
+                      <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {DAY_OPTIONS.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <Input className="h-9" placeholder="18:00 - 19:30" value={s.time} onChange={(e) => updateSession(i, { time: e.target.value })} />
+                    <Select value={s.room} onValueChange={(v) => updateSession(i, { room: v })}>
+                      <SelectTrigger className="h-9"><SelectValue placeholder={form.branch ? "Chọn phòng" : "Chọn CN trước"} /></SelectTrigger>
+                      <SelectContent>
+                        {branchRooms.map((r) => <SelectItem key={r.id} value={r.name}>{r.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <Button type="button" variant="ghost" size="sm" disabled={form.sessions.length <= 1} onClick={() => removeSession(i)}>
+                      <Trash2 className="h-4 w-4 text-rose-500" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenCreate(false)}>Hủy</Button>
+            <Button onClick={submitCreate}>Tạo lớp</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
