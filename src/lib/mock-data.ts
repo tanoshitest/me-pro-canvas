@@ -37,6 +37,7 @@ export interface Student {
   attendanceHistory?: { at: string; session: string; status: "Có mặt" | "Vắng có phép" | "Vắng không phép" | "Đi muộn" }[];
   scoreHistory?: { at: string; session: string; listening: number; speaking: number; reading: number; writing: number }[];
   auditLog?: { at: string; by: string; action: string; detail: string }[];
+  lifecycleHistory?: { at: string; type: "Nhập học" | "Dừng học" | "Bảo lưu" | "Đi học lại"; note?: string }[];
 }
 
 export interface ClassRoom {
@@ -108,6 +109,11 @@ export const STUDENTS: Student[] = [
     auditLog: [
       { at: "01/03/2026 09:10", by: "Admin Lan", action: "Tạo hồ sơ", detail: "Khởi tạo thông tin học viên" },
       { at: "02/03/2026 14:22", by: "Admin Lan", action: "Thu học phí", detail: "Phiếu DC-000123 · +24 buổi" },
+    ],
+    lifecycleHistory: [
+      { at: "01/03/2026", type: "Nhập học", note: "Đăng ký khoá Family & Friends 1 tại CN Đội Cấn" },
+      { at: "15/04/2026", type: "Bảo lưu", note: "PH xin bảo lưu 2 tuần vì lý do gia đình" },
+      { at: "29/04/2026", type: "Đi học lại", note: "Quay lại lớp 4CLC1 sau bảo lưu" },
     ],
   },
   {

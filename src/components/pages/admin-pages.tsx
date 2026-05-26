@@ -13,7 +13,7 @@ import { useApp } from "@/lib/app-store";
 import {
   BRANCHES, CLASSES, PROMOTIONS, TUITION_CONFIG, formatVND,
   CLASS_SHIFTS, ROOMS,
-  type Receipt, type Branch,
+  type Receipt, type Branch, type Student,
 } from "@/lib/mock-data";
 import { toast } from "sonner";
 import {
@@ -266,137 +266,7 @@ export function AdminStudents() {
 
               {/* ===== LỊCH SỬ ===== */}
               <TabsContent value="ops" className="mt-3">
-                <Tabs defaultValue="att" className="space-y-3">
-                  <TabsList className="flex-wrap h-auto">
-                    <TabsTrigger value="att">Điểm danh</TabsTrigger>
-                    <TabsTrigger value="grade">Nhập điểm</TabsTrigger>
-                    <TabsTrigger value="cls">Chuyển lớp</TabsTrigger>
-                    <TabsTrigger value="br">Chuyển chi nhánh</TabsTrigger>
-                    <TabsTrigger value="paylog">Học phí</TabsTrigger>
-                    <TabsTrigger value="audit">Audit Log</TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent value="att" className="text-sm">
-                    {!stu.attendanceHistory?.length ? (
-                      <p className="text-slate-500">Chưa có dữ liệu điểm danh.</p>
-                    ) : (
-                      <Table><TableHeader><TableRow>
-                        <TableHead>Ngày</TableHead><TableHead>Buổi</TableHead><TableHead>Trạng thái</TableHead>
-                      </TableRow></TableHeader><TableBody>
-                        {stu.attendanceHistory.map((a, i) => (
-                          <TableRow key={i}>
-                            <TableCell>{a.at}</TableCell>
-                            <TableCell>{a.session}</TableCell>
-                            <TableCell>
-                              <Badge variant={a.status === "Có mặt" ? "secondary" : a.status === "Đi muộn" ? "default" : "destructive"}>
-                                {a.status}
-                              </Badge>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody></Table>
-                    )}
-                  </TabsContent>
-
-                  <TabsContent value="grade" className="text-sm">
-                    {!stu.scoreHistory?.length ? (
-                      <p className="text-slate-500">Chưa có dữ liệu điểm.</p>
-                    ) : (
-                      <Table><TableHeader><TableRow>
-                        <TableHead>Ngày</TableHead><TableHead>Buổi</TableHead>
-                        <TableHead>Listening</TableHead><TableHead>Speaking</TableHead>
-                        <TableHead>Reading</TableHead><TableHead>Writing</TableHead>
-                      </TableRow></TableHeader><TableBody>
-                        {stu.scoreHistory.map((g, i) => (
-                          <TableRow key={i}>
-                            <TableCell>{g.at}</TableCell><TableCell>{g.session}</TableCell>
-                            <TableCell>{g.listening}</TableCell><TableCell>{g.speaking}</TableCell>
-                            <TableCell>{g.reading}</TableCell><TableCell>{g.writing}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody></Table>
-                    )}
-                  </TabsContent>
-
-                  <TabsContent value="cls" className="text-sm space-y-2">
-                    {stu.transferNote && (
-                      <div className="rounded-md border border-amber-300 bg-amber-50 text-amber-800 px-3 py-2 flex items-start gap-2">
-                        <Repeat className="h-4 w-4 mt-0.5 shrink-0" />
-                        <span>{stu.transferNote}</span>
-                      </div>
-                    )}
-                    {stu.transferHistory?.length ? (
-                      <Table><TableHeader><TableRow>
-                        <TableHead>Ngày</TableHead><TableHead>Từ lớp</TableHead><TableHead>Sang lớp</TableHead><TableHead>Lý do</TableHead>
-                      </TableRow></TableHeader><TableBody>
-                        {stu.transferHistory.map((t, i) => (
-                          <TableRow key={i}>
-                            <TableCell>{t.at}</TableCell><TableCell>{t.from}</TableCell>
-                            <TableCell>{t.to}</TableCell><TableCell>{t.reason}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody></Table>
-                    ) : (!stu.transferNote && <p className="text-slate-500">Chưa có lịch sử chuyển lớp.</p>)}
-                  </TabsContent>
-
-                  <TabsContent value="br" className="text-sm">
-                    {!stu.branchHistory?.length ? (
-                      <p className="text-slate-500">Chưa có lịch sử chuyển chi nhánh.</p>
-                    ) : (
-                      <Table><TableHeader><TableRow>
-                        <TableHead>Ngày</TableHead><TableHead>Từ CN</TableHead><TableHead>Sang CN</TableHead><TableHead>Lý do</TableHead>
-                      </TableRow></TableHeader><TableBody>
-                        {stu.branchHistory.map((t, i) => (
-                          <TableRow key={i}>
-                            <TableCell>{t.at}</TableCell><TableCell>{t.from}</TableCell>
-                            <TableCell>{t.to}</TableCell><TableCell>{t.reason}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody></Table>
-                    )}
-                  </TabsContent>
-
-                  <TabsContent value="paylog" className="text-sm">
-                    {stuReceipts.length === 0 ? (
-                      <p className="text-slate-500">Chưa có giao dịch.</p>
-                    ) : (
-                      <Table><TableHeader><TableRow>
-                        <TableHead>Ngày</TableHead><TableHead>Mã phiếu</TableHead>
-                        <TableHead>Số tiền</TableHead><TableHead>PT</TableHead><TableHead>Trạng thái</TableHead>
-                      </TableRow></TableHeader><TableBody>
-                        {stuReceipts.map((r) => (
-                          <TableRow key={r.id}>
-                            <TableCell>{r.createdAt}</TableCell>
-                            <TableCell className="font-mono text-xs">{r.id}</TableCell>
-                            <TableCell>{formatVND(r.amount)}</TableCell>
-                            <TableCell>{r.method}</TableCell>
-                            <TableCell>
-                              <Badge variant={r.status === "Hiệu lực" ? "default" : "secondary"}>{r.status}</Badge>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody></Table>
-                    )}
-                  </TabsContent>
-
-                  <TabsContent value="audit" className="text-sm">
-                    {!stu.auditLog?.length ? (
-                      <p className="text-slate-500">Chưa có nhật ký thay đổi.</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {stu.auditLog.map((a, i) => (
-                          <div key={i} className="border rounded-md p-2 bg-slate-50">
-                            <div className="flex justify-between text-xs text-slate-500">
-                              <span>{a.at}</span><span>{a.by}</span>
-                            </div>
-                            <div className="font-medium">{a.action}</div>
-                            <div className="text-slate-600">{a.detail}</div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </TabsContent>
-                </Tabs>
+                <StudentHistoryTimeline stu={stu} receipts={stuReceipts} />
               </TabsContent>
             </Tabs>
           )}
@@ -412,6 +282,92 @@ function Info2({ label, value, className }: { label: string; value: string; clas
       <div className="text-xs text-slate-500">{label}</div>
       <div className="font-medium break-words">{value}</div>
     </div>
+  );
+}
+
+/* Parse "dd/mm/yyyy" or "dd/mm/yyyy hh:mm" → Date */
+function parseDMY(s: string): number {
+  const [datePart, timePart] = s.split(" ");
+  const [d, m, y] = datePart.split("/").map(Number);
+  const [hh, mm] = (timePart ?? "00:00").split(":").map(Number);
+  return new Date(y, (m ?? 1) - 1, d ?? 1, hh ?? 0, mm ?? 0).getTime();
+}
+
+type TimelineEvent = {
+  at: string;
+  type: "Nhập học" | "Dừng học" | "Bảo lưu" | "Đi học lại" | "Đóng học phí" | "Chuyển lớp" | "Chuyển chi nhánh";
+  title: string;
+  detail?: string;
+};
+
+function StudentHistoryTimeline({ stu, receipts }: { stu: Student; receipts: Receipt[] }) {
+  const events: TimelineEvent[] = [];
+
+  if (stu.lifecycleHistory?.length) {
+    stu.lifecycleHistory.forEach((l) =>
+      events.push({ at: l.at, type: l.type, title: l.type, detail: l.note }),
+    );
+  } else if (stu.enrolledAt) {
+    events.push({ at: stu.enrolledAt, type: "Nhập học", title: "Nhập học", detail: `Đăng ký tại CN ${stu.branch}` });
+  }
+
+  receipts.forEach((r) =>
+    events.push({
+      at: r.createdAt,
+      type: "Đóng học phí",
+      title: `Đóng học phí · ${formatVND(r.amount)}`,
+      detail: `Phiếu ${r.id} · ${r.method}${r.status === "Đã hủy" ? " · Đã hủy" : ""}`,
+    }),
+  );
+
+  stu.transferHistory?.forEach((t) =>
+    events.push({
+      at: t.at,
+      type: "Chuyển lớp",
+      title: `Chuyển lớp: ${t.from} → ${t.to}`,
+      detail: t.reason,
+    }),
+  );
+
+  stu.branchHistory?.forEach((t) =>
+    events.push({
+      at: t.at,
+      type: "Chuyển chi nhánh",
+      title: `Chuyển chi nhánh: ${t.from} → ${t.to}`,
+      detail: t.reason,
+    }),
+  );
+
+  events.sort((a, b) => parseDMY(b.at) - parseDMY(a.at));
+
+  if (!events.length) {
+    return <p className="text-sm text-slate-500">Chưa có lịch sử.</p>;
+  }
+
+  const color: Record<TimelineEvent["type"], string> = {
+    "Nhập học": "bg-emerald-100 text-emerald-700 border-emerald-200",
+    "Dừng học": "bg-rose-100 text-rose-700 border-rose-200",
+    "Bảo lưu": "bg-amber-100 text-amber-700 border-amber-200",
+    "Đi học lại": "bg-emerald-100 text-emerald-700 border-emerald-200",
+    "Đóng học phí": "bg-blue-100 text-blue-700 border-blue-200",
+    "Chuyển lớp": "bg-violet-100 text-violet-700 border-violet-200",
+    "Chuyển chi nhánh": "bg-violet-100 text-violet-700 border-violet-200",
+  };
+
+  return (
+    <ol className="relative border-l border-slate-200 ml-2 space-y-3 text-sm">
+      {events.map((e, i) => (
+        <li key={i} className="ml-4">
+          <span className="absolute -left-1.5 mt-1.5 h-3 w-3 rounded-full bg-slate-300 border-2 border-white" />
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-slate-500">{e.at}</span>
+            <span className={`text-xs px-2 py-0.5 rounded-full border ${color[e.type]}`}>{e.type}</span>
+          </div>
+          <div className="font-medium mt-0.5">{e.title}</div>
+          {e.detail && <div className="text-slate-600 text-xs">{e.detail}</div>}
+        </li>
+      ))}
+    </ol>
   );
 }
 
