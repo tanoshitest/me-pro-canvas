@@ -1824,9 +1824,11 @@ function SyllabusReportTab() {
   return <SyllabusReportTabImpl />;
 }
 
-function SyllabusHomeworkTab() {
+function SyllabusHomeworkTab({ sel }: { sel: SyllabusSel }) {
   const stages = SYLLABUS_STAGES;
   const lessons = stages.flatMap((st) => st.lessons.map((l) => ({ ...l, stageName: st.name })));
+  const stage = stages.find((s) => s.id === sel.stageId)!;
+  const currentLesson = sel.kind === "lesson" ? stage.lessons.find((l) => l.id === sel.lessonId) ?? null : null;
   const [rows, setRows] = React.useState(() =>
     SYLLABUS_STUDENTS.map((s) => ({
       id: s.id, code: s.code, name: s.name,
@@ -1834,17 +1836,10 @@ function SyllabusHomeworkTab() {
       note: "",
     })),
   );
-  const [stageId, setStageId] = React.useState<string>("all");
-  const visibleLessons = stageId === "all" ? lessons : lessons.filter((l) => stages.find((s) => s.id === stageId)!.lessons.some((x) => x.id === l.id));
 
   const update = (id: string, lessonId: string, val: string) => {
     const n = Number(val);
     setRows((rs) => rs.map((r) => (r.id === id ? { ...r, scores: { ...r.scores, [lessonId]: Number.isFinite(n) ? n : 0 } } : r)));
-  };
-
-  const avg = (r: typeof rows[number]) => {
-    const vals = visibleLessons.map((l) => r.scores[l.id] ?? 0);
-    return vals.length ? (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1) : "—";
   };
 
   return (
@@ -1853,54 +1848,57 @@ function SyllabusHomeworkTab() {
         <CardTitle className="flex items-center gap-2"><FileText className="h-5 w-5" /> Nhập điểm homeworks</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex items-end gap-2 flex-wrap">
-          <div>
-            <Label className="text-xs">Lọc theo chặng</Label>
-            <Select value={stageId} onValueChange={setStageId}>
-              <SelectTrigger className="w-72"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tất cả chặng</SelectItem>
-                {stages.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
+        <div className="rounded-md border bg-slate-50/60 px-3 py-2 flex items-center justify-between gap-3 flex-wrap text-sm">
+          <div className="flex items-center gap-2">
+            <Layers className="h-4 w-4 text-indigo-600" />
+            <span className="text-slate-500">{stage.name}</span>
+            <span className="text-slate-400">·</span>
+            {currentLesson ? (
+              <>
+                <BookOpen className="h-4 w-4 text-emerald-600" />
+                <span className="font-medium">Buổi {currentLesson.index}: {currentLesson.unit}</span>
+              </>
+            ) : (
+              <>
+                <ClipboardCheck className="h-4 w-4 text-amber-600" />
+                <span className="font-medium">{stage.bigTest.name}</span>
+              </>
+            )}
           </div>
-          <div className="flex-1" />
-          <Button size="sm" onClick={() => toast.success("Đã lưu điểm homeworks")}><CheckCircle2 className="h-4 w-4" /> Lưu điểm</Button>
-          <Button size="sm" variant="outline" onClick={() => toast.info("Đã xuất bảng điểm homeworks")}><FileSpreadsheet className="h-4 w-4" /> Xuất bảng</Button>
+          <div className="flex items-center gap-2">
+            <Button size="sm" onClick={() => toast.success("Đã lưu điểm homeworks")}><CheckCircle2 className="h-4 w-4" /> Lưu điểm</Button>
+            <Button size="sm" variant="outline" onClick={() => toast.info("Đã xuất bảng điểm homeworks")}><FileSpreadsheet className="h-4 w-4" /> Xuất bảng</Button>
+          </div>
         </div>
 
+        {!currentLesson ? (
+          <div className="text-sm text-slate-500 italic p-4 border rounded-md">
+            Big Test không có điểm homeworks. Chọn một buổi học ở "Nội dung syllabus" để nhập điểm.
+          </div>
+        ) : (
         <div className="border rounded-md overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-24 sticky left-0 bg-card">Mã HV</TableHead>
-                <TableHead className="sticky left-24 bg-card">Tên học viên</TableHead>
-                {visibleLessons.map((l) => (
-                  <TableHead key={l.id} className="text-center w-24" title={l.unit}>
-                    <div className="text-xs">Buổi {l.index}</div>
-                    <div className="text-[10px] text-slate-500 font-normal truncate max-w-[90px]">{l.unit}</div>
-                  </TableHead>
-                ))}
-                <TableHead className="text-center w-20">TB</TableHead>
-                <TableHead className="w-48">Ghi chú</TableHead>
+                <TableHead className="w-24">Mã HV</TableHead>
+                <TableHead>Tên học viên</TableHead>
+                <TableHead className="text-center w-32">Điểm homeworks</TableHead>
+                <TableHead>Ghi chú</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {rows.map((r) => (
                 <TableRow key={r.id}>
-                  <TableCell className="font-mono text-xs sticky left-0 bg-card">{r.code}</TableCell>
-                  <TableCell className="font-medium sticky left-24 bg-card">{r.name}</TableCell>
-                  {visibleLessons.map((l) => (
-                    <TableCell key={l.id} className="text-center">
-                      <Input
-                        type="number" step="0.5" min={0} max={10}
-                        value={r.scores[l.id] ?? 0}
-                        onChange={(e) => update(r.id, l.id, e.target.value)}
-                        className="h-8 text-center px-1"
-                      />
-                    </TableCell>
-                  ))}
-                  <TableCell className="text-center font-semibold">{avg(r)}</TableCell>
+                  <TableCell className="font-mono text-xs">{r.code}</TableCell>
+                  <TableCell className="font-medium">{r.name}</TableCell>
+                  <TableCell className="text-center">
+                    <Input
+                      type="number" step="0.5" min={0} max={10}
+                      value={r.scores[currentLesson.id] ?? 0}
+                      onChange={(e) => update(r.id, currentLesson.id, e.target.value)}
+                      className="h-8 text-center px-1"
+                    />
+                  </TableCell>
                   <TableCell>
                     <Input
                       value={r.note}
@@ -1913,6 +1911,7 @@ function SyllabusHomeworkTab() {
             </TableBody>
           </Table>
         </div>
+        )}
       </CardContent>
     </Card>
   );
