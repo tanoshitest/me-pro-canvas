@@ -1502,10 +1502,10 @@ function SyllabusContentTree({ stages, sel, setSel }: { stages: typeof SYLLABUS_
   const toggle = (id: string) => setOpenStages((o) => ({ ...o, [id]: !o[id] }));
 
   return (
-    <div className="grid grid-cols-12 gap-4">
+    <div className="grid grid-cols-12 gap-4 items-start">
       {/* Tree */}
-      <Card className="col-span-12 md:col-span-4 lg:col-span-3">
-        <CardHeader className="pb-3">
+      <Card className="col-span-12 md:col-span-4 lg:col-span-3 md:sticky md:top-4 md:max-h-[calc(100vh-7rem)] md:overflow-y-auto">
+        <CardHeader className="pb-3 sticky top-0 bg-card z-10">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base flex items-center gap-2"><Layers className="h-4 w-4" /> Cây nội dung</CardTitle>
             <Button size="icon" variant="ghost" title="Thêm chặng"><Plus className="h-4 w-4" /></Button>
