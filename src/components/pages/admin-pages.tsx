@@ -695,7 +695,14 @@ export function AdminClasses() {
                         {DAY_OPTIONS.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
                       </SelectContent>
                     </Select>
-                    <Input className="h-9" placeholder="18:00 - 19:30" value={s.time} onChange={(e) => updateSession(i, { time: e.target.value })} />
+                    <Select value={s.time} onValueChange={(v) => updateSession(i, { time: v })}>
+                      <SelectTrigger className="h-9"><SelectValue placeholder="Chọn khung giờ" /></SelectTrigger>
+                      <SelectContent>
+                        {CLASS_SHIFTS.map((sh) => (
+                          <SelectItem key={sh.id} value={sh.time}>{sh.time} · {sh.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <Select value={s.room} onValueChange={(v) => updateSession(i, { room: v })}>
                       <SelectTrigger className="h-9"><SelectValue placeholder={form.branch ? "Chọn phòng" : "Chọn CN trước"} /></SelectTrigger>
                       <SelectContent>
