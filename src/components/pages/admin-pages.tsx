@@ -2306,8 +2306,42 @@ function SyllabusReportTabImpl() {
 export function AdminTeachers() {
   const { classes } = useApp();
   const [selId, setSelId] = React.useState<string | null>(null);
-  const sel = TEACHERS.find((t) => t.id === selId) ?? null;
+  const [extraTeachers, setExtraTeachers] = React.useState<typeof TEACHERS>([]);
+  const allTeachers = React.useMemo(() => [...TEACHERS, ...extraTeachers], [extraTeachers]);
+  const sel = allTeachers.find((t) => t.id === selId) ?? null;
   const teacherClasses = sel ? classes.filter((c) => sel.classes.includes(c.id)) : [];
+
+  const emptyT = () => ({
+    name: "", email: "", phone: "", dob: "", gender: "Nữ" as "Nam" | "Nữ",
+    address: "", branch: "" as Branch | "", position: "Giáo viên chính", startDate: "",
+    baseSalary: 8000000, perSessionRate: 250000,
+    contractName: "", contractSigned: "", contractExpires: "", contractFile: "",
+  });
+  const [openAdd, setOpenAdd] = React.useState(false);
+  const [t, setT] = React.useState(emptyT());
+
+  const submitTeacher = () => {
+    if (!t.name.trim() || !t.branch || !t.email.trim() || !t.phone.trim()) {
+      toast.error("Vui lòng nhập họ tên, chi nhánh, email và số điện thoại.");
+      return;
+    }
+    const id = `t${Date.now()}`;
+    setExtraTeachers((prev) => [
+      ...prev,
+      {
+        id, name: t.name.trim(), email: t.email, phone: t.phone,
+        dob: t.dob, gender: t.gender, address: t.address,
+        branch: t.branch as Branch, position: t.position, startDate: t.startDate,
+        baseSalary: Number(t.baseSalary) || 0, perSessionRate: Number(t.perSessionRate) || 0,
+        contract: { name: t.contractName, signedAt: t.contractSigned, expiresAt: t.contractExpires, fileName: t.contractFile },
+        related: [], classes: [],
+        attendanceReport: [], salaryReport: [],
+      },
+    ]);
+    toast.success(`Đã thêm giáo viên ${t.name.trim()}`);
+    setOpenAdd(false);
+    setT(emptyT());
+  };
 
   return (
     <div className="space-y-4">
@@ -2436,7 +2470,12 @@ export function AdminTeachers() {
         </Card>
       ) : (
       <Card>
-        <CardHeader><CardTitle>Danh sách giáo viên</CardTitle></CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+          <CardTitle>Danh sách giáo viên</CardTitle>
+          <Button size="sm" onClick={() => { setT(emptyT()); setOpenAdd(true); }}>
+            <Plus className="h-4 w-4" /> Thêm giáo viên
+          </Button>
+        </CardHeader>
         <CardContent className="p-0">
           <Table>
             <TableHeader><TableRow>
@@ -2447,7 +2486,7 @@ export function AdminTeachers() {
               <TableHead className="text-right">Số lớp</TableHead>
             </TableRow></TableHeader>
             <TableBody>
-              {TEACHERS.map((t) => (
+              {allTeachers.map((t) => (
                 <TableRow key={t.id} className="cursor-pointer hover:bg-slate-50" onClick={() => setSelId(t.id)}>
                   <TableCell className="font-medium">{t.name}</TableCell>
                   <TableCell>{t.position}</TableCell>
@@ -2461,6 +2500,72 @@ export function AdminTeachers() {
         </CardContent>
       </Card>
       )}
+
+      <Dialog open={openAdd} onOpenChange={setOpenAdd}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Thêm giáo viên mới</DialogTitle>
+            <DialogDescription>Điền thông tin cá nhân, công việc và hợp đồng.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <div className="text-sm font-semibold mb-2">Thông tin cá nhân</div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><Label className="text-xs text-slate-500">Họ tên</Label>
+                  <Input className="h-9 mt-1" value={t.name} onChange={(e) => setT({ ...t, name: e.target.value })} /></div>
+                <div><Label className="text-xs text-slate-500">Giới tính</Label>
+                  <Select value={t.gender} onValueChange={(v) => setT({ ...t, gender: v as "Nam" | "Nữ" })}>
+                    <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
+                    <SelectContent><SelectItem value="Nam">Nam</SelectItem><SelectItem value="Nữ">Nữ</SelectItem></SelectContent>
+                  </Select></div>
+                <div><Label className="text-xs text-slate-500">Ngày sinh</Label>
+                  <Input className="h-9 mt-1" placeholder="DD/MM/YYYY" value={t.dob} onChange={(e) => setT({ ...t, dob: e.target.value })} /></div>
+                <div><Label className="text-xs text-slate-500">SĐT</Label>
+                  <Input className="h-9 mt-1" value={t.phone} onChange={(e) => setT({ ...t, phone: e.target.value })} /></div>
+                <div className="col-span-2"><Label className="text-xs text-slate-500">Email</Label>
+                  <Input className="h-9 mt-1" value={t.email} onChange={(e) => setT({ ...t, email: e.target.value })} /></div>
+                <div className="col-span-2"><Label className="text-xs text-slate-500">Địa chỉ</Label>
+                  <Input className="h-9 mt-1" value={t.address} onChange={(e) => setT({ ...t, address: e.target.value })} /></div>
+              </div>
+            </div>
+            <div>
+              <div className="text-sm font-semibold mb-2">Công việc</div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><Label className="text-xs text-slate-500">Chi nhánh</Label>
+                  <Select value={t.branch} onValueChange={(v) => setT({ ...t, branch: v as Branch })}>
+                    <SelectTrigger className="h-9 mt-1"><SelectValue placeholder="Chọn chi nhánh" /></SelectTrigger>
+                    <SelectContent>{BRANCHES.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
+                  </Select></div>
+                <div><Label className="text-xs text-slate-500">Vị trí</Label>
+                  <Input className="h-9 mt-1" value={t.position} onChange={(e) => setT({ ...t, position: e.target.value })} /></div>
+                <div><Label className="text-xs text-slate-500">Ngày vào làm</Label>
+                  <Input className="h-9 mt-1" placeholder="DD/MM/YYYY" value={t.startDate} onChange={(e) => setT({ ...t, startDate: e.target.value })} /></div>
+                <div><Label className="text-xs text-slate-500">Lương cơ bản (VNĐ)</Label>
+                  <Input className="h-9 mt-1" type="number" value={t.baseSalary} onChange={(e) => setT({ ...t, baseSalary: Number(e.target.value) })} /></div>
+                <div><Label className="text-xs text-slate-500">Lương / buổi (VNĐ)</Label>
+                  <Input className="h-9 mt-1" type="number" value={t.perSessionRate} onChange={(e) => setT({ ...t, perSessionRate: Number(e.target.value) })} /></div>
+              </div>
+            </div>
+            <div>
+              <div className="text-sm font-semibold mb-2">Hợp đồng</div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2"><Label className="text-xs text-slate-500">Tên hợp đồng</Label>
+                  <Input className="h-9 mt-1" value={t.contractName} onChange={(e) => setT({ ...t, contractName: e.target.value })} /></div>
+                <div><Label className="text-xs text-slate-500">Ngày ký</Label>
+                  <Input className="h-9 mt-1" placeholder="DD/MM/YYYY" value={t.contractSigned} onChange={(e) => setT({ ...t, contractSigned: e.target.value })} /></div>
+                <div><Label className="text-xs text-slate-500">Ngày hết hạn</Label>
+                  <Input className="h-9 mt-1" placeholder="DD/MM/YYYY" value={t.contractExpires} onChange={(e) => setT({ ...t, contractExpires: e.target.value })} /></div>
+                <div className="col-span-2"><Label className="text-xs text-slate-500">Tên file</Label>
+                  <Input className="h-9 mt-1" placeholder="HDLD-XXX.pdf" value={t.contractFile} onChange={(e) => setT({ ...t, contractFile: e.target.value })} /></div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenAdd(false)}>Hủy</Button>
+            <Button onClick={submitTeacher}>Thêm giáo viên</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
