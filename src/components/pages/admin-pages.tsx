@@ -107,38 +107,21 @@ export function AdminStudents() {
 
   return (
     <div className="space-y-4">
-      <Card>
-        <CardHeader><CardTitle>Danh sách học viên</CardTitle></CardHeader>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader><TableRow>
-              <TableHead>Họ tên</TableHead><TableHead>Chi nhánh</TableHead><TableHead>Còn buổi</TableHead><TableHead>Công nợ</TableHead>
-            </TableRow></TableHeader>
-            <TableBody>
-              {students.map((s) => (
-                <TableRow key={s.id} className="cursor-pointer hover:bg-slate-50" onClick={() => setSelected(s.id)}>
-                  <TableCell className="font-medium">{s.name}{s.nickname ? ` (${s.nickname})` : ""}</TableCell>
-                  <TableCell>{s.branch}</TableCell>
-                  <TableCell>{s.bought - s.attended}</TableCell>
-                  <TableCell className={s.debt > 0 ? "text-rose-600 font-semibold" : ""}>{formatVND(s.debt)}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      <Dialog open={!!stu} onOpenChange={(o) => !o && setSelected(null)}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          {stu && cls && (
-            <>
-              <DialogHeader>
-                <DialogTitle>Hồ sơ: {stu.name}</DialogTitle>
-                <DialogDescription>
-                  Mã HV: <span className="font-mono">{stu.id.toUpperCase()}</span> · {stu.branch}
-                </DialogDescription>
-              </DialogHeader>
-              <Tabs defaultValue="personal" className="space-y-3">
+      {stu && cls ? (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
+            <div>
+              <CardTitle>Hồ sơ: {stu.name}</CardTitle>
+              <div className="text-xs text-slate-500 mt-1">
+                Mã HV: <span className="font-mono">{stu.id.toUpperCase()}</span> · {stu.branch}
+              </div>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => setSelected(null)}>
+              <ArrowLeft className="h-4 w-4" /> Quay lại danh sách
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <Tabs defaultValue="personal" className="space-y-3">
               <TabsList className="flex-wrap h-auto">
                 <TabsTrigger value="personal">Học viên</TabsTrigger>
                 <TabsTrigger value="parent">Phụ huynh</TabsTrigger>
@@ -149,7 +132,6 @@ export function AdminStudents() {
                 <TabsTrigger value="ops">Lịch sử</TabsTrigger>
               </TabsList>
 
-              {/* ===== HỌC VIÊN ===== */}
               <TabsContent value="personal" className="mt-3 grid grid-cols-2 gap-3 text-sm">
                 <Info2 label="Mã học viên" value={stu.id.toUpperCase()} />
                 <Info2 label="Họ tên" value={`${stu.name}${stu.nickname ? ` (${stu.nickname})` : ""}`} />
@@ -161,7 +143,6 @@ export function AdminStudents() {
                 <Info2 label="Ghi chú" value={stu.note ?? "-"} className="col-span-2" />
               </TabsContent>
 
-              {/* ===== PHỤ HUYNH ===== */}
               <TabsContent value="parent" className="mt-3 grid grid-cols-2 gap-3 text-sm">
                 <Info2 label="Họ tên phụ huynh" value={stu.parentName ?? "-"} />
                 <Info2 label="Quan hệ" value={stu.parentRelation ?? "-"} />
@@ -169,7 +150,6 @@ export function AdminStudents() {
                 <Info2 label="Email" value={stu.parentEmail ?? "-"} />
               </TabsContent>
 
-              {/* ===== HỌC TẬP ===== */}
               <TabsContent value="academic" className="mt-3 space-y-3 text-sm">
                 <div className="grid grid-cols-2 gap-3">
                   <Info2 label="Chi nhánh" value={stu.branch} />
@@ -186,7 +166,6 @@ export function AdminStudents() {
                 </div>
               </TabsContent>
 
-              {/* ===== HỌC PHÍ ===== */}
               <TabsContent value="fee" className="mt-3 space-y-3 text-sm">
                 <div className="grid grid-cols-2 gap-3">
                   <Info2 label="Tổng buổi đã mua" value={`${stu.bought} buổi`} />
@@ -221,7 +200,6 @@ export function AdminStudents() {
                 </div>
               </TabsContent>
 
-              {/* ===== ĐIỂM DANH (top) ===== */}
               <TabsContent value="att-top" className="mt-3 text-sm">
                 {!stu.attendanceHistory?.length ? (
                   <p className="text-slate-500">Chưa có dữ liệu điểm danh.</p>
@@ -244,7 +222,6 @@ export function AdminStudents() {
                 )}
               </TabsContent>
 
-              {/* ===== KẾT QUẢ (top) ===== */}
               <TabsContent value="grade-top" className="mt-3 text-sm">
                 {!stu.scoreHistory?.length ? (
                   <p className="text-slate-500">Chưa có dữ liệu điểm.</p>
@@ -265,15 +242,34 @@ export function AdminStudents() {
                 )}
               </TabsContent>
 
-              {/* ===== LỊCH SỬ ===== */}
               <TabsContent value="ops" className="mt-3">
                 <StudentHistoryTimeline stu={stu} receipts={stuReceipts} />
               </TabsContent>
-              </Tabs>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+            </Tabs>
+          </CardContent>
+        </Card>
+      ) : (
+      <Card>
+        <CardHeader><CardTitle>Danh sách học viên</CardTitle></CardHeader>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader><TableRow>
+              <TableHead>Họ tên</TableHead><TableHead>Chi nhánh</TableHead><TableHead>Còn buổi</TableHead><TableHead>Công nợ</TableHead>
+            </TableRow></TableHeader>
+            <TableBody>
+              {students.map((s) => (
+                <TableRow key={s.id} className="cursor-pointer hover:bg-slate-50" onClick={() => setSelected(s.id)}>
+                  <TableCell className="font-medium">{s.name}{s.nickname ? ` (${s.nickname})` : ""}</TableCell>
+                  <TableCell>{s.branch}</TableCell>
+                  <TableCell>{s.bought - s.attended}</TableCell>
+                  <TableCell className={s.debt > 0 ? "text-rose-600 font-semibold" : ""}>{formatVND(s.debt)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+      )}
     </div>
   );
 }
