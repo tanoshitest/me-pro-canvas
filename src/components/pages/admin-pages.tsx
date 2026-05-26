@@ -1411,6 +1411,9 @@ function SyllabusDetail({ syllabus, onBack }: { syllabus: Syllabus; onBack: () =
   const totalLessons = stages.reduce((s, st) => s + st.lessons.length, 0);
   const totalBigTests = stages.length;
 
+  type Sel = { kind: "lesson"; stageId: string; lessonId: string } | { kind: "bigtest"; stageId: string };
+  const [sel, setSel] = React.useState<Sel>({ kind: "lesson", stageId: stages[0].id, lessonId: stages[0].lessons[0].id });
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
@@ -1459,11 +1462,11 @@ function SyllabusDetail({ syllabus, onBack }: { syllabus: Syllabus; onBack: () =
         </TabsList>
 
         <TabsContent value="content" className="space-y-3">
-          <SyllabusContentTree stages={stages} />
+          <SyllabusContentTree stages={stages} sel={sel} setSel={setSel} />
         </TabsContent>
 
         <TabsContent value="attendance">
-          <SyllabusAttendanceTab />
+          <SyllabusAttendanceTab sel={sel} />
         </TabsContent>
 
         <TabsContent value="grades">
@@ -1471,7 +1474,7 @@ function SyllabusDetail({ syllabus, onBack }: { syllabus: Syllabus; onBack: () =
         </TabsContent>
 
         <TabsContent value="homework">
-          <SyllabusHomeworkTab />
+          <SyllabusHomeworkTab sel={sel} />
         </TabsContent>
 
         <TabsContent value="report">
