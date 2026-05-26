@@ -1834,13 +1834,16 @@ export function AdminSyllabus() {
                 <Label className="text-xs text-slate-500">Tên syllabus</Label>
                 <Input className="h-9 mt-1" placeholder="VD: Family & Friends 5" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
               </div>
-              <div>
-                <Label className="text-xs text-slate-500">Mã syllabus</Label>
-                <Input className="h-9 mt-1" placeholder="VD: FF5" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} />
-              </div>
-              <div>
-                <Label className="text-xs text-slate-500">Cấp độ / Level</Label>
-                <Input className="h-9 mt-1" placeholder="VD: Intermediate" value={form.level} onChange={(e) => setForm({ ...form, level: e.target.value })} />
+              <div className="col-span-2">
+                <Label className="text-xs text-slate-500">Cấp độ</Label>
+                <Select value={form.level || "Cấp 1"} onValueChange={(v) => setForm({ ...form, level: v })}>
+                  <SelectTrigger className="h-9 mt-1"><SelectValue placeholder="Chọn cấp độ" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Cấp 1">Cấp 1</SelectItem>
+                    <SelectItem value="Cấp 2">Cấp 2</SelectItem>
+                    <SelectItem value="Chất lượng cao">Chất lượng cao</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="col-span-2">
                 <Label className="text-xs text-slate-500">Đối tượng học</Label>
