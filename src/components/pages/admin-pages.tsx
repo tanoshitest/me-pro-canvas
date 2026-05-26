@@ -19,7 +19,7 @@ import { toast } from "sonner";
 import {
   Users, GraduationCap, Wallet, AlertTriangle, Receipt as ReceiptIcon, XCircle,
   TrendingUp, Calendar, Info, CheckCircle2, ArrowRight, CalendarOff, Repeat,
-  Clock, DoorOpen, BookOpen, Tag, Hash,
+  Clock, DoorOpen, BookOpen, Tag, Hash, ArrowLeft,
 } from "lucide-react";
 
 /* ============== DASHBOARD ============== */
