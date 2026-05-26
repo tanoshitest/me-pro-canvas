@@ -69,8 +69,8 @@ export const CLASSES: ClassRoom[] = [
   {
     id: "c3", name: "FF1 Kids", schedule: "Thứ 7, CN", time: "08:00 - 09:30", branch: "Ngọc Hà",
     teacher: "Cô Lan", room: "P.301", syllabus: "Family & Friends 1",
-    startDate: "10/02/2026", endDate: "10/08/2026",
-    totalSessions: 96, pricePerCourse: 13920000, pricePerSession: 145000,
+    startDate: "10/02/2026", endDate: "10/05/2026",
+    totalSessions: 24, pricePerCourse: 3480000, pricePerSession: 145000,
   },
 ];
 
