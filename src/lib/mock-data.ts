@@ -298,3 +298,25 @@ export const SYLLABUS_LESSONS = [
 
 export const formatVND = (n: number) =>
   new Intl.NumberFormat("vi-VN").format(Math.round(n)) + " VNĐ";
+
+export interface Syllabus {
+  id: string;
+  code: string;
+  name: string;
+  level: string;
+  ageGroup: string;
+  totalLessons: number;
+  description: string;
+}
+export const SYLLABI: Syllabus[] = [
+  { id: "sy01", code: "FF1",   name: "Family & Friends 1",      level: "Starter",      ageGroup: "Mẫu giáo - Lớp 1", totalLessons: 24, description: "Làm quen tiếng Anh qua bài hát, từ vựng cơ bản về gia đình, đồ vật." },
+  { id: "sy02", code: "FF2",   name: "Family & Friends 2",      level: "Beginner",     ageGroup: "Lớp 2 - 3",         totalLessons: 24, description: "Mở rộng vốn từ, câu đơn giản, đọc hiểu đoạn ngắn." },
+  { id: "sy03", code: "FF3",   name: "Family & Friends 3",      level: "Elementary",   ageGroup: "Lớp 3 - 4",         totalLessons: 24, description: "Ngữ pháp cơ bản: thì hiện tại, quá khứ đơn, kỹ năng viết câu." },
+  { id: "sy04", code: "FF4",   name: "Family & Friends 4",      level: "Pre-Intermediate", ageGroup: "Lớp 4 - 5",     totalLessons: 24, description: "Phát triển 4 kỹ năng, luyện kể chuyện và mô tả." },
+  { id: "sy05", code: "CLC4",  name: "Luyện thi CLC lớp 4",     level: "Intermediate", ageGroup: "Lớp 4",             totalLessons: 24, description: "Ôn luyện chuyên sâu cho kỳ thi vào lớp 6 CLC, đề mẫu các trường top." },
+  { id: "sy06", code: "CLC5",  name: "Luyện thi CLC lớp 5",     level: "Intermediate", ageGroup: "Lớp 5",             totalLessons: 24, description: "Tăng tốc luyện đề, phản xạ nghe nói, viết đoạn 80-100 từ." },
+  { id: "sy07", code: "SBS1",  name: "Solutions for Beginners", level: "Beginner",     ageGroup: "Lớp 6",             totalLessons: 24, description: "Chuyển tiếp tiểu học lên cấp 2, củng cố ngữ pháp nền tảng." },
+  { id: "sy08", code: "MOV",   name: "Movers Practice",         level: "A1",           ageGroup: "Lớp 3 - 5",         totalLessons: 24, description: "Luyện thi chứng chỉ Cambridge Movers, full 3 kỹ năng." },
+  { id: "sy09", code: "FLY",   name: "Flyers Practice",         level: "A2",           ageGroup: "Lớp 4 - 6",         totalLessons: 24, description: "Luyện thi Cambridge Flyers, chiến lược làm bài và mẹo nghe." },
+  { id: "sy10", code: "KET",   name: "KET for Schools",         level: "A2",           ageGroup: "Lớp 6 - 7",         totalLessons: 24, description: "Luyện thi KET, kỹ năng viết email và đoạn văn ngắn." },
+];
