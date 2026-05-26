@@ -475,6 +475,7 @@ function shiftDate(d: string, days: number) {
 
 /* ============== SETTINGS (Cấu hình) ============== */
 export function AdminTuition() {
+  const { cashConfig, setCashConfig } = useApp();
   return (
     <Tabs defaultValue="shifts" className="space-y-4">
       <TabsList>
