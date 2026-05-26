@@ -143,7 +143,9 @@ export function AdminStudents() {
                 <TabsTrigger value="parent">Phụ huynh</TabsTrigger>
                 <TabsTrigger value="academic">Học tập</TabsTrigger>
                 <TabsTrigger value="fee">Học phí</TabsTrigger>
-                <TabsTrigger value="ops">Lịch sử vận hành</TabsTrigger>
+                <TabsTrigger value="att-top">Điểm danh</TabsTrigger>
+                <TabsTrigger value="grade-top">Kết quả</TabsTrigger>
+                <TabsTrigger value="ops">Lịch sử</TabsTrigger>
               </TabsList>
 
               {/* ===== HỌC VIÊN ===== */}
@@ -218,7 +220,51 @@ export function AdminStudents() {
                 </div>
               </TabsContent>
 
-              {/* ===== LỊCH SỬ VẬN HÀNH ===== */}
+              {/* ===== ĐIỂM DANH (top) ===== */}
+              <TabsContent value="att-top" className="mt-3 text-sm">
+                {!stu.attendanceHistory?.length ? (
+                  <p className="text-slate-500">Chưa có dữ liệu điểm danh.</p>
+                ) : (
+                  <Table><TableHeader><TableRow>
+                    <TableHead>Ngày</TableHead><TableHead>Buổi</TableHead><TableHead>Trạng thái</TableHead>
+                  </TableRow></TableHeader><TableBody>
+                    {stu.attendanceHistory.map((a, i) => (
+                      <TableRow key={i}>
+                        <TableCell>{a.at}</TableCell>
+                        <TableCell>{a.session}</TableCell>
+                        <TableCell>
+                          <Badge variant={a.status === "Có mặt" ? "secondary" : a.status === "Đi muộn" ? "default" : "destructive"}>
+                            {a.status}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody></Table>
+                )}
+              </TabsContent>
+
+              {/* ===== KẾT QUẢ (top) ===== */}
+              <TabsContent value="grade-top" className="mt-3 text-sm">
+                {!stu.scoreHistory?.length ? (
+                  <p className="text-slate-500">Chưa có dữ liệu điểm.</p>
+                ) : (
+                  <Table><TableHeader><TableRow>
+                    <TableHead>Ngày</TableHead><TableHead>Buổi</TableHead>
+                    <TableHead>Listening</TableHead><TableHead>Speaking</TableHead>
+                    <TableHead>Reading</TableHead><TableHead>Writing</TableHead>
+                  </TableRow></TableHeader><TableBody>
+                    {stu.scoreHistory.map((g, i) => (
+                      <TableRow key={i}>
+                        <TableCell>{g.at}</TableCell><TableCell>{g.session}</TableCell>
+                        <TableCell>{g.listening}</TableCell><TableCell>{g.speaking}</TableCell>
+                        <TableCell>{g.reading}</TableCell><TableCell>{g.writing}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody></Table>
+                )}
+              </TabsContent>
+
+              {/* ===== LỊCH SỬ ===== */}
               <TabsContent value="ops" className="mt-3">
                 <Tabs defaultValue="att" className="space-y-3">
                   <TabsList className="flex-wrap h-auto">
