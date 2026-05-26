@@ -2367,18 +2367,26 @@ export function AdminTeachers() {
   const sel = allTeachers.find((t) => t.id === selId) ?? null;
   const teacherClasses = sel ? classes.filter((c) => sel.classes.includes(c.id)) : [];
 
+  const fmtDate = (d: Date) =>
+    `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+
   const emptyT = () => ({
     name: "", email: "", phone: "", dob: "", gender: "Nữ" as "Nam" | "Nữ",
-    address: "", branch: "" as Branch | "", position: "Giáo viên chính", startDate: "",
+    address: "", startDate: "",
+    employmentType: "Fulltime" as "Fulltime" | "Parttime",
     baseSalary: 8000000, perSessionRate: 250000,
-    contractName: "", contractSigned: "", contractExpires: "", contractFile: "",
+    contractName: "",
+    contractSigned: undefined as Date | undefined,
+    contractExpires: undefined as Date | undefined,
+    contractFile: "",
   });
   const [openAdd, setOpenAdd] = React.useState(false);
   const [t, setT] = React.useState(emptyT());
 
   const submitTeacher = () => {
-    if (!t.name.trim() || !t.branch || !t.email.trim() || !t.phone.trim()) {
-      toast.error("Vui lòng nhập họ tên, chi nhánh, email và số điện thoại.");
+    if (!t.name.trim() || !t.email.trim() || !t.phone.trim()) {
+      toast.error("Vui lòng nhập họ tên, email và số điện thoại.");
       return;
     }
     const id = `t${Date.now()}`;
@@ -2387,9 +2395,14 @@ export function AdminTeachers() {
       {
         id, name: t.name.trim(), email: t.email, phone: t.phone,
         dob: t.dob, gender: t.gender, address: t.address,
-        branch: t.branch as Branch, position: t.position, startDate: t.startDate,
+        branch: BRANCHES[0], position: t.employmentType, startDate: t.startDate,
         baseSalary: Number(t.baseSalary) || 0, perSessionRate: Number(t.perSessionRate) || 0,
-        contract: { name: t.contractName, signedAt: t.contractSigned, expiresAt: t.contractExpires, fileName: t.contractFile },
+        contract: {
+          name: t.contractName,
+          signedAt: t.contractSigned ? fmtDate(t.contractSigned) : "",
+          expiresAt: t.contractExpires ? fmtDate(t.contractExpires) : "",
+          fileName: t.contractFile,
+        },
         related: [], classes: [],
         attendanceReport: [], salaryReport: [],
       },
@@ -2587,13 +2600,14 @@ export function AdminTeachers() {
             <div>
               <div className="text-sm font-semibold mb-2">Công việc</div>
               <div className="grid grid-cols-2 gap-3">
-                <div><Label className="text-xs text-slate-500">Chi nhánh</Label>
-                  <Select value={t.branch} onValueChange={(v) => setT({ ...t, branch: v as Branch })}>
-                    <SelectTrigger className="h-9 mt-1"><SelectValue placeholder="Chọn chi nhánh" /></SelectTrigger>
-                    <SelectContent>{BRANCHES.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
+                <div><Label className="text-xs text-slate-500">Hình thức làm việc</Label>
+                  <Select value={t.employmentType} onValueChange={(v) => setT({ ...t, employmentType: v as "Fulltime" | "Parttime" })}>
+                    <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Fulltime">Fulltime</SelectItem>
+                      <SelectItem value="Parttime">Parttime</SelectItem>
+                    </SelectContent>
                   </Select></div>
-                <div><Label className="text-xs text-slate-500">Vị trí</Label>
-                  <Input className="h-9 mt-1" value={t.position} onChange={(e) => setT({ ...t, position: e.target.value })} /></div>
                 <div><Label className="text-xs text-slate-500">Ngày vào làm</Label>
                   <Input className="h-9 mt-1" placeholder="DD/MM/YYYY" value={t.startDate} onChange={(e) => setT({ ...t, startDate: e.target.value })} /></div>
                 <div><Label className="text-xs text-slate-500">Lương cơ bản (VNĐ)</Label>
@@ -2608,11 +2622,49 @@ export function AdminTeachers() {
                 <div className="col-span-2"><Label className="text-xs text-slate-500">Tên hợp đồng</Label>
                   <Input className="h-9 mt-1" value={t.contractName} onChange={(e) => setT({ ...t, contractName: e.target.value })} /></div>
                 <div><Label className="text-xs text-slate-500">Ngày ký</Label>
-                  <Input className="h-9 mt-1" placeholder="DD/MM/YYYY" value={t.contractSigned} onChange={(e) => setT({ ...t, contractSigned: e.target.value })} /></div>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className={cn("h-9 mt-1 w-full justify-start font-normal", !t.contractSigned && "text-muted-foreground")}>
+                        <CalendarIcon className="h-4 w-4 mr-2" />
+                        {t.contractSigned ? fmtDate(t.contractSigned) : "Chọn ngày"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarUI mode="single" selected={t.contractSigned} onSelect={(d) => setT({ ...t, contractSigned: d ?? undefined })} initialFocus />
+                    </PopoverContent>
+                  </Popover>
+                </div>
                 <div><Label className="text-xs text-slate-500">Ngày hết hạn</Label>
-                  <Input className="h-9 mt-1" placeholder="DD/MM/YYYY" value={t.contractExpires} onChange={(e) => setT({ ...t, contractExpires: e.target.value })} /></div>
-                <div className="col-span-2"><Label className="text-xs text-slate-500">Tên file</Label>
-                  <Input className="h-9 mt-1" placeholder="HDLD-XXX.pdf" value={t.contractFile} onChange={(e) => setT({ ...t, contractFile: e.target.value })} /></div>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className={cn("h-9 mt-1 w-full justify-start font-normal", !t.contractExpires && "text-muted-foreground")}>
+                        <CalendarIcon className="h-4 w-4 mr-2" />
+                        {t.contractExpires ? fmtDate(t.contractExpires) : "Chọn ngày"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarUI mode="single" selected={t.contractExpires} onSelect={(d) => setT({ ...t, contractExpires: d ?? undefined })} initialFocus />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div className="col-span-2"><Label className="text-xs text-slate-500">File hợp đồng</Label>
+                  <div className="mt-1 flex items-center gap-2">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".pdf,.doc,.docx,image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) setT({ ...t, contractFile: f.name });
+                      }}
+                    />
+                    <Button type="button" variant="outline" className="h-9" onClick={() => fileInputRef.current?.click()}>
+                      Tải lên
+                    </Button>
+                    <Input className="h-9 flex-1" placeholder="Chưa có file" value={t.contractFile} onChange={(e) => setT({ ...t, contractFile: e.target.value })} />
+                  </div>
+                </div>
               </div>
             </div>
           </div>
