@@ -319,72 +319,78 @@ export function AdminStudents() {
       )}
 
       <Dialog open={openAdd} onOpenChange={setOpenAdd}>
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-w-6xl">
           <DialogHeader>
             <DialogTitle>Thêm học viên mới</DialogTitle>
             <DialogDescription>Điền thông tin cá nhân, lớp học và phụ huynh.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <div className="text-sm font-semibold mb-2">Thông tin cá nhân</div>
-              <div className="grid grid-cols-2 gap-3">
-                <div><Label className="text-xs text-slate-500">Họ tên</Label>
-                  <Input className="h-9 mt-1" value={newStu.name} onChange={(e) => setNewStu({ ...newStu, name: e.target.value })} /></div>
-                <div><Label className="text-xs text-slate-500">Nickname</Label>
-                  <Input className="h-9 mt-1" value={newStu.nickname} onChange={(e) => setNewStu({ ...newStu, nickname: e.target.value })} /></div>
-                <div><Label className="text-xs text-slate-500">Ngày sinh</Label>
-                  <Input className="h-9 mt-1" placeholder="DD/MM/YYYY" value={newStu.dob} onChange={(e) => setNewStu({ ...newStu, dob: e.target.value })} /></div>
-                <div><Label className="text-xs text-slate-500">Giới tính</Label>
-                  <Select value={newStu.gender} onValueChange={(v) => setNewStu({ ...newStu, gender: v as "Nam" | "Nữ" })}>
-                    <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
-                    <SelectContent><SelectItem value="Nam">Nam</SelectItem><SelectItem value="Nữ">Nữ</SelectItem></SelectContent>
-                  </Select></div>
-                <div><Label className="text-xs text-slate-500">Trường</Label>
-                  <Input className="h-9 mt-1" value={newStu.school} onChange={(e) => setNewStu({ ...newStu, school: e.target.value })} /></div>
-                <div><Label className="text-xs text-slate-500">Email</Label>
-                  <Input className="h-9 mt-1" value={newStu.email} onChange={(e) => setNewStu({ ...newStu, email: e.target.value })} /></div>
-                <div className="col-span-2"><Label className="text-xs text-slate-500">Địa chỉ</Label>
-                  <Input className="h-9 mt-1" value={newStu.address} onChange={(e) => setNewStu({ ...newStu, address: e.target.value })} /></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Cột trái: Thông tin cá nhân + Chi nhánh & Lớp */}
+            <div className="space-y-4">
+              <div>
+                <div className="text-sm font-semibold mb-2">Thông tin cá nhân</div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div><Label className="text-xs text-slate-500">Họ tên</Label>
+                    <Input className="h-9 mt-1" value={newStu.name} onChange={(e) => setNewStu({ ...newStu, name: e.target.value })} /></div>
+                  <div><Label className="text-xs text-slate-500">Nickname</Label>
+                    <Input className="h-9 mt-1" value={newStu.nickname} onChange={(e) => setNewStu({ ...newStu, nickname: e.target.value })} /></div>
+                  <div><Label className="text-xs text-slate-500">Ngày sinh</Label>
+                    <Input className="h-9 mt-1" placeholder="DD/MM/YYYY" value={newStu.dob} onChange={(e) => setNewStu({ ...newStu, dob: e.target.value })} /></div>
+                  <div><Label className="text-xs text-slate-500">Giới tính</Label>
+                    <Select value={newStu.gender} onValueChange={(v) => setNewStu({ ...newStu, gender: v as "Nam" | "Nữ" })}>
+                      <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
+                      <SelectContent><SelectItem value="Nam">Nam</SelectItem><SelectItem value="Nữ">Nữ</SelectItem></SelectContent>
+                    </Select></div>
+                  <div><Label className="text-xs text-slate-500">Trường</Label>
+                    <Input className="h-9 mt-1" value={newStu.school} onChange={(e) => setNewStu({ ...newStu, school: e.target.value })} /></div>
+                  <div><Label className="text-xs text-slate-500">Email</Label>
+                    <Input className="h-9 mt-1" value={newStu.email} onChange={(e) => setNewStu({ ...newStu, email: e.target.value })} /></div>
+                  <div className="col-span-2"><Label className="text-xs text-slate-500">Địa chỉ</Label>
+                    <Input className="h-9 mt-1" value={newStu.address} onChange={(e) => setNewStu({ ...newStu, address: e.target.value })} /></div>
+                </div>
+              </div>
+              <div>
+                <div className="text-sm font-semibold mb-2">Chi nhánh &amp; Lớp</div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div><Label className="text-xs text-slate-500">Chi nhánh</Label>
+                    <Select value={newStu.branch} onValueChange={(v) => setNewStu({ ...newStu, branch: v as Branch, classId: "" })}>
+                      <SelectTrigger className="h-9 mt-1"><SelectValue placeholder="Chọn chi nhánh" /></SelectTrigger>
+                      <SelectContent>{BRANCHES.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
+                    </Select></div>
+                  <div><Label className="text-xs text-slate-500">Lớp</Label>
+                    <Select value={newStu.classId} onValueChange={(v) => setNewStu({ ...newStu, classId: v })}>
+                      <SelectTrigger className="h-9 mt-1"><SelectValue placeholder={newStu.branch ? "Chọn lớp" : "Chọn CN trước"} /></SelectTrigger>
+                      <SelectContent>{classOpts.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                    </Select></div>
+                </div>
               </div>
             </div>
-            <div>
-              <div className="text-sm font-semibold mb-2">Chi nhánh &amp; Lớp</div>
-              <div className="grid grid-cols-2 gap-3">
-                <div><Label className="text-xs text-slate-500">Chi nhánh</Label>
-                  <Select value={newStu.branch} onValueChange={(v) => setNewStu({ ...newStu, branch: v as Branch, classId: "" })}>
-                    <SelectTrigger className="h-9 mt-1"><SelectValue placeholder="Chọn chi nhánh" /></SelectTrigger>
-                    <SelectContent>{BRANCHES.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
-                  </Select></div>
-                <div><Label className="text-xs text-slate-500">Lớp</Label>
-                  <Select value={newStu.classId} onValueChange={(v) => setNewStu({ ...newStu, classId: v })}>
-                    <SelectTrigger className="h-9 mt-1"><SelectValue placeholder={newStu.branch ? "Chọn lớp" : "Chọn CN trước"} /></SelectTrigger>
-                    <SelectContent>{classOpts.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
-                  </Select></div>
+            {/* Cột phải: Thông tin phụ huynh + Ghi chú */}
+            <div className="space-y-4">
+              <div>
+                <div className="text-sm font-semibold mb-2">Thông tin phụ huynh</div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div><Label className="text-xs text-slate-500">Họ tên phụ huynh</Label>
+                    <Input className="h-9 mt-1" value={newStu.parentName} onChange={(e) => setNewStu({ ...newStu, parentName: e.target.value })} /></div>
+                  <div><Label className="text-xs text-slate-500">Quan hệ</Label>
+                    <Select value={newStu.parentRelation} onValueChange={(v) => setNewStu({ ...newStu, parentRelation: v as "Bố" | "Mẹ" | "Người giám hộ" })}>
+                      <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Bố">Bố</SelectItem>
+                        <SelectItem value="Mẹ">Mẹ</SelectItem>
+                        <SelectItem value="Người giám hộ">Người giám hộ</SelectItem>
+                      </SelectContent>
+                    </Select></div>
+                  <div><Label className="text-xs text-slate-500">SĐT phụ huynh</Label>
+                    <Input className="h-9 mt-1" value={newStu.parentPhone} onChange={(e) => setNewStu({ ...newStu, parentPhone: e.target.value })} /></div>
+                  <div><Label className="text-xs text-slate-500">Email phụ huynh</Label>
+                    <Input className="h-9 mt-1" value={newStu.parentEmail} onChange={(e) => setNewStu({ ...newStu, parentEmail: e.target.value })} /></div>
+                </div>
               </div>
-            </div>
-            <div>
-              <div className="text-sm font-semibold mb-2">Thông tin phụ huynh</div>
-              <div className="grid grid-cols-2 gap-3">
-                <div><Label className="text-xs text-slate-500">Họ tên phụ huynh</Label>
-                  <Input className="h-9 mt-1" value={newStu.parentName} onChange={(e) => setNewStu({ ...newStu, parentName: e.target.value })} /></div>
-                <div><Label className="text-xs text-slate-500">Quan hệ</Label>
-                  <Select value={newStu.parentRelation} onValueChange={(v) => setNewStu({ ...newStu, parentRelation: v as "Bố" | "Mẹ" | "Người giám hộ" })}>
-                    <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Bố">Bố</SelectItem>
-                      <SelectItem value="Mẹ">Mẹ</SelectItem>
-                      <SelectItem value="Người giám hộ">Người giám hộ</SelectItem>
-                    </SelectContent>
-                  </Select></div>
-                <div><Label className="text-xs text-slate-500">SĐT phụ huynh</Label>
-                  <Input className="h-9 mt-1" value={newStu.parentPhone} onChange={(e) => setNewStu({ ...newStu, parentPhone: e.target.value })} /></div>
-                <div><Label className="text-xs text-slate-500">Email phụ huynh</Label>
-                  <Input className="h-9 mt-1" value={newStu.parentEmail} onChange={(e) => setNewStu({ ...newStu, parentEmail: e.target.value })} /></div>
+              <div>
+                <Label className="text-xs text-slate-500">Ghi chú</Label>
+                <Textarea className="mt-1" rows={4} value={newStu.note} onChange={(e) => setNewStu({ ...newStu, note: e.target.value })} />
               </div>
-            </div>
-            <div>
-              <Label className="text-xs text-slate-500">Ghi chú</Label>
-              <Textarea className="mt-1" rows={2} value={newStu.note} onChange={(e) => setNewStu({ ...newStu, note: e.target.value })} />
             </div>
           </div>
           <DialogFooter>
