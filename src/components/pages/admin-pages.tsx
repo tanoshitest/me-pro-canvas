@@ -203,7 +203,6 @@ export function AdminClasses() {
   const [openHoliday, setOpenHoliday] = React.useState(false);
   const [holidayDate, setHolidayDate] = React.useState("");
   const [transferStudentId, setTransferStudentId] = React.useState<string | null>(null);
-  const [collectStudentId, setCollectStudentId] = React.useState<string | null>(null);
   const [filterBranch, setFilterBranch] = React.useState<string>("all");
   const [filterClassId, setFilterClassId] = React.useState<string>("all");
 
@@ -342,49 +341,125 @@ export function AdminClasses() {
               </Table>
             </div>
 
-            <div>
-              <div className="font-semibold mb-2 flex items-center gap-2">
-                <Wallet className="h-4 w-4 text-indigo-600" /> Quản lý học phí
-              </div>
-              <div className="text-xs text-slate-500 mb-2">Nhấp vào tên học viên để mở phiếu thu học phí.</div>
-              <Table>
-                <TableHeader><TableRow>
-                  <TableHead>Học viên</TableHead><TableHead>Buổi còn lại</TableHead>
-                  <TableHead>Công nợ</TableHead><TableHead>Tình trạng</TableHead>
-                </TableRow></TableHeader>
-                <TableBody>
-                  {students.filter((s) => s.classId === cls.id).map((s) => {
-                    const remain = s.bought - s.attended;
-                    const status = s.debt > 0
-                      ? { label: "Còn nợ", variant: "destructive" as const }
-                      : remain <= 3
-                        ? { label: "Sắp hết buổi", variant: "secondary" as const }
-                        : { label: "Đã đóng đủ", variant: "default" as const };
-                    return (
-                      <TableRow
-                        key={s.id}
-                        className="cursor-pointer"
-                        onClick={() => setCollectStudentId(s.id)}
-                      >
-                        <TableCell className="font-medium text-indigo-700 hover:underline">
-                          {s.name}{s.nickname ? ` (${s.nickname})` : ""}
-                        </TableCell>
-                        <TableCell>{remain} buổi</TableCell>
-                        <TableCell className={s.debt > 0 ? "text-rose-600 font-semibold" : ""}>
-                          {formatVND(s.debt)}
-                        </TableCell>
-                        <TableCell><Badge variant={status.variant}>{status.label}</Badge></TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-
           </CardContent>
         </Card>
       )}
       <TransferDialog studentId={transferStudentId} onClose={() => setTransferStudentId(null)} />
+    </div>
+  );
+}
+
+/* ============== FEES (Quản lý học phí) ============== */
+export function AdminFees() {
+  const { students, classes } = useApp();
+  const [collectStudentId, setCollectStudentId] = React.useState<string | null>(null);
+  const [filterBranch, setFilterBranch] = React.useState<string>("all");
+  const [filterClassId, setFilterClassId] = React.useState<string>("all");
+  const [filterStatus, setFilterStatus] = React.useState<string>("all");
+
+  const classOptions = classes.filter((c) => filterBranch === "all" || c.branch === filterBranch);
+  const rows = students
+    .filter((s) => filterBranch === "all" || s.branch === filterBranch)
+    .filter((s) => filterClassId === "all" || s.classId === filterClassId)
+    .map((s) => {
+      const remain = s.bought - s.attended;
+      const status = s.debt > 0
+        ? { key: "debt", label: "Còn nợ", variant: "destructive" as const }
+        : remain <= 3
+          ? { key: "low", label: "Sắp hết buổi", variant: "secondary" as const }
+          : { key: "ok", label: "Đã đóng đủ", variant: "default" as const };
+      return { s, remain, status };
+    })
+    .filter((r) => filterStatus === "all" || r.status.key === filterStatus);
+
+  const totalDebt = rows.reduce((sum, r) => sum + r.s.debt, 0);
+  const debtCount = rows.filter((r) => r.s.debt > 0).length;
+
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Card><CardContent className="p-4">
+          <div className="text-xs text-slate-500">Tổng học viên</div>
+          <div className="text-xl font-bold">{rows.length}</div>
+        </CardContent></Card>
+        <Card><CardContent className="p-4">
+          <div className="text-xs text-slate-500">Đang nợ học phí</div>
+          <div className="text-xl font-bold text-rose-600">{debtCount}</div>
+        </CardContent></Card>
+        <Card><CardContent className="p-4">
+          <div className="text-xs text-slate-500">Tổng công nợ</div>
+          <div className="text-xl font-bold text-rose-600">{formatVND(totalDebt)}</div>
+        </CardContent></Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="flex-1 min-w-[180px]">
+              <Label className="text-xs text-slate-500">Chi nhánh</Label>
+              <Select value={filterBranch} onValueChange={(v) => { setFilterBranch(v); setFilterClassId("all"); }}>
+                <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tất cả chi nhánh</SelectItem>
+                  {BRANCHES.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex-1 min-w-[180px]">
+              <Label className="text-xs text-slate-500">Lớp</Label>
+              <Select value={filterClassId} onValueChange={setFilterClassId}>
+                <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tất cả lớp</SelectItem>
+                  {classOptions.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex-1 min-w-[180px]">
+              <Label className="text-xs text-slate-500">Tình trạng</Label>
+              <Select value={filterStatus} onValueChange={setFilterStatus}>
+                <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tất cả</SelectItem>
+                  <SelectItem value="debt">Còn nợ</SelectItem>
+                  <SelectItem value="low">Sắp hết buổi</SelectItem>
+                  <SelectItem value="ok">Đã đóng đủ</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <p className="text-xs text-slate-500 pt-2">Nhấp vào tên học viên để mở phiếu thu học phí.</p>
+        </CardHeader>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader><TableRow>
+              <TableHead>Học viên</TableHead><TableHead>Chi nhánh</TableHead>
+              <TableHead>Lớp</TableHead><TableHead>Buổi còn lại</TableHead>
+              <TableHead>Công nợ</TableHead><TableHead>Tình trạng</TableHead>
+            </TableRow></TableHeader>
+            <TableBody>
+              {rows.map(({ s, remain, status }) => (
+                <TableRow key={s.id} className="cursor-pointer" onClick={() => setCollectStudentId(s.id)}>
+                  <TableCell className="font-medium text-indigo-700 hover:underline">
+                    {s.name}{s.nickname ? ` (${s.nickname})` : ""}
+                  </TableCell>
+                  <TableCell>{s.branch}</TableCell>
+                  <TableCell>{classes.find((c) => c.id === s.classId)?.name ?? "-"}</TableCell>
+                  <TableCell>{remain} buổi</TableCell>
+                  <TableCell className={s.debt > 0 ? "text-rose-600 font-semibold" : ""}>
+                    {formatVND(s.debt)}
+                  </TableCell>
+                  <TableCell><Badge variant={status.variant}>{status.label}</Badge></TableCell>
+                </TableRow>
+              ))}
+              {rows.length === 0 && (
+                <TableRow><TableCell colSpan={6} className="text-center text-slate-500 py-6">Không có học viên phù hợp</TableCell></TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
       <CollectFeeDialog studentId={collectStudentId} onClose={() => setCollectStudentId(null)} />
     </div>
   );

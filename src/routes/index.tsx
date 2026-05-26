@@ -3,7 +3,7 @@ import { AppProvider, useApp } from "@/lib/app-store";
 import { AppShell } from "@/components/app-shell";
 import {
   AdminDashboard, AdminStudents, AdminClasses, AdminTuition, AdminPromotions,
-  AdminReceipts,
+  AdminReceipts, AdminFees,
 } from "@/components/pages/admin-pages";
 import { TeacherToday, TeacherSyllabus } from "@/components/pages/teacher-pages";
 import {
@@ -22,6 +22,7 @@ function PageRouter() {
       case "dashboard": return <AdminDashboard />;
       case "students": return <AdminStudents />;
       case "classes": return <AdminClasses />;
+      case "fees": return <AdminFees />;
       case "tuition": return <AdminTuition />;
       case "promotions": return <AdminPromotions />;
       case "receipts": return <AdminReceipts />;
