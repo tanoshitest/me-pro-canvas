@@ -37,7 +37,7 @@ export interface Receipt {
   studentName: string;
   branch: Branch;
   amount: number;
-  method: "Tiền mặt" | "Chuyển khoản" | "POS";
+  method: "Tiền mặt" | "Chuyển khoản";
   status: "Hiệu lực" | "Đã hủy";
   createdBy: string;
   createdAt: string;
@@ -122,7 +122,7 @@ export const PROMOTIONS = [
 export const RECEIPTS_SEED: Receipt[] = [
   { id: "DC-000123", studentId: "s1", studentName: "Hồng Diệp", branch: "Đội Cấn", amount: 6612000, method: "Chuyển khoản", status: "Hiệu lực", createdBy: "Admin Lan", createdAt: "02/03/2026" },
   { id: "DC-000124", studentId: "s2", studentName: "Đăng Khoa", branch: "Đội Cấn", amount: 3480000, method: "Tiền mặt", status: "Hiệu lực", createdBy: "Admin Lan", createdAt: "02/03/2026" },
-  { id: "HH-000045", studentId: "s3", studentName: "Mimi", branch: "Hoàng Hoa Thám", amount: 3480000, method: "POS", status: "Hiệu lực", createdBy: "Admin Hà", createdAt: "06/03/2026" },
+  { id: "HH-000045", studentId: "s3", studentName: "Mimi", branch: "Hoàng Hoa Thám", amount: 3480000, method: "Chuyển khoản", status: "Hiệu lực", createdBy: "Admin Hà", createdAt: "06/03/2026" },
   { id: "NH-000077", studentId: "s4", studentName: "Lại Thế Thái Dương", branch: "Ngọc Hà", amount: 12945600, method: "Chuyển khoản", status: "Hiệu lực", createdBy: "Admin Thảo", createdAt: "11/02/2026" },
   { id: "DC-000120", studentId: "s5", studentName: "Nguyễn Ngọc Linh", branch: "Đội Cấn", amount: 3480000, method: "Tiền mặt", status: "Đã hủy", createdBy: "Admin Lan", createdAt: "28/02/2026", cancelLog: { by: "Admin Lan", at: "01/03/2026 09:15", reason: "Phụ huynh hủy đăng ký" } },
 ];
