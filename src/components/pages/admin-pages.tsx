@@ -719,24 +719,7 @@ export function AdminClasses() {
             </div>
 
             <div>
-              <div className="font-semibold mb-2">Học viên lớp</div>
-              <Table>
-                <TableHeader><TableRow><TableHead>Tên</TableHead><TableHead>Đã học/Mua</TableHead><TableHead>Công nợ</TableHead><TableHead></TableHead></TableRow></TableHeader>
-                <TableBody>
-                  {students.filter((s) => s.classId === cls.id).map((s) => (
-                    <TableRow key={s.id}>
-                      <TableCell>{s.name}{s.nickname ? ` (${s.nickname})` : ""}</TableCell>
-                      <TableCell>{s.attended} / {s.bought}</TableCell>
-                      <TableCell>{formatVND(s.debt)}</TableCell>
-                      <TableCell>
-                        <Button variant="outline" size="sm" onClick={() => setTransferStudentId(s.id)}>
-                          <Repeat className="h-3.5 w-3.5" /> Chuyển lớp
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+            <ClassStudentsTabs cls={cls} students={students.filter((s) => s.classId === cls.id)} onTransfer={setTransferStudentId} />
             </div>
           </CardContent>
         </Card>
