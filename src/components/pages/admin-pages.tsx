@@ -1688,10 +1688,44 @@ export function TransferDialog({ studentId, onClose }: { studentId: string | nul
 export function AdminSyllabus() {
   const [q, setQ] = React.useState("");
   const [selId, setSelId] = React.useState<string | null>(null);
-  const sel = SYLLABI.find((s) => s.id === selId) ?? null;
-  const list = SYLLABI.filter((s) =>
+  const [extraSyllabi, setExtraSyllabi] = React.useState<Syllabus[]>([]);
+  const allSyllabi = React.useMemo(() => [...extraSyllabi, ...SYLLABI], [extraSyllabi]);
+  const sel = allSyllabi.find((s) => s.id === selId) ?? null;
+  const list = allSyllabi.filter((s) =>
     `${s.code} ${s.name} ${s.level} ${s.ageGroup}`.toLowerCase().includes(q.toLowerCase()),
   );
+
+  const [openAdd, setOpenAdd] = React.useState(false);
+  const emptyForm = () => ({
+    name: "", code: "", level: "", ageGroup: "",
+    stages: 5, lessonsPerStage: 4,
+  });
+  const [form, setForm] = React.useState(emptyForm());
+
+  const submitSyllabus = () => {
+    if (!form.name.trim() || !form.code.trim()) {
+      toast.error("Vui lòng nhập mã và tên syllabus.");
+      return;
+    }
+    const stages = Math.max(1, Number(form.stages) || 1);
+    const lessonsPerStage = Math.max(1, Number(form.lessonsPerStage) || 1);
+    const id = `sy${Date.now()}`;
+    const today = new Date();
+    const created = `${String(today.getDate()).padStart(2, "0")}/${String(today.getMonth() + 1).padStart(2, "0")}/${today.getFullYear()}`;
+    const newItem: Syllabus = {
+      id, code: form.code.trim().toUpperCase(), name: form.name.trim(),
+      level: form.level.trim() || "—", ageGroup: form.ageGroup.trim() || "—",
+      totalLessons: stages * lessonsPerStage,
+      stages, bigTests: stages,
+      status: "Bản nháp", createdAt: created, createdBy: "Admin",
+      description: "Syllabus mới — bấm để cấu hình chi tiết từng chặng.",
+    };
+    setExtraSyllabi((prev) => [newItem, ...prev]);
+    toast.success(`Đã tạo syllabus ${newItem.code}. Bấm vào để cấu hình chi tiết.`);
+    setOpenAdd(false);
+    setForm(emptyForm());
+    setSelId(id);
+  };
 
   if (sel) {
     return <SyllabusDetail syllabus={sel} onBack={() => setSelId(null)} />;
@@ -1703,7 +1737,9 @@ export function AdminSyllabus() {
         <CardHeader>
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <CardTitle className="flex items-center gap-2"><BookOpen className="h-5 w-5" /> Danh mục syllabus</CardTitle>
-            <Button size="sm"><Plus className="h-4 w-4" /> Tạo syllabus</Button>
+            <Button size="sm" onClick={() => { setForm(emptyForm()); setOpenAdd(true); }}>
+              <Plus className="h-4 w-4" /> Tạo syllabus
+            </Button>
           </div>
           <Input
             placeholder="Tìm theo mã, tên, cấp độ..."
@@ -1765,6 +1801,63 @@ export function AdminSyllabus() {
           </Table>
         </CardContent>
       </Card>
+
+      <Dialog open={openAdd} onOpenChange={setOpenAdd}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Tạo syllabus mới</DialogTitle>
+            <DialogDescription>Nhập thông tin chung và cấu hình số chặng. Sau khi tạo, bấm vào syllabus để cấu hình chi tiết từng chặng.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2">
+                <Label className="text-xs text-slate-500">Tên syllabus</Label>
+                <Input className="h-9 mt-1" placeholder="VD: Family & Friends 5" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+              </div>
+              <div>
+                <Label className="text-xs text-slate-500">Mã syllabus</Label>
+                <Input className="h-9 mt-1" placeholder="VD: FF5" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} />
+              </div>
+              <div>
+                <Label className="text-xs text-slate-500">Cấp độ / Level</Label>
+                <Input className="h-9 mt-1" placeholder="VD: Intermediate" value={form.level} onChange={(e) => setForm({ ...form, level: e.target.value })} />
+              </div>
+              <div className="col-span-2">
+                <Label className="text-xs text-slate-500">Đối tượng học</Label>
+                <Input className="h-9 mt-1" placeholder="VD: Lớp 5 - 6" value={form.ageGroup} onChange={(e) => setForm({ ...form, ageGroup: e.target.value })} />
+              </div>
+            </div>
+            <div>
+              <div className="text-sm font-semibold mb-2">Cấu hình chặng</div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs text-slate-500">Số chặng</Label>
+                  <Input className="h-9 mt-1" type="number" min={1} max={20} value={form.stages} onChange={(e) => setForm({ ...form, stages: Number(e.target.value) })} />
+                </div>
+                <div>
+                  <Label className="text-xs text-slate-500">Số buổi mỗi chặng</Label>
+                  <Input className="h-9 mt-1" type="number" min={1} max={20} value={form.lessonsPerStage} onChange={(e) => setForm({ ...form, lessonsPerStage: Number(e.target.value) })} />
+                </div>
+              </div>
+              <div className="mt-3 rounded-md border bg-slate-50 p-3">
+                <div className="text-xs font-medium text-slate-600 mb-2">Khung chặng dự kiến · {form.stages} chặng · {Number(form.stages) * Number(form.lessonsPerStage)} buổi</div>
+                <div className="flex flex-wrap gap-2">
+                  {Array.from({ length: Math.max(0, Math.min(20, Number(form.stages) || 0)) }).map((_, i) => (
+                    <div key={i} className="rounded-md border bg-white px-3 py-1.5 text-xs">
+                      <div className="font-semibold text-slate-700">Chặng {i + 1}</div>
+                      <div className="text-slate-500">{form.lessonsPerStage} buổi + Big Test</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenAdd(false)}>Hủy</Button>
+            <Button onClick={submitSyllabus}>Tạo & cấu hình chi tiết</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
