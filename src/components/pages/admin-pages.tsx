@@ -881,12 +881,22 @@ export function CollectFeeDialog({ studentId, onClose }: { studentId: string | n
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const receivedTouched = React.useRef(false);
 
+  const isFullyPaid = !!stu && stu.debt === 0;
+  const paidTotal = React.useMemo(
+    () => receipts.filter((r) => r.studentId === studentId && r.status === "Hiệu lực")
+      .reduce((s, r) => s + r.amount, 0),
+    [receipts, studentId],
+  );
+
   React.useEffect(() => {
     if (studentId) {
-      setPkg("1"); setPromoId("p0"); setExtra(0);
+      // Học viên đã đóng đủ → mặc định không thu thêm (gói = 0)
+      setPkg(stu && stu.debt === 0 ? "0" : "1");
+      setPromoId("p0"); setExtra(0);
       setMethod("Tiền mặt"); setNote("");
       receivedTouched.current = false;
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [studentId]);
 
   // Auto-generate receipt number whenever student or method changes
@@ -917,6 +927,8 @@ export function CollectFeeDialog({ studentId, onClose }: { studentId: string | n
   if (!stu || !cls) return null;
   const cashCfg = cashConfig.find((c) => c.branch === stu.branch);
   const cashExhausted = method === "Tiền mặt" && (!cashCfg || Math.max(cashCfg.current + 1, cashCfg.start) > cashCfg.end);
+  const hasNewCharge = total > 0;
+  const newDebtAfter = Math.max(0, stu.debt + debt);
 
   const submit = () => {
     if (!receiptNo.trim()) {
@@ -967,6 +979,7 @@ export function CollectFeeDialog({ studentId, onClose }: { studentId: string | n
                 <Select value={pkg} onValueChange={setPkg}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="0">— Không thu thêm —</SelectItem>
                     {["1","2","3","4","5","6"].map((n) => <SelectItem key={n} value={n}>{n === "1" ? "Khóa này" : `${n} khóa`}</SelectItem>)}
                   </SelectContent>
                 </Select>
@@ -1007,18 +1020,35 @@ export function CollectFeeDialog({ studentId, onClose }: { studentId: string | n
             </div>
             <div className="rounded-lg border bg-slate-50 p-4 space-y-2 text-sm h-fit">
               <div className="font-semibold flex items-center gap-2"><Info className="h-4 w-4 text-indigo-600" /> Kết quả tính toán</div>
+              {isFullyPaid && (
+                <div className="rounded-md border border-emerald-200 bg-emerald-50 p-2 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-emerald-800 font-medium">Tình trạng hiện tại</span>
+                    <span className="text-[11px] px-2 py-0.5 rounded bg-emerald-600 text-white">Đã đóng đủ</span>
+                  </div>
+                  <Row label="Đã đóng" value={formatVND(paidTotal)} />
+                  <Row label="Công nợ hiện tại" value={formatVND(0)} />
+                  <Row label="Còn buổi trong ví" value={`${Math.max(0, stu.bought - stu.attended)} buổi`} />
+                </div>
+              )}
               <Row label="Số buổi cộng vào ví" value={`+${sessionsToAdd} buổi`} highlight />
               <Row label="Học phí gốc" value={formatVND(base)} />
               <Row label="Ưu đãi" value={`- ${formatVND(discount)}`} />
               <Row label="Thu khác" value={`+ ${formatVND(Number(extra))}`} />
               <div className="border-t pt-2"><Row label="Thành tiền" value={formatVND(total)} bold /></div>
-              <Row label="Thực thu" value={formatVND(Number(received))} />
-              <Row label="Công nợ còn lại" value={formatVND(debt)} highlight={debt > 0} />
+              {hasNewCharge ? (
+                <>
+                  <Row label="Thực thu lần này" value={formatVND(Number(received))} />
+                  <Row label="Công nợ mới sau cập nhật" value={formatVND(newDebtAfter)} highlight={newDebtAfter > 0} />
+                </>
+              ) : (
+                <div className="text-xs text-slate-500 italic pt-1">Chọn gói hoặc nhập "Thu khác" để cập nhật học phí.</div>
+              )}
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={onClose}>Hủy</Button>
-            <Button onClick={submit}><Wallet className="h-4 w-4" /> Cập nhật học phí</Button>
+            <Button onClick={submit} disabled={!hasNewCharge}><Wallet className="h-4 w-4" /> Cập nhật học phí</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
