@@ -1582,12 +1582,6 @@ function SyllabusContentTree({ stages, sel, setSel }: { stages: typeof SYLLABUS_
                   </div>
                   <div className="text-xl font-bold">{lesson.unit}</div>
                 </div>
-                <div className="flex gap-2">
-                  <Button asChild size="sm" variant="outline">
-                    <a href={lesson.material} target="_blank" rel="noreferrer"><ExternalLink className="h-4 w-4" /> Mở tài liệu</a>
-                  </Button>
-                  <Button size="sm" variant="outline"><Pencil className="h-4 w-4" /> Sửa</Button>
-                </div>
               </div>
 
               <DetailField icon={Target} label="Mục tiêu tổng quan" value={lesson.objective} />
@@ -1606,12 +1600,6 @@ function SyllabusContentTree({ stages, sel, setSel }: { stages: typeof SYLLABUS_
                     <ClipboardCheck className="h-3 w-3 text-amber-600" /> Big Test
                   </div>
                   <div className="text-xl font-bold">{bigTest.name}</div>
-                </div>
-                <div className="flex gap-2">
-                  <Button asChild size="sm" variant="outline">
-                    <a href={bigTest.material} target="_blank" rel="noreferrer"><ExternalLink className="h-4 w-4" /> Mở tài liệu</a>
-                  </Button>
-                  <Button size="sm" variant="outline"><Pencil className="h-4 w-4" /> Sửa</Button>
                 </div>
               </div>
 
