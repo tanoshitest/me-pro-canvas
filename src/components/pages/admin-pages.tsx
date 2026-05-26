@@ -584,7 +584,7 @@ export function AdminClasses() {
         teacher: form.teacher,
         room: expandedSessions[0].room,
         syllabus: sy ? `${sy.code} · ${sy.name}` : form.syllabus,
-        startDate: fmtDate(form.startDate),
+        startDate: fmtDate(form.startDate!),
         endDate: fmtDate(computedEndDate),
         totalSessions: DEFAULT_TOTAL_SESSIONS,
         remainingSessions: DEFAULT_TOTAL_SESSIONS,
