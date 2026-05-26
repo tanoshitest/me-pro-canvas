@@ -201,6 +201,7 @@ export function AdminClasses() {
   const [openHoliday, setOpenHoliday] = React.useState(false);
   const [holidayDate, setHolidayDate] = React.useState("");
   const [transferStudentId, setTransferStudentId] = React.useState<string | null>(null);
+  const [collectStudentId, setCollectStudentId] = React.useState<string | null>(null);
   const [filterBranch, setFilterBranch] = React.useState<string>("all");
   const [filterClassId, setFilterClassId] = React.useState<string>("all");
 
@@ -339,10 +340,50 @@ export function AdminClasses() {
               </Table>
             </div>
 
+            <div>
+              <div className="font-semibold mb-2 flex items-center gap-2">
+                <Wallet className="h-4 w-4 text-indigo-600" /> Quản lý học phí
+              </div>
+              <div className="text-xs text-slate-500 mb-2">Nhấp vào tên học viên để mở phiếu thu học phí.</div>
+              <Table>
+                <TableHeader><TableRow>
+                  <TableHead>Học viên</TableHead><TableHead>Buổi còn lại</TableHead>
+                  <TableHead>Công nợ</TableHead><TableHead>Tình trạng</TableHead>
+                </TableRow></TableHeader>
+                <TableBody>
+                  {students.filter((s) => s.classId === cls.id).map((s) => {
+                    const remain = s.bought - s.attended;
+                    const status = s.debt > 0
+                      ? { label: "Còn nợ", variant: "destructive" as const }
+                      : remain <= 3
+                        ? { label: "Sắp hết buổi", variant: "secondary" as const }
+                        : { label: "Đã đóng đủ", variant: "default" as const };
+                    return (
+                      <TableRow
+                        key={s.id}
+                        className="cursor-pointer"
+                        onClick={() => setCollectStudentId(s.id)}
+                      >
+                        <TableCell className="font-medium text-indigo-700 hover:underline">
+                          {s.name}{s.nickname ? ` (${s.nickname})` : ""}
+                        </TableCell>
+                        <TableCell>{remain} buổi</TableCell>
+                        <TableCell className={s.debt > 0 ? "text-rose-600 font-semibold" : ""}>
+                          {formatVND(s.debt)}
+                        </TableCell>
+                        <TableCell><Badge variant={status.variant}>{status.label}</Badge></TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+
           </CardContent>
         </Card>
       )}
       <TransferDialog studentId={transferStudentId} onClose={() => setTransferStudentId(null)} />
+      <CollectFeeDialog studentId={collectStudentId} onClose={() => setCollectStudentId(null)} />
     </div>
   );
 }
