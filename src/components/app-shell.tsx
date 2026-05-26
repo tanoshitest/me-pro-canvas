@@ -2,6 +2,7 @@ import * as React from "react";
 import {
   Users, GraduationCap, BookOpen, Wallet, ClipboardCheck, UserCog, CalendarRange,
   CalendarDays, ClipboardList, User, Building2, BadgeInfo, PanelLeftClose, PanelLeftOpen,
+  UserPlus,
 } from "lucide-react";
 import { useApp } from "@/lib/app-store";
 import { cn } from "@/lib/utils";
@@ -9,10 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
-type NavItem = { id: string; label: string; icon: React.ComponentType<{ className?: string }> };
+type NavItem = { id: string; label: string; icon: React.ComponentType<{ className?: string }>; disabled?: boolean };
 
 const NAV: Record<string, NavItem[]> = {
   admin: [
+    { id: "admissions", label: "Quản lý tuyển sinh", icon: UserPlus, disabled: true },
     { id: "teachers", label: "Quản lý giáo viên", icon: UserCog },
     { id: "students", label: "Quản lý học viên", icon: Users },
     { id: "syllabus", label: "Quản lý syllabus", icon: ClipboardCheck },
@@ -68,18 +70,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             return (
               <button
                 key={item.id}
-                onClick={() => setPage(item.id)}
-                title={collapsed ? item.label : undefined}
+                onClick={() => { if (!item.disabled) setPage(item.id); }}
+                disabled={item.disabled}
+                title={collapsed ? item.label : item.disabled ? "Sắp ra mắt" : undefined}
                 className={cn(
                   "w-full flex items-center gap-3 py-2.5 rounded-md text-sm font-medium transition-colors text-left cursor-pointer",
                   collapsed ? "px-0 justify-center" : "px-3",
-                  active
+                  item.disabled
+                    ? "text-slate-400 cursor-not-allowed hover:bg-transparent"
+                    : active
                     ? "bg-indigo-50 text-indigo-700"
                     : "text-slate-700 hover:bg-slate-100",
                 )}
               >
                 <Icon className="h-4 w-4 shrink-0" />
-                {!collapsed && <span>{item.label}</span>}
+                {!collapsed && (
+                  <span className="flex items-center gap-2">
+                    {item.label}
+                    {item.disabled && (
+                      <span className="text-[10px] font-medium uppercase tracking-wide text-slate-400">Sắp ra mắt</span>
+                    )}
+                  </span>
+                )}
               </button>
             );
           })}
