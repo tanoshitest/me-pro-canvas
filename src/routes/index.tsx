@@ -3,6 +3,7 @@ import { AppProvider, useApp } from "@/lib/app-store";
 import { AppShell } from "@/components/app-shell";
 import {
   AdminStudents, AdminClasses, AdminTuition, AdminFees, AdminSyllabus,
+  AdminTeachers, AdminSchedule, AdminAttendanceReport, AdminSalaryReport,
 } from "@/components/pages/admin-pages";
 import { TeacherToday, TeacherSyllabus } from "@/components/pages/teacher-pages";
 import {
@@ -18,10 +19,14 @@ function PageRouter() {
   const { role, page } = useApp();
   if (role === "admin") {
     switch (page) {
+      case "teachers": return <AdminTeachers />;
       case "students": return <AdminStudents />;
       case "syllabus": return <AdminSyllabus />;
       case "classes": return <AdminClasses />;
       case "fees": return <AdminFees />;
+      case "schedule-admin": return <AdminSchedule />;
+      case "attendance-report": return <AdminAttendanceReport />;
+      case "salary-report": return <AdminSalaryReport />;
       case "tuition": return <AdminTuition />;
     }
   }

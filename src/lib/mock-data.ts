@@ -320,3 +320,90 @@ export const SYLLABI: Syllabus[] = [
   { id: "sy09", code: "FLY",   name: "Flyers Practice",         level: "A2",           ageGroup: "Lớp 4 - 6",         totalLessons: 24, description: "Luyện thi Cambridge Flyers, chiến lược làm bài và mẹo nghe." },
   { id: "sy10", code: "KET",   name: "KET for Schools",         level: "A2",           ageGroup: "Lớp 6 - 7",         totalLessons: 24, description: "Luyện thi KET, kỹ năng viết email và đoạn văn ngắn." },
 ];
+export interface Teacher {
+  id: string;
+  name: string;
+  avatar?: string;
+  email: string;
+  phone: string;
+  dob: string;
+  gender: "Nam" | "Nữ";
+  address: string;
+  branch: Branch;
+  position: string;
+  startDate: string;
+  baseSalary: number;
+  perSessionRate: number;
+  contract: { name: string; signedAt: string; expiresAt: string; fileName: string };
+  related: { name: string; relation: string; phone: string }[];
+  classes: string[]; // class ids
+  attendanceReport: { month: string; sessions: number; absent: number; late: number }[];
+  salaryReport: { month: string; sessions: number; gross: number; deduct: number; net: number }[];
+}
+
+export const TEACHERS: Teacher[] = [
+  {
+    id: "t1", name: "Cô Mai", email: "mai.nguyen@meprototype.vn", phone: "0912 111 222",
+    dob: "15/08/1992", gender: "Nữ", address: "12 Đội Cấn, Ba Đình, Hà Nội",
+    branch: "Đội Cấn", position: "Giáo viên chính", startDate: "01/09/2022",
+    baseSalary: 8000000, perSessionRate: 250000,
+    contract: { name: "Hợp đồng lao động 2026", signedAt: "01/01/2026", expiresAt: "31/12/2026", fileName: "HDLD-CoMai-2026.pdf" },
+    related: [
+      { name: "Nguyễn Văn Hùng", relation: "Chồng", phone: "0988 000 111" },
+      { name: "Nguyễn Thị Lan", relation: "Mẹ", phone: "0977 000 222" },
+    ],
+    classes: ["c1"],
+    attendanceReport: [
+      { month: "01/2026", sessions: 22, absent: 0, late: 1 },
+      { month: "02/2026", sessions: 20, absent: 1, late: 0 },
+      { month: "03/2026", sessions: 24, absent: 0, late: 2 },
+    ],
+    salaryReport: [
+      { month: "01/2026", sessions: 22, gross: 13500000, deduct: 500000, net: 13000000 },
+      { month: "02/2026", sessions: 20, gross: 13000000, deduct: 500000, net: 12500000 },
+      { month: "03/2026", sessions: 24, gross: 14000000, deduct: 500000, net: 13500000 },
+    ],
+  },
+  {
+    id: "t2", name: "Thầy Hùng", email: "hung.tran@meprototype.vn", phone: "0934 222 333",
+    dob: "20/03/1990", gender: "Nam", address: "45 Hoàng Hoa Thám, Ba Đình, Hà Nội",
+    branch: "Hoàng Hoa Thám", position: "Giáo viên chính", startDate: "15/06/2021",
+    baseSalary: 9000000, perSessionRate: 280000,
+    contract: { name: "Hợp đồng lao động 2026", signedAt: "01/01/2026", expiresAt: "31/12/2026", fileName: "HDLD-ThayHung-2026.pdf" },
+    related: [
+      { name: "Trần Thị Bình", relation: "Vợ", phone: "0966 333 444" },
+    ],
+    classes: ["c2"],
+    attendanceReport: [
+      { month: "01/2026", sessions: 20, absent: 0, late: 0 },
+      { month: "02/2026", sessions: 22, absent: 0, late: 1 },
+      { month: "03/2026", sessions: 24, absent: 1, late: 0 },
+    ],
+    salaryReport: [
+      { month: "01/2026", sessions: 20, gross: 14600000, deduct: 600000, net: 14000000 },
+      { month: "02/2026", sessions: 22, gross: 15160000, deduct: 600000, net: 14560000 },
+      { month: "03/2026", sessions: 24, gross: 15720000, deduct: 600000, net: 15120000 },
+    ],
+  },
+  {
+    id: "t3", name: "Cô Lan", email: "lan.pham@meprototype.vn", phone: "0945 444 555",
+    dob: "05/11/1994", gender: "Nữ", address: "8 Ngọc Hà, Ba Đình, Hà Nội",
+    branch: "Ngọc Hà", position: "Giáo viên chính", startDate: "01/03/2023",
+    baseSalary: 8500000, perSessionRate: 260000,
+    contract: { name: "Hợp đồng lao động 2026", signedAt: "01/01/2026", expiresAt: "31/12/2026", fileName: "HDLD-CoLan-2026.pdf" },
+    related: [
+      { name: "Phạm Văn Đức", relation: "Bố", phone: "0901 555 666" },
+    ],
+    classes: ["c3"],
+    attendanceReport: [
+      { month: "01/2026", sessions: 18, absent: 0, late: 0 },
+      { month: "02/2026", sessions: 20, absent: 0, late: 0 },
+      { month: "03/2026", sessions: 22, absent: 0, late: 1 },
+    ],
+    salaryReport: [
+      { month: "01/2026", sessions: 18, gross: 13180000, deduct: 500000, net: 12680000 },
+      { month: "02/2026", sessions: 20, gross: 13700000, deduct: 500000, net: 13200000 },
+      { month: "03/2026", sessions: 22, gross: 14220000, deduct: 500000, net: 13720000 },
+    ],
+  },
+];
