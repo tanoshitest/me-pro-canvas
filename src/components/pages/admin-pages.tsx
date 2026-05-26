@@ -1455,6 +1455,157 @@ function StatBox({ icon: Icon, label, value, color }: { icon: React.ComponentTyp
   );
 }
 
+function SyllabusContentTree({ stages }: { stages: typeof SYLLABUS_STAGES }) {
+  type Sel = { kind: "lesson"; stageId: string; lessonId: string } | { kind: "bigtest"; stageId: string };
+  const [sel, setSel] = React.useState<Sel>({ kind: "lesson", stageId: stages[0].id, lessonId: stages[0].lessons[0].id });
+  const [openStages, setOpenStages] = React.useState<Record<string, boolean>>(() =>
+    Object.fromEntries(stages.map((s, i) => [s.id, i === 0])),
+  );
+
+  const stage = stages.find((s) => s.id === sel.stageId)!;
+  const lesson = sel.kind === "lesson" ? stage.lessons.find((l) => l.id === sel.lessonId)! : null;
+  const bigTest = sel.kind === "bigtest" ? stage.bigTest : null;
+
+  const toggle = (id: string) => setOpenStages((o) => ({ ...o, [id]: !o[id] }));
+
+  return (
+    <div className="grid grid-cols-12 gap-4">
+      {/* Tree */}
+      <Card className="col-span-12 md:col-span-4 lg:col-span-3">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base flex items-center gap-2"><Layers className="h-4 w-4" /> Cây nội dung</CardTitle>
+            <Button size="icon" variant="ghost" title="Thêm chặng"><Plus className="h-4 w-4" /></Button>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <div className="space-y-1 text-sm">
+            {stages.map((st) => {
+              const open = !!openStages[st.id];
+              return (
+                <div key={st.id}>
+                  <button
+                    onClick={() => toggle(st.id)}
+                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-accent text-left"
+                  >
+                    <ChevronRight className={`h-3.5 w-3.5 shrink-0 transition-transform ${open ? "rotate-90" : ""}`} />
+                    <Layers className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
+                    <span className="font-medium truncate">{st.name}</span>
+                  </button>
+                  {open && (
+                    <div className="ml-5 border-l pl-2 mt-0.5 space-y-0.5">
+                      {st.lessons.map((l) => {
+                        const active = sel.kind === "lesson" && sel.lessonId === l.id;
+                        return (
+                          <button
+                            key={l.id}
+                            onClick={() => setSel({ kind: "lesson", stageId: st.id, lessonId: l.id })}
+                            className={`w-full flex items-center gap-2 px-2 py-1 rounded text-left ${active ? "bg-indigo-100 text-indigo-700 font-medium" : "hover:bg-accent"}`}
+                          >
+                            <BookOpen className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                            <span className="truncate text-xs">Buổi {l.index}: {l.unit}</span>
+                          </button>
+                        );
+                      })}
+                      {(() => {
+                        const active = sel.kind === "bigtest" && sel.stageId === st.id;
+                        return (
+                          <button
+                            onClick={() => setSel({ kind: "bigtest", stageId: st.id })}
+                            className={`w-full flex items-center gap-2 px-2 py-1 rounded text-left ${active ? "bg-amber-100 text-amber-700 font-medium" : "hover:bg-accent"}`}
+                          >
+                            <ClipboardCheck className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                            <span className="truncate text-xs">{st.bigTest.name}</span>
+                          </button>
+                        );
+                      })()}
+                      <button className="w-full flex items-center gap-2 px-2 py-1 rounded text-left text-xs text-slate-500 hover:bg-accent">
+                        <Plus className="h-3.5 w-3.5" /> Thêm buổi / Big Test
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Detail */}
+      <Card className="col-span-12 md:col-span-8 lg:col-span-9">
+        <CardContent className="p-5 space-y-4">
+          <div className="text-xs text-slate-500 flex items-center gap-1">
+            <Layers className="h-3 w-3" /> {stage.name}
+          </div>
+
+          {lesson && (
+            <>
+              <div className="flex items-start justify-between gap-3 flex-wrap">
+                <div>
+                  <div className="flex items-center gap-2 text-xs text-slate-500">
+                    <BookOpen className="h-3 w-3 text-emerald-600" /> Buổi {lesson.index}
+                  </div>
+                  <div className="text-xl font-bold">{lesson.unit}</div>
+                </div>
+                <div className="flex gap-2">
+                  <Button asChild size="sm" variant="outline">
+                    <a href={lesson.material} target="_blank" rel="noreferrer"><ExternalLink className="h-4 w-4" /> Mở tài liệu</a>
+                  </Button>
+                  <Button size="sm" variant="outline"><Pencil className="h-4 w-4" /> Sửa</Button>
+                </div>
+              </div>
+
+              <DetailField icon={Target} label="Mục tiêu tổng quan" value={lesson.objective} />
+              <DetailField icon={FileText} label="Nội dung chi tiết" value={lesson.content} />
+              <DetailField icon={ListChecks} label="Homeworks" value={lesson.homework} />
+              <DetailField icon={Info} label="Lưu ý" value={lesson.note} />
+              <DetailField icon={ExternalLink} label="Tài liệu (Google Drive)" value={lesson.material} link />
+            </>
+          )}
+
+          {bigTest && (
+            <>
+              <div className="flex items-start justify-between gap-3 flex-wrap">
+                <div>
+                  <div className="flex items-center gap-2 text-xs text-slate-500">
+                    <ClipboardCheck className="h-3 w-3 text-amber-600" /> Big Test
+                  </div>
+                  <div className="text-xl font-bold">{bigTest.name}</div>
+                </div>
+                <div className="flex gap-2">
+                  <Button asChild size="sm" variant="outline">
+                    <a href={bigTest.material} target="_blank" rel="noreferrer"><ExternalLink className="h-4 w-4" /> Mở tài liệu</a>
+                  </Button>
+                  <Button size="sm" variant="outline"><Pencil className="h-4 w-4" /> Sửa</Button>
+                </div>
+              </div>
+
+              <DetailField icon={Info} label="Lưu ý" value={bigTest.note} />
+              <DetailField icon={ExternalLink} label="Tài liệu (Google Drive)" value={bigTest.material} link />
+              <DetailField icon={Target} label="Mục tiêu chặng" value={stage.goal} />
+            </>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function DetailField({ icon: Icon, label, value, link }: { icon: React.ComponentType<{ className?: string }>; label: string; value: string; link?: boolean }) {
+  return (
+    <div className="rounded-md border bg-slate-50/50 p-3">
+      <div className="text-xs text-slate-500 flex items-center gap-1 mb-1">
+        <Icon className="h-3 w-3" /> {label}
+      </div>
+      {link ? (
+        <a href={value} target="_blank" rel="noreferrer" className="text-sm text-indigo-600 hover:underline break-all">{value}</a>
+      ) : (
+        <div className="text-sm text-slate-700 whitespace-pre-wrap">{value}</div>
+      )}
+    </div>
+  );
+}
+
 function SyllabusAttendanceTab() {
   const stages = SYLLABUS_STAGES;
   const [stageId, setStageId] = React.useState(stages[0].id);
