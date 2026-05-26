@@ -98,6 +98,14 @@ export const TUITION_CONFIG: { group: string; tiers: TuitionTier[] }[] = [
       { label: "4 khóa / 96 buổi", sessions: 96, base: 14800000, discountPct: 7, final: 13764000 },
     ],
   },
+  {
+    group: "Lớp luyện thi CLC",
+    tiers: [
+      { label: "3 tháng (1 khóa / 24 buổi)", sessions: 24, base: 3840000, discountPct: 0, final: 3840000 },
+      { label: "6 tháng (2 khóa / 48 buổi)", sessions: 48, base: 7680000, discountPct: 5, final: 7296000 },
+      { label: "1 năm (4 khóa / 96 buổi)", sessions: 96, base: 15360000, discountPct: 7, final: 14285000 },
+    ],
+  },
 ];
 
 export const PROMOTIONS = [
