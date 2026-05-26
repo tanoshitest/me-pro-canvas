@@ -450,10 +450,12 @@ export function AdminPromotions() {
   );
 }
 
-/* ============== COLLECT FEE ============== */
-export function AdminCollect() {
+/* ============== COLLECT FEE (dialog) ============== */
+export function CollectFeeDialog({ studentId, onClose }: { studentId: string | null; onClose: () => void }) {
   const { students, classes, receipts, setReceipts, setStudents } = useApp();
-  const [studentId, setStudentId] = React.useState(students[0].id);
+  const stu = students.find((s) => s.id === studentId) ?? null;
+  const cls = stu ? classes.find((c) => c.id === stu.classId) ?? null : null;
+
   const [pkg, setPkg] = React.useState("1");
   const [promoId, setPromoId] = React.useState("p0");
   const [extra, setExtra] = React.useState(0);
@@ -464,8 +466,15 @@ export function AdminCollect() {
   const [note, setNote] = React.useState("");
   const [confirmOpen, setConfirmOpen] = React.useState(false);
 
-  const stu = students.find((s) => s.id === studentId)!;
-  const cls = classes.find((c) => c.id === stu.classId)!;
+  React.useEffect(() => {
+    if (studentId) {
+      setPkg("1"); setPromoId("p0"); setExtra(0); setReceived(0);
+      setMethod("Tiền mặt"); setReceiptNo(""); setNote("");
+    }
+  }, [studentId]);
+
+  if (!stu || !cls) return null;
+
   const sessionsToAdd = Number(pkg) * cls.totalSessions;
   const base = cls.pricePerCourse * Number(pkg);
   const promo = PROMOTIONS.find((p) => p.id === promoId)!;
@@ -496,86 +505,79 @@ export function AdminCollect() {
       description: `Cộng ${sessionsToAdd} buổi vào ví ${stu.name}. Phiếu: ${id}.`,
     });
     setConfirmOpen(false);
-    setReceiptNo(""); setReceived(0); setExtra(0); setPromoId("p0"); setNote("");
+    onClose();
   };
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
-      <Card>
-        <CardHeader><CardTitle>Phiếu thu học phí</CardTitle></CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <Field label="Học viên">
-              <Select value={studentId} onValueChange={setStudentId}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {students.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field label="Lớp"><Input value={cls.name} readOnly /></Field>
-            <Field label="Chi nhánh"><Input value={stu.branch} readOnly /></Field>
-            <Field label="Gói thu trước">
-              <Select value={pkg} onValueChange={setPkg}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {["1","2","3","4","5","6"].map((n) => <SelectItem key={n} value={n}>{n === "1" ? "Khóa này" : `${n} khóa`}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field label="Học phí gốc (auto)"><Input value={formatVND(base)} readOnly /></Field>
-            <Field label="Ưu đãi">
-              <Select value={promoId} onValueChange={setPromoId}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {PROMOTIONS.map((p) => <SelectItem key={p.id} value={p.id}>{p.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field label="Thu khác (VNĐ)">
-              <Input type="number" value={extra} onChange={(e) => setExtra(Number(e.target.value))} />
-            </Field>
-            <Field label="Thực thu (VNĐ)">
-              <Input type="number" value={received} onChange={(e) => setReceived(Number(e.target.value))} />
-            </Field>
-            <Field label="Phương thức">
-              <Select value={method} onValueChange={(v) => setMethod(v as Receipt["method"])}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Tiền mặt">Tiền mặt</SelectItem>
-                  <SelectItem value="Chuyển khoản">Chuyển khoản</SelectItem>
-                  <SelectItem value="POS">POS</SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field label={`Số phiếu thu ${method === "Tiền mặt" ? "(bắt buộc khớp phiếu giấy)" : "(auto)"}`}>
-              <Input placeholder="VD: DC-000125" value={receiptNo} onChange={(e) => setReceiptNo(e.target.value)} />
-            </Field>
-            <Field label="Ngày thu"><Input value={date} onChange={(e) => setDate(e.target.value)} /></Field>
-            <Field label="Ghi chú" className="col-span-2"><Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} /></Field>
+    <>
+      <Dialog open={!!studentId && !confirmOpen} onOpenChange={(v) => !v && onClose()}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Wallet className="h-5 w-5" /> Thu học phí: {stu.name}
+            </DialogTitle>
+            <DialogDescription>Lớp {cls.name} · {stu.branch}</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 md:grid-cols-[3fr_2fr]">
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Lớp"><Input value={cls.name} readOnly /></Field>
+              <Field label="Chi nhánh"><Input value={stu.branch} readOnly /></Field>
+              <Field label="Gói thu trước">
+                <Select value={pkg} onValueChange={setPkg}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {["1","2","3","4","5","6"].map((n) => <SelectItem key={n} value={n}>{n === "1" ? "Khóa này" : `${n} khóa`}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label="Học phí gốc (auto)"><Input value={formatVND(base)} readOnly /></Field>
+              <Field label="Ưu đãi">
+                <Select value={promoId} onValueChange={setPromoId}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {PROMOTIONS.map((p) => <SelectItem key={p.id} value={p.id}>{p.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label="Thu khác (VNĐ)">
+                <Input type="number" value={extra} onChange={(e) => setExtra(Number(e.target.value))} />
+              </Field>
+              <Field label="Thực thu (VNĐ)">
+                <Input type="number" value={received} onChange={(e) => setReceived(Number(e.target.value))} />
+              </Field>
+              <Field label="Phương thức">
+                <Select value={method} onValueChange={(v) => setMethod(v as Receipt["method"])}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Tiền mặt">Tiền mặt</SelectItem>
+                    <SelectItem value="Chuyển khoản">Chuyển khoản</SelectItem>
+                    <SelectItem value="POS">POS</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label={`Số phiếu thu ${method === "Tiền mặt" ? "(bắt buộc)" : "(auto)"}`}>
+                <Input placeholder="VD: DC-000125" value={receiptNo} onChange={(e) => setReceiptNo(e.target.value)} />
+              </Field>
+              <Field label="Ngày thu"><Input value={date} onChange={(e) => setDate(e.target.value)} /></Field>
+              <Field label="Ghi chú" className="col-span-2"><Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} /></Field>
+            </div>
+            <div className="rounded-lg border bg-slate-50 p-4 space-y-2 text-sm h-fit">
+              <div className="font-semibold flex items-center gap-2"><Info className="h-4 w-4 text-indigo-600" /> Kết quả tính toán</div>
+              <Row label="Số buổi cộng vào ví" value={`+${sessionsToAdd} buổi`} highlight />
+              <Row label="Học phí gốc" value={formatVND(base)} />
+              <Row label="Ưu đãi" value={`- ${formatVND(discount)}`} />
+              <Row label="Thu khác" value={`+ ${formatVND(Number(extra))}`} />
+              <div className="border-t pt-2"><Row label="Thành tiền" value={formatVND(total)} bold /></div>
+              <Row label="Thực thu" value={formatVND(Number(received))} />
+              <Row label="Công nợ còn lại" value={formatVND(debt)} highlight={debt > 0} />
+            </div>
           </div>
-          <Button onClick={submit} className="w-full" size="lg">
-            <Wallet className="h-4 w-4" /> Cập nhật học phí
-          </Button>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader><CardTitle className="flex items-center gap-2"><Info className="h-4 w-4 text-indigo-600" /> Kết quả tính toán</CardTitle></CardHeader>
-        <CardContent className="space-y-3 text-sm">
-          <Row label="Số buổi cộng vào ví" value={`+${sessionsToAdd} buổi`} highlight />
-          <Row label="Học phí gốc" value={formatVND(base)} />
-          <Row label="Ưu đãi" value={`- ${formatVND(discount)}`} />
-          <Row label="Thu khác" value={`+ ${formatVND(Number(extra))}`} />
-          <div className="border-t pt-2"><Row label="Thành tiền" value={formatVND(total)} bold /></div>
-          <Row label="Thực thu" value={formatVND(Number(received))} />
-          <Row label="Công nợ còn lại" value={formatVND(debt)} highlight={debt > 0} />
-          <div className="bg-slate-50 border rounded p-3 text-xs text-slate-600 leading-relaxed">
-            <strong>Logic:</strong> Thành tiền = Học phí gốc − Ưu đãi + Thu khác.<br />
-            Công nợ = Thành tiền − Thực thu. Khi cập nhật, hệ thống tự tạo phiếu thu và cộng buổi vào ví học viên.
-          </div>
-        </CardContent>
-      </Card>
+          <DialogFooter>
+            <Button variant="outline" onClick={onClose}>Hủy</Button>
+            <Button onClick={submit}><Wallet className="h-4 w-4" /> Cập nhật học phí</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent>
@@ -597,7 +599,7 @@ export function AdminCollect() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }
 
