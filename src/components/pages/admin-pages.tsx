@@ -106,7 +106,7 @@ export function AdminStudents() {
   const remaining = stu ? Math.max(0, stu.bought - stu.attended) : 0;
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[2fr_3fr]">
+    <div className="space-y-4">
       <Card>
         <CardHeader><CardTitle>Danh sách học viên</CardTitle></CardHeader>
         <CardContent className="p-0">
@@ -116,7 +116,7 @@ export function AdminStudents() {
             </TableRow></TableHeader>
             <TableBody>
               {students.map((s) => (
-                <TableRow key={s.id} className={`cursor-pointer ${selected === s.id ? "bg-indigo-50" : ""}`} onClick={() => setSelected(s.id)}>
+                <TableRow key={s.id} className="cursor-pointer hover:bg-slate-50" onClick={() => setSelected(s.id)}>
                   <TableCell className="font-medium">{s.name}{s.nickname ? ` (${s.nickname})` : ""}</TableCell>
                   <TableCell>{s.branch}</TableCell>
                   <TableCell>{s.bought - s.attended}</TableCell>
@@ -128,16 +128,17 @@ export function AdminStudents() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{stu ? `Hồ sơ: ${stu.name}` : "Chọn 1 học viên để xem chi tiết"}</CardTitle>
-          {stu && <p className="text-xs text-slate-500">Mã HV: <span className="font-mono">{stu.id.toUpperCase()}</span> · {stu.branch}</p>}
-        </CardHeader>
-        <CardContent>
-          {!stu || !cls ? (
-            <p className="text-slate-500">Nhấp vào học viên ở bên trái.</p>
-          ) : (
-            <Tabs defaultValue="personal" className="space-y-3">
+      <Dialog open={!!stu} onOpenChange={(o) => !o && setSelected(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          {stu && cls && (
+            <>
+              <DialogHeader>
+                <DialogTitle>Hồ sơ: {stu.name}</DialogTitle>
+                <DialogDescription>
+                  Mã HV: <span className="font-mono">{stu.id.toUpperCase()}</span> · {stu.branch}
+                </DialogDescription>
+              </DialogHeader>
+              <Tabs defaultValue="personal" className="space-y-3">
               <TabsList className="flex-wrap h-auto">
                 <TabsTrigger value="personal">Học viên</TabsTrigger>
                 <TabsTrigger value="parent">Phụ huynh</TabsTrigger>
@@ -268,10 +269,11 @@ export function AdminStudents() {
               <TabsContent value="ops" className="mt-3">
                 <StudentHistoryTimeline stu={stu} receipts={stuReceipts} />
               </TabsContent>
-            </Tabs>
+              </Tabs>
+            </>
           )}
-        </CardContent>
-      </Card>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -1321,39 +1323,47 @@ export function AdminSyllabus() {
 /* ============== TEACHERS ============== */
 export function AdminTeachers() {
   const { classes } = useApp();
-  const [sel, setSel] = React.useState(TEACHERS[0]);
-  const teacherClasses = classes.filter((c) => sel.classes.includes(c.id));
+  const [selId, setSelId] = React.useState<string | null>(null);
+  const sel = TEACHERS.find((t) => t.id === selId) ?? null;
+  const teacherClasses = sel ? classes.filter((c) => sel.classes.includes(c.id)) : [];
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.4fr] gap-4">
+    <div className="space-y-4">
       <Card>
         <CardHeader><CardTitle>Danh sách giáo viên</CardTitle></CardHeader>
-        <CardContent className="space-y-2">
-          {TEACHERS.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setSel(t)}
-              className={`w-full text-left rounded-md border px-3 py-2 transition-colors ${sel.id === t.id ? "border-indigo-300 bg-indigo-50" : "border-slate-200 hover:bg-slate-50"}`}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="font-medium">{t.name}</div>
-                  <div className="text-xs text-slate-500">{t.position} · {t.branch}</div>
-                </div>
-                <Badge variant="secondary">{t.classes.length} lớp</Badge>
-              </div>
-            </button>
-          ))}
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader><TableRow>
+              <TableHead>Họ tên</TableHead>
+              <TableHead>Vị trí</TableHead>
+              <TableHead>Chi nhánh</TableHead>
+              <TableHead>Vào làm</TableHead>
+              <TableHead className="text-right">Số lớp</TableHead>
+            </TableRow></TableHeader>
+            <TableBody>
+              {TEACHERS.map((t) => (
+                <TableRow key={t.id} className="cursor-pointer hover:bg-slate-50" onClick={() => setSelId(t.id)}>
+                  <TableCell className="font-medium">{t.name}</TableCell>
+                  <TableCell>{t.position}</TableCell>
+                  <TableCell>{t.branch}</TableCell>
+                  <TableCell className="text-xs text-slate-600">{t.startDate}</TableCell>
+                  <TableCell className="text-right"><Badge variant="secondary">{t.classes.length}</Badge></TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{sel.name}</CardTitle>
-          <p className="text-xs text-slate-500">{sel.position} · CN {sel.branch} · Vào làm {sel.startDate}</p>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="info" className="space-y-3">
+      <Dialog open={!!sel} onOpenChange={(o) => !o && setSelId(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          {sel && (
+            <>
+              <DialogHeader>
+                <DialogTitle>{sel.name}</DialogTitle>
+                <DialogDescription>{sel.position} · CN {sel.branch} · Vào làm {sel.startDate}</DialogDescription>
+              </DialogHeader>
+              <Tabs defaultValue="info" className="space-y-3">
             <TabsList className="flex-wrap h-auto">
               <TabsTrigger value="info">Thông tin</TabsTrigger>
               <TabsTrigger value="contract">Hợp đồng</TabsTrigger>
@@ -1461,9 +1471,11 @@ export function AdminTeachers() {
                 ))}
               </TableBody></Table>
             </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+              </Tabs>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
