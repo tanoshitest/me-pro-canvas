@@ -143,7 +143,9 @@ export function AdminStudents() {
                 <TabsTrigger value="parent">Phụ huynh</TabsTrigger>
                 <TabsTrigger value="academic">Học tập</TabsTrigger>
                 <TabsTrigger value="fee">Học phí</TabsTrigger>
-                <TabsTrigger value="ops">Lịch sử vận hành</TabsTrigger>
+                <TabsTrigger value="att-top">Điểm danh</TabsTrigger>
+                <TabsTrigger value="grade-top">Kết quả</TabsTrigger>
+                <TabsTrigger value="ops">Lịch sử</TabsTrigger>
               </TabsList>
 
               {/* ===== HỌC VIÊN ===== */}
