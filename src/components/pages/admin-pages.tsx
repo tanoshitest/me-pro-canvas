@@ -201,6 +201,14 @@ export function AdminClasses() {
   const [openHoliday, setOpenHoliday] = React.useState(false);
   const [holidayDate, setHolidayDate] = React.useState("");
   const [transferStudentId, setTransferStudentId] = React.useState<string | null>(null);
+  const [filterBranch, setFilterBranch] = React.useState<string>("all");
+  const [filterClassId, setFilterClassId] = React.useState<string>("all");
+
+  const filteredClasses = classes.filter((c) =>
+    (filterBranch === "all" || c.branch === filterBranch) &&
+    (filterClassId === "all" || c.id === filterClassId),
+  );
+  const classOptions = classes.filter((c) => filterBranch === "all" || c.branch === filterBranch);
 
   const confirmHoliday = () => {
     if (!cls || !holidayDate) return;
@@ -217,18 +225,48 @@ export function AdminClasses() {
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_2fr]">
       <Card>
-        <CardHeader><CardTitle>Danh sách lớp</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle>Danh sách lớp</CardTitle>
+          <div className="grid grid-cols-2 gap-2 pt-2">
+            <div>
+              <Label className="text-xs text-slate-500">Chi nhánh</Label>
+              <Select
+                value={filterBranch}
+                onValueChange={(v) => { setFilterBranch(v); setFilterClassId("all"); }}
+              >
+                <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tất cả chi nhánh</SelectItem>
+                  {BRANCHES.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs text-slate-500">Lớp</Label>
+              <Select value={filterClassId} onValueChange={setFilterClassId}>
+                <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tất cả lớp</SelectItem>
+                  {classOptions.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardHeader>
         <CardContent className="p-0">
           <Table>
             <TableHeader><TableRow><TableHead>Lớp</TableHead><TableHead>Lịch</TableHead><TableHead>Chi nhánh</TableHead></TableRow></TableHeader>
             <TableBody>
-              {classes.map((c) => (
+              {filteredClasses.map((c) => (
                 <TableRow key={c.id} className="cursor-pointer" onClick={() => setSelected(c.id)}>
                   <TableCell className="font-medium">{c.name}</TableCell>
                   <TableCell>{c.schedule} · {c.time}</TableCell>
                   <TableCell>{c.branch}</TableCell>
                 </TableRow>
               ))}
+              {filteredClasses.length === 0 && (
+                <TableRow><TableCell colSpan={3} className="text-center text-slate-500 py-6">Không có lớp phù hợp</TableCell></TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>
