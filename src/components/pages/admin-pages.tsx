@@ -374,7 +374,7 @@ function StudentHistoryTimeline({ stu, receipts }: { stu: Student; receipts: Rec
 /* ============== CLASSES ============== */
 export function AdminClasses() {
   const { classes, setClasses, students } = useApp();
-  const [selected, setSelected] = React.useState<string | null>(classes[0]?.id ?? null);
+  const [selected, setSelected] = React.useState<string | null>(null);
   const cls = classes.find((c) => c.id === selected);
   const [openHoliday, setOpenHoliday] = React.useState(false);
   const [holidayDate, setHolidayDate] = React.useState("");
@@ -401,7 +401,7 @@ export function AdminClasses() {
   };
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_2fr]">
+    <div className="space-y-4">
       <Card>
         <CardHeader>
           <CardTitle>Danh sách lớp</CardTitle>
@@ -433,30 +433,39 @@ export function AdminClasses() {
         </CardHeader>
         <CardContent className="p-0">
           <Table>
-            <TableHeader><TableRow><TableHead>Lớp</TableHead><TableHead>Lịch</TableHead><TableHead>Chi nhánh</TableHead></TableRow></TableHeader>
+            <TableHeader><TableRow>
+              <TableHead>Lớp</TableHead><TableHead>Lịch</TableHead>
+              <TableHead>Chi nhánh</TableHead><TableHead>Giáo viên</TableHead>
+              <TableHead>Syllabus</TableHead><TableHead className="text-right">Học viên</TableHead>
+            </TableRow></TableHeader>
             <TableBody>
               {filteredClasses.map((c) => (
-                <TableRow key={c.id} className="cursor-pointer" onClick={() => setSelected(c.id)}>
-                  <TableCell className="font-medium">{c.name}</TableCell>
+                <TableRow key={c.id} className="cursor-pointer hover:bg-indigo-50" onClick={() => setSelected(c.id)}>
+                  <TableCell className="font-medium text-indigo-700">{c.name}</TableCell>
                   <TableCell>{c.schedule} · {c.time}</TableCell>
                   <TableCell>{c.branch}</TableCell>
+                  <TableCell>{c.teacher}</TableCell>
+                  <TableCell className="text-xs">{c.syllabus}</TableCell>
+                  <TableCell className="text-right">{students.filter((s) => s.classId === c.id).length}</TableCell>
                 </TableRow>
               ))}
               {filteredClasses.length === 0 && (
-                <TableRow><TableCell colSpan={3} className="text-center text-slate-500 py-6">Không có lớp phù hợp</TableCell></TableRow>
+                <TableRow><TableCell colSpan={6} className="text-center text-slate-500 py-6">Không có lớp phù hợp</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
 
-      {cls && (
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0">
-            <CardTitle>Chi tiết lớp: {cls.name}</CardTitle>
-            <Dialog open={openHoliday} onOpenChange={setOpenHoliday}>
+      <Dialog open={!!cls} onOpenChange={(o) => !o && setSelected(null)}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          {cls && (
+            <>
+              <DialogHeader className="flex flex-row items-center justify-between space-y-0">
+                <DialogTitle>Chi tiết lớp: {cls.name}</DialogTitle>
+                <Dialog open={openHoliday} onOpenChange={setOpenHoliday}>
               <DialogTrigger asChild>
-                <Button variant="outline" size="sm"><CalendarOff className="h-4 w-4" /> Set lịch nghỉ</Button>
+                    <Button variant="outline" size="sm" className="mr-6"><CalendarOff className="h-4 w-4" /> Set lịch nghỉ</Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
@@ -476,8 +485,8 @@ export function AdminClasses() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-          </CardHeader>
-          <CardContent className="space-y-4">
+              </DialogHeader>
+              <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3 text-sm">
               <Info2 label="Chi nhánh" value={cls.branch} />
               <Info2 label="Giáo viên" value={cls.teacher} />
@@ -533,10 +542,11 @@ export function AdminClasses() {
                 </TableBody>
               </Table>
             </div>
-
-          </CardContent>
-        </Card>
-      )}
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
       <TransferDialog studentId={transferStudentId} onClose={() => setTransferStudentId(null)} />
     </div>
   );
