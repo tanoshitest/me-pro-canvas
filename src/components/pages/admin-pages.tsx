@@ -2307,6 +2307,26 @@ function SyllabusContentTree({ stages, sel, setSel }: { stages: typeof SYLLABUS_
     );
   };
 
+  const addStage = () => {
+    const newId = `st-${Date.now()}`;
+    const bigTestNum = stagesState.length + 1;
+    const newStage = {
+      id: newId,
+      name: `Chặng ${stagesState.length + 1}: Chặng mới`,
+      lessons: [],
+      bigTest: {
+        id: `${newId}-bt`,
+        name: `Big Test ${bigTestNum}`,
+        note: "",
+        material: "",
+      },
+    } as typeof stagesState[number];
+    setStagesState((sts) => [...sts, newStage]);
+    setOpenStages((o) => ({ ...o, [newId]: true }));
+    // Add an empty first lesson and select it for editing
+    setTimeout(() => insertLessonAt(newId, 0), 0);
+  };
+
   const InsertSlot = ({ stageId, pos }: { stageId: string; pos: number }) => (
     <button
       onClick={(e) => { e.stopPropagation(); insertLessonAt(stageId, pos); }}
@@ -2325,7 +2345,7 @@ function SyllabusContentTree({ stages, sel, setSel }: { stages: typeof SYLLABUS_
         <CardHeader className="pb-3 sticky top-0 bg-card z-10">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base flex items-center gap-2"><Layers className="h-4 w-4" /> Cây nội dung</CardTitle>
-            <Button size="icon" variant="ghost" title="Thêm chặng"><Plus className="h-4 w-4" /></Button>
+            <Button size="icon" variant="ghost" title="Thêm chặng" onClick={addStage}><Plus className="h-4 w-4" /></Button>
           </div>
         </CardHeader>
         <CardContent className="pt-0">
