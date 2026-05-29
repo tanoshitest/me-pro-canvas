@@ -2399,35 +2399,45 @@ function SyllabusContentTree({ stages, sel, setSel }: { stages: typeof SYLLABUS_
           {lesson && (
             <>
               <div className="flex items-start justify-between gap-3 flex-wrap">
-                <div>
+                <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 text-xs text-slate-500">
                     <BookOpen className="h-3 w-3 text-emerald-600" /> Buổi {lessonGlobal}
                   </div>
-                  <div className="text-xl font-bold">{lesson.unit}</div>
+                  <Input
+                    value={lesson.unit}
+                    onChange={(e) => updateLesson(stage.id, lesson.id, { unit: e.target.value })}
+                    placeholder="Tên buổi..."
+                    className="text-xl font-bold h-auto py-1 border-0 border-b rounded-none px-0 focus-visible:ring-0 focus-visible:border-indigo-500"
+                  />
                 </div>
               </div>
 
-              <DetailField icon={Target} label="Mục tiêu tổng quan" value={lesson.objective} />
-              <DetailField icon={FileText} label="Nội dung chi tiết" value={lesson.content} />
-              <DetailField icon={ListChecks} label="Homeworks" value={lesson.homework} />
-              <DetailField icon={Info} label="Lưu ý" value={lesson.note} />
-              <DetailField icon={ExternalLink} label="Tài liệu (Google Drive)" value={lesson.material} link />
+              <EditField icon={Target} label="Mục tiêu tổng quan" value={lesson.objective} onChange={(v) => updateLesson(stage.id, lesson.id, { objective: v })} />
+              <EditField icon={FileText} label="Nội dung chi tiết" value={lesson.content} onChange={(v) => updateLesson(stage.id, lesson.id, { content: v })} multiline />
+              <EditField icon={ListChecks} label="Homeworks" value={lesson.homework} onChange={(v) => updateLesson(stage.id, lesson.id, { homework: v })} multiline />
+              <EditField icon={Info} label="Lưu ý" value={lesson.note} onChange={(v) => updateLesson(stage.id, lesson.id, { note: v })} />
+              <EditField icon={ExternalLink} label="Tài liệu (Google Drive)" value={lesson.material} onChange={(v) => updateLesson(stage.id, lesson.id, { material: v })} placeholder="https://..." />
             </>
           )}
 
           {bigTest && (
             <>
               <div className="flex items-start justify-between gap-3 flex-wrap">
-                <div>
+                <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 text-xs text-slate-500">
                     <ClipboardCheck className="h-3 w-3 text-amber-600" /> Buổi {bigTestGlobal} · Big Test
                   </div>
-                  <div className="text-xl font-bold">{bigTest.name}</div>
+                  <Input
+                    value={bigTest.name}
+                    onChange={(e) => updateBigTest(stage.id, { name: e.target.value })}
+                    placeholder="Tên big test..."
+                    className="text-xl font-bold h-auto py-1 border-0 border-b rounded-none px-0 focus-visible:ring-0 focus-visible:border-amber-500"
+                  />
                 </div>
               </div>
 
-              <DetailField icon={Info} label="Lưu ý" value={bigTest.note} />
-              <DetailField icon={ExternalLink} label="Tài liệu (Google Drive)" value={bigTest.material} link />
+              <EditField icon={Info} label="Lưu ý" value={bigTest.note} onChange={(v) => updateBigTest(stage.id, { note: v })} />
+              <EditField icon={ExternalLink} label="Tài liệu (Google Drive)" value={bigTest.material} onChange={(v) => updateBigTest(stage.id, { material: v })} placeholder="https://..." />
               <DetailField icon={Target} label="Mục tiêu chặng" value={stage.goal} />
             </>
           )}
@@ -2447,6 +2457,21 @@ function DetailField({ icon: Icon, label, value, link }: { icon: React.Component
         <a href={value} target="_blank" rel="noreferrer" className="text-sm text-indigo-600 hover:underline break-all">{value}</a>
       ) : (
         <div className="text-sm text-slate-700 whitespace-pre-wrap">{value}</div>
+      )}
+    </div>
+  );
+}
+
+function EditField({ icon: Icon, label, value, onChange, multiline, placeholder }: { icon: React.ComponentType<{ className?: string }>; label: string; value: string; onChange: (v: string) => void; multiline?: boolean; placeholder?: string }) {
+  return (
+    <div className="rounded-md border bg-slate-50/50 p-3">
+      <div className="text-xs text-slate-500 flex items-center gap-1 mb-1">
+        <Icon className="h-3 w-3" /> {label}
+      </div>
+      {multiline ? (
+        <Textarea value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder ?? "Nhập nội dung..."} className="min-h-[80px] bg-white" />
+      ) : (
+        <Input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder ?? "Nhập nội dung..."} className="bg-white" />
       )}
     </div>
   );
