@@ -2374,12 +2374,7 @@ function SyllabusContentTree({ stages, sel, setSel }: { stages: typeof SYLLABUS_
                           </button>
                         );
                       })()}
-                      <button
-                        onClick={() => insertLessonAt(st.id, st.lessons.length)}
-                        className="w-full flex items-center gap-2 px-2 py-1 rounded text-left text-xs text-slate-500 hover:bg-accent"
-                      >
-                        <Plus className="h-3.5 w-3.5" /> Thêm buổi / Big Test
-                      </button>
+                      <InsertSlot stageId={st.id} pos={st.lessons.length} />
                     </div>
                   )}
                 </div>
