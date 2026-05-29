@@ -2332,7 +2332,7 @@ function SyllabusContentTree({ stages, sel, setSel }: { stages: typeof SYLLABUS_
         </CardHeader>
         <CardContent className="pt-0">
           <div className="space-y-1 text-sm">
-            {stages.map((st) => {
+            {stagesState.map((st) => {
               const open = !!openStages[st.id];
               return (
                 <div key={st.id}>
