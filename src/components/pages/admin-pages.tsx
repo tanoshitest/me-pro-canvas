@@ -2248,15 +2248,64 @@ function StatBox({ icon: Icon, label, value, color }: { icon: React.ComponentTyp
 type SyllabusSel = { kind: "lesson"; stageId: string; lessonId: string } | { kind: "bigtest"; stageId: string };
 
 function SyllabusContentTree({ stages, sel, setSel }: { stages: typeof SYLLABUS_STAGES; sel: SyllabusSel; setSel: React.Dispatch<React.SetStateAction<SyllabusSel>> }) {
+  const [stagesState, setStagesState] = React.useState(stages);
   const [openStages, setOpenStages] = React.useState<Record<string, boolean>>(() =>
-    Object.fromEntries(stages.map((s, i) => [s.id, i === 0])),
+    Object.fromEntries(stagesState.map((s, i) => [s.id, i === 0])),
   );
 
-  const stage = stages.find((s) => s.id === sel.stageId)!;
+  const stage = stagesState.find((s) => s.id === sel.stageId)!;
   const lesson = sel.kind === "lesson" ? stage.lessons.find((l) => l.id === sel.lessonId)! : null;
   const bigTest = sel.kind === "bigtest" ? stage.bigTest : null;
 
+  // Continuous numbering across stages: each lesson + each big test occupies one "buổi" slot.
+  const lessonNo = new Map<string, number>();
+  const bigTestNo = new Map<string, number>();
+  {
+    let n = 0;
+    for (const st of stagesState) {
+      for (const l of st.lessons) { n += 1; lessonNo.set(l.id, n); }
+      n += 1; bigTestNo.set(st.id, n);
+    }
+  }
+  const lessonGlobal = lesson ? lessonNo.get(lesson.id) : undefined;
+  const bigTestGlobal = sel.kind === "bigtest" ? bigTestNo.get(sel.stageId) : undefined;
+
   const toggle = (id: string) => setOpenStages((o) => ({ ...o, [id]: !o[id] }));
+
+  const insertLessonAt = (stageId: string, pos: number) => {
+    const unit = window.prompt("Tên buổi mới:", "Buổi mới");
+    if (!unit) return;
+    setStagesState((sts) =>
+      sts.map((st) => {
+        if (st.id !== stageId) return st;
+        const newLesson = {
+          id: `${st.id}-l-${Date.now()}`,
+          index: pos + 1,
+          unit,
+          objective: "",
+          content: "",
+          homework: "",
+          material: "",
+          note: "",
+        };
+        const lessons = [...st.lessons];
+        lessons.splice(pos, 0, newLesson);
+        return { ...st, lessons: lessons.map((l, i) => ({ ...l, index: i + 1 })) };
+      }),
+    );
+    setOpenStages((o) => ({ ...o, [stageId]: true }));
+  };
+
+  const InsertSlot = ({ stageId, pos }: { stageId: string; pos: number }) => (
+    <button
+      onClick={(e) => { e.stopPropagation(); insertLessonAt(stageId, pos); }}
+      className="group w-full h-1.5 my-0.5 relative flex items-center justify-center"
+      title="Chèn buổi tại đây"
+    >
+      <span className="absolute inset-x-2 h-px bg-transparent group-hover:bg-indigo-300 transition-colors" />
+      <span className="relative z-10 opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center justify-center h-4 w-4 rounded-full bg-indigo-600 text-white text-[10px] leading-none">+</span>
+    </button>
+  );
 
   return (
     <div className="grid grid-cols-12 gap-4 items-start">
@@ -2284,17 +2333,20 @@ function SyllabusContentTree({ stages, sel, setSel }: { stages: typeof SYLLABUS_
                   </button>
                   {open && (
                     <div className="ml-5 border-l pl-2 mt-0.5 space-y-0.5">
-                      {st.lessons.map((l) => {
+                      <InsertSlot stageId={st.id} pos={0} />
+                      {st.lessons.map((l, idx) => {
                         const active = sel.kind === "lesson" && sel.lessonId === l.id;
                         return (
-                          <button
-                            key={l.id}
-                            onClick={() => setSel({ kind: "lesson", stageId: st.id, lessonId: l.id })}
-                            className={`w-full flex items-center gap-2 px-2 py-1 rounded text-left ${active ? "bg-indigo-100 text-indigo-700 font-medium" : "hover:bg-accent"}`}
-                          >
-                            <BookOpen className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-                            <span className="truncate text-xs">Buổi {l.index}: {l.unit}</span>
-                          </button>
+                          <React.Fragment key={l.id}>
+                            <button
+                              onClick={() => setSel({ kind: "lesson", stageId: st.id, lessonId: l.id })}
+                              className={`w-full flex items-center gap-2 px-2 py-1 rounded text-left ${active ? "bg-indigo-100 text-indigo-700 font-medium" : "hover:bg-accent"}`}
+                            >
+                              <BookOpen className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                              <span className="truncate text-xs">Buổi {lessonNo.get(l.id)}: {l.unit}</span>
+                            </button>
+                            <InsertSlot stageId={st.id} pos={idx + 1} />
+                          </React.Fragment>
                         );
                       })}
                       {(() => {
@@ -2305,11 +2357,14 @@ function SyllabusContentTree({ stages, sel, setSel }: { stages: typeof SYLLABUS_
                             className={`w-full flex items-center gap-2 px-2 py-1 rounded text-left ${active ? "bg-amber-100 text-amber-700 font-medium" : "hover:bg-accent"}`}
                           >
                             <ClipboardCheck className="h-3.5 w-3.5 text-amber-600 shrink-0" />
-                            <span className="truncate text-xs">{st.bigTest.name}</span>
+                            <span className="truncate text-xs">Buổi {bigTestNo.get(st.id)}: {st.bigTest.name}</span>
                           </button>
                         );
                       })()}
-                      <button className="w-full flex items-center gap-2 px-2 py-1 rounded text-left text-xs text-slate-500 hover:bg-accent">
+                      <button
+                        onClick={() => insertLessonAt(st.id, st.lessons.length)}
+                        className="w-full flex items-center gap-2 px-2 py-1 rounded text-left text-xs text-slate-500 hover:bg-accent"
+                      >
                         <Plus className="h-3.5 w-3.5" /> Thêm buổi / Big Test
                       </button>
                     </div>
@@ -2333,7 +2388,7 @@ function SyllabusContentTree({ stages, sel, setSel }: { stages: typeof SYLLABUS_
               <div className="flex items-start justify-between gap-3 flex-wrap">
                 <div>
                   <div className="flex items-center gap-2 text-xs text-slate-500">
-                    <BookOpen className="h-3 w-3 text-emerald-600" /> Buổi {lesson.index}
+                    <BookOpen className="h-3 w-3 text-emerald-600" /> Buổi {lessonGlobal}
                   </div>
                   <div className="text-xl font-bold">{lesson.unit}</div>
                 </div>
@@ -2352,7 +2407,7 @@ function SyllabusContentTree({ stages, sel, setSel }: { stages: typeof SYLLABUS_
               <div className="flex items-start justify-between gap-3 flex-wrap">
                 <div>
                   <div className="flex items-center gap-2 text-xs text-slate-500">
-                    <ClipboardCheck className="h-3 w-3 text-amber-600" /> Big Test
+                    <ClipboardCheck className="h-3 w-3 text-amber-600" /> Buổi {bigTestGlobal} · Big Test
                   </div>
                   <div className="text-xl font-bold">{bigTest.name}</div>
                 </div>
