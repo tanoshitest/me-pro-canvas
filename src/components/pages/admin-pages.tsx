@@ -2187,9 +2187,7 @@ function SyllabusDetail({ syllabus, onBack, embedded }: { syllabus: Syllabus; on
               </div>
             </div>
             <div className="flex gap-1.5">
-              <Button size="sm"><Plus className="h-4 w-4" /> Thêm chặng</Button>
-              <Button size="sm" variant="outline"><Pencil className="h-4 w-4" /> Sửa</Button>
-              <Button size="sm" variant="outline"><Download className="h-4 w-4" /> Xuất</Button>
+              <Button size="sm" onClick={() => toast.success("Đã lưu syllabus")}>Lưu</Button>
             </div>
           </div>
         </CardContent>
