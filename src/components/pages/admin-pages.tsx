@@ -2313,6 +2313,7 @@ function SyllabusContentTree({ stages, sel, setSel }: { stages: typeof SYLLABUS_
     const newStage = {
       id: newId,
       name: `Chặng ${stagesState.length + 1}: Chặng mới`,
+      goal: "",
       lessons: [],
       bigTest: {
         id: `${newId}-bt`,
