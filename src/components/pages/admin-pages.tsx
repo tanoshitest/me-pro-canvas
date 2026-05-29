@@ -2273,15 +2273,14 @@ function SyllabusContentTree({ stages, sel, setSel }: { stages: typeof SYLLABUS_
   const toggle = (id: string) => setOpenStages((o) => ({ ...o, [id]: !o[id] }));
 
   const insertLessonAt = (stageId: string, pos: number) => {
-    const unit = window.prompt("Tên buổi mới:", "Buổi mới");
-    if (!unit) return;
+    const newId = `${stageId}-l-${Date.now()}`;
     setStagesState((sts) =>
       sts.map((st) => {
         if (st.id !== stageId) return st;
         const newLesson = {
-          id: `${st.id}-l-${Date.now()}`,
+          id: newId,
           index: pos + 1,
-          unit,
+          unit: "",
           objective: "",
           content: "",
           homework: "",
@@ -2294,6 +2293,20 @@ function SyllabusContentTree({ stages, sel, setSel }: { stages: typeof SYLLABUS_
       }),
     );
     setOpenStages((o) => ({ ...o, [stageId]: true }));
+    setSel({ kind: "lesson", stageId, lessonId: newId });
+  };
+
+  const updateLesson = (stageId: string, lessonId: string, patch: Partial<typeof stagesState[number]["lessons"][number]>) => {
+    setStagesState((sts) =>
+      sts.map((st) =>
+        st.id !== stageId ? st : { ...st, lessons: st.lessons.map((l) => (l.id === lessonId ? { ...l, ...patch } : l)) },
+      ),
+    );
+  };
+  const updateBigTest = (stageId: string, patch: Partial<typeof stagesState[number]["bigTest"]>) => {
+    setStagesState((sts) =>
+      sts.map((st) => (st.id !== stageId ? st : { ...st, bigTest: { ...st.bigTest, ...patch } })),
+    );
   };
 
   const InsertSlot = ({ stageId, pos }: { stageId: string; pos: number }) => (
