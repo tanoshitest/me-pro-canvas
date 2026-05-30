@@ -2493,24 +2493,9 @@ function DetailField({ icon: Icon, label, value, link }: { icon: React.Component
 }
 
 function MaterialLinks({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const links = React.useMemo(
-    () => value.split("\n").map((s) => s.trim()).filter(Boolean),
-    [value],
-  );
+  const links = value === "" ? [] : value.split("\n");
   const setLinks = (next: string[]) => onChange(next.join("\n"));
-  const updateAt = (i: number, v: string) => {
-    const next = value.split("\n");
-    // ensure array length matches links view
-    const trimmed = next.map((s) => s);
-    const filteredIdx: number[] = [];
-    trimmed.forEach((s, idx) => { if (s.trim()) filteredIdx.push(idx); });
-    if (filteredIdx[i] !== undefined) {
-      trimmed[filteredIdx[i]] = v;
-      onChange(trimmed.join("\n"));
-    } else {
-      setLinks([...links.slice(0, i), v, ...links.slice(i + 1)]);
-    }
-  };
+  const updateAt = (i: number, v: string) => setLinks(links.map((l, idx) => (idx === i ? v : l)));
   const removeAt = (i: number) => setLinks(links.filter((_, idx) => idx !== i));
   const addOne = () => setLinks([...links, ""]);
 
