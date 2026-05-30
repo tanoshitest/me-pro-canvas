@@ -2426,11 +2426,24 @@ function SyllabusContentTree({ stages, sel, setSel }: { stages: typeof SYLLABUS_
                 </div>
               </div>
 
-              <EditField icon={Target} label="Mục tiêu tổng quan" value={lesson.objective} onChange={(v) => updateLesson(stage.id, lesson.id, { objective: v })} />
-              <EditField icon={FileText} label="Nội dung chi tiết" value={lesson.content} onChange={(v) => updateLesson(stage.id, lesson.id, { content: v })} multiline />
-              <EditField icon={ListChecks} label="Homeworks" value={lesson.homework} onChange={(v) => updateLesson(stage.id, lesson.id, { homework: v })} multiline />
-              <EditField icon={Info} label="Lưu ý" value={lesson.note} onChange={(v) => updateLesson(stage.id, lesson.id, { note: v })} />
-              <EditField icon={ExternalLink} label="Tài liệu (Google Drive)" value={lesson.material} onChange={(v) => updateLesson(stage.id, lesson.id, { material: v })} placeholder="https://..." />
+              <Tabs defaultValue="in-class" className="w-full">
+                <TabsList>
+                  <TabsTrigger value="in-class">IN CLASS</TabsTrigger>
+                  <TabsTrigger value="after-class">AFTER CLASS</TabsTrigger>
+                  <TabsTrigger value="teaching-material">TEACHING MATERIAL</TabsTrigger>
+                </TabsList>
+                <TabsContent value="in-class" className="space-y-4">
+                  <EditField icon={Target} label="Mục tiêu tổng quan" value={lesson.objective} onChange={(v) => updateLesson(stage.id, lesson.id, { objective: v })} />
+                  <EditField icon={FileText} label="Nội dung chi tiết" value={lesson.content} onChange={(v) => updateLesson(stage.id, lesson.id, { content: v })} multiline />
+                  <EditField icon={Info} label="Lưu ý" value={lesson.note} onChange={(v) => updateLesson(stage.id, lesson.id, { note: v })} />
+                </TabsContent>
+                <TabsContent value="after-class" className="space-y-4">
+                  <EditField icon={ListChecks} label="Homeworks" value={lesson.homework} onChange={(v) => updateLesson(stage.id, lesson.id, { homework: v })} multiline />
+                </TabsContent>
+                <TabsContent value="teaching-material" className="space-y-4">
+                  <EditField icon={ExternalLink} label="PPTX bài giảng và tài liệu đính kèm" value={lesson.material} onChange={(v) => updateLesson(stage.id, lesson.id, { material: v })} placeholder="Dán link Google Drive / PPTX / tài liệu, mỗi dòng một link..." multiline />
+                </TabsContent>
+              </Tabs>
             </>
           )}
 
