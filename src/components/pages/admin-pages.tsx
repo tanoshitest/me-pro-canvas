@@ -2441,7 +2441,10 @@ function SyllabusContentTree({ stages, sel, setSel }: { stages: typeof SYLLABUS_
                   <EditField icon={ListChecks} label="Homeworks" value={lesson.homework} onChange={(v) => updateLesson(stage.id, lesson.id, { homework: v })} multiline />
                 </TabsContent>
                 <TabsContent value="teaching-material" className="space-y-4">
-                  <EditField icon={ExternalLink} label="PPTX bài giảng và tài liệu đính kèm" value={lesson.material} onChange={(v) => updateLesson(stage.id, lesson.id, { material: v })} placeholder="Dán link Google Drive / PPTX / tài liệu, mỗi dòng một link..." multiline />
+                  <MaterialLinks
+                    value={lesson.material}
+                    onChange={(v) => updateLesson(stage.id, lesson.id, { material: v })}
+                  />
                 </TabsContent>
               </Tabs>
             </>
