@@ -2492,6 +2492,66 @@ function DetailField({ icon: Icon, label, value, link }: { icon: React.Component
   );
 }
 
+function MaterialLinks({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const links = React.useMemo(
+    () => value.split("\n").map((s) => s.trim()).filter(Boolean),
+    [value],
+  );
+  const setLinks = (next: string[]) => onChange(next.join("\n"));
+  const updateAt = (i: number, v: string) => {
+    const next = value.split("\n");
+    // ensure array length matches links view
+    const trimmed = next.map((s) => s);
+    const filteredIdx: number[] = [];
+    trimmed.forEach((s, idx) => { if (s.trim()) filteredIdx.push(idx); });
+    if (filteredIdx[i] !== undefined) {
+      trimmed[filteredIdx[i]] = v;
+      onChange(trimmed.join("\n"));
+    } else {
+      setLinks([...links.slice(0, i), v, ...links.slice(i + 1)]);
+    }
+  };
+  const removeAt = (i: number) => setLinks(links.filter((_, idx) => idx !== i));
+  const addOne = () => setLinks([...links, ""]);
+
+  return (
+    <div className="rounded-md border bg-slate-50/50 p-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="text-xs text-slate-500 flex items-center gap-1">
+          <ExternalLink className="h-3 w-3" /> PPTX bài giảng và tài liệu đính kèm
+        </div>
+        <Button size="sm" variant="outline" className="h-7 gap-1" onClick={addOne}>
+          <Plus className="h-3.5 w-3.5" /> Thêm link
+        </Button>
+      </div>
+      {links.length === 0 ? (
+        <div className="text-xs text-slate-400 italic py-2">Chưa có tài liệu nào. Bấm "Thêm link" để thêm.</div>
+      ) : (
+        <div className="space-y-2">
+          {links.map((link, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <Input
+                value={link}
+                onChange={(e) => updateAt(i, e.target.value)}
+                placeholder="https://..."
+                className="h-8 text-sm"
+              />
+              {link && (
+                <a href={link} target="_blank" rel="noreferrer" className="text-slate-500 hover:text-indigo-600 shrink-0" title="Mở link">
+                  <ExternalLink className="h-4 w-4" />
+                </a>
+              )}
+              <Button size="icon" variant="ghost" className="h-8 w-8 text-rose-500 hover:text-rose-600 hover:bg-rose-50 shrink-0" onClick={() => removeAt(i)} title="Xoá">
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function EditField({ icon: Icon, label, value, onChange, multiline, placeholder }: { icon: React.ComponentType<{ className?: string }>; label: string; value: string; onChange: (v: string) => void; multiline?: boolean; placeholder?: string }) {
   return (
     <div className="rounded-md border bg-slate-50/50 p-3">
