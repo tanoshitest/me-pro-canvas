@@ -2441,7 +2441,10 @@ function SyllabusContentTree({ stages, sel, setSel }: { stages: typeof SYLLABUS_
                   <EditField icon={ListChecks} label="Homeworks" value={lesson.homework} onChange={(v) => updateLesson(stage.id, lesson.id, { homework: v })} multiline />
                 </TabsContent>
                 <TabsContent value="teaching-material" className="space-y-4">
-                  <EditField icon={ExternalLink} label="PPTX bài giảng và tài liệu đính kèm" value={lesson.material} onChange={(v) => updateLesson(stage.id, lesson.id, { material: v })} placeholder="Dán link Google Drive / PPTX / tài liệu, mỗi dòng một link..." multiline />
+                  <MaterialLinks
+                    value={lesson.material}
+                    onChange={(v) => updateLesson(stage.id, lesson.id, { material: v })}
+                  />
                 </TabsContent>
               </Tabs>
             </>
@@ -2484,6 +2487,51 @@ function DetailField({ icon: Icon, label, value, link }: { icon: React.Component
         <a href={value} target="_blank" rel="noreferrer" className="text-sm text-indigo-600 hover:underline break-all">{value}</a>
       ) : (
         <div className="text-sm text-slate-700 whitespace-pre-wrap">{value}</div>
+      )}
+    </div>
+  );
+}
+
+function MaterialLinks({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const links = value === "" ? [] : value.split("\n");
+  const setLinks = (next: string[]) => onChange(next.join("\n"));
+  const updateAt = (i: number, v: string) => setLinks(links.map((l, idx) => (idx === i ? v : l)));
+  const removeAt = (i: number) => setLinks(links.filter((_, idx) => idx !== i));
+  const addOne = () => setLinks([...links, ""]);
+
+  return (
+    <div className="rounded-md border bg-slate-50/50 p-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="text-xs text-slate-500 flex items-center gap-1">
+          <ExternalLink className="h-3 w-3" /> PPTX bài giảng và tài liệu đính kèm
+        </div>
+        <Button size="sm" variant="outline" className="h-7 gap-1" onClick={addOne}>
+          <Plus className="h-3.5 w-3.5" /> Thêm link
+        </Button>
+      </div>
+      {links.length === 0 ? (
+        <div className="text-xs text-slate-400 italic py-2">Chưa có tài liệu nào. Bấm "Thêm link" để thêm.</div>
+      ) : (
+        <div className="space-y-2">
+          {links.map((link, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <Input
+                value={link}
+                onChange={(e) => updateAt(i, e.target.value)}
+                placeholder="https://..."
+                className="h-8 text-sm"
+              />
+              {link && (
+                <a href={link} target="_blank" rel="noreferrer" className="text-slate-500 hover:text-indigo-600 shrink-0" title="Mở link">
+                  <ExternalLink className="h-4 w-4" />
+                </a>
+              )}
+              <Button size="icon" variant="ghost" className="h-8 w-8 text-rose-500 hover:text-rose-600 hover:bg-rose-50 shrink-0" onClick={() => removeAt(i)} title="Xoá">
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );
