@@ -1575,14 +1575,14 @@ export function CollectFeeDialog({ studentId, onClose }: { studentId: string | n
 
   return (
     <Dialog open={!!studentId} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Wallet className="h-5 w-5" /> Thu học phí: {stu.name}
           </DialogTitle>
           <DialogDescription>Lớp {cls.name} · {stu.branch}</DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4 md:grid-cols-[3fr_2fr]">
+        <div className="grid gap-4 md:grid-cols-[1fr_22rem]">
           <div className="grid grid-cols-2 gap-3">
             <Field label="Số buổi đóng" className="col-span-2">
               <div className="flex items-center gap-2">
@@ -1664,7 +1664,7 @@ function Row({ label, value, bold, highlight }: { label: string; value: string; 
   return (
     <div className="flex justify-between items-center">
       <span className="text-slate-600">{label}</span>
-      <span className={`${bold ? "font-bold text-base" : "font-medium"} ${highlight ? "text-indigo-700" : ""}`}>{value}</span>
+      <span className={`whitespace-nowrap ${bold ? "font-bold text-base" : "font-medium"} ${highlight ? "text-indigo-700" : ""}`}>{value}</span>
     </div>
   );
 }
