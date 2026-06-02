@@ -1487,9 +1487,13 @@ export function CollectFeeDialog({ studentId, onClose }: { studentId: string | n
   React.useEffect(() => {
     if (studentId) {
       const price = cls?.pricePerSession ?? 0;
-      const suggested = price > 0 && (stu?.debt ?? 0) > 0
+      const debtSessions = price > 0 && (stu?.debt ?? 0) > 0
         ? Math.ceil((stu?.debt ?? 0) / price)
-        : 24;
+        : 0;
+      const studentRemaining = (stu?.bought ?? 0) - (stu?.attended ?? 0);
+      const classRemaining = cls?.remainingSessions ?? 0;
+      const catchUp = Math.max(0, classRemaining - studentRemaining);
+      const suggested = Math.max(debtSessions, catchUp) || 24;
       setSessions(suggested);
       setPromoId("p0");
       setMethod("Tiền mặt"); setNote("");
@@ -1520,6 +1524,9 @@ export function CollectFeeDialog({ studentId, onClose }: { studentId: string | n
   const newDebt = Math.max(0, oldDebt + base - discount - totalCollect);
 
   if (!stu || !cls) return null;
+  const classDone = cls.totalSessions - cls.remainingSessions;
+  const studentRemaining = stu.bought - stu.attended;
+  const catchUpSessions = Math.max(0, cls.remainingSessions - studentRemaining);
   const cashCfg = cashConfig.find((c) => c.branch === stu.branch);
   const cashExhausted = method === "Tiền mặt" && (!cashCfg || Math.max(cashCfg.current + 1, cashCfg.start) > cashCfg.end);
 
@@ -1578,7 +1585,10 @@ export function CollectFeeDialog({ studentId, onClose }: { studentId: string | n
                 </span>
               </div>
               <div className="text-xs text-slate-500 mt-1">
-                Gợi ý theo công nợ: {pricePerSession > 0 && oldDebt > 0 ? Math.ceil(oldDebt / pricePerSession) : 0} buổi
+                Gợi ý để khớp tiến độ lớp {cls.name}: <strong>{catchUpSessions} buổi</strong>
+                {oldDebt > 0 && pricePerSession > 0 && (
+                  <> · Theo công nợ: {Math.ceil(oldDebt / pricePerSession)} buổi</>
+                )}
               </div>
             </Field>
             <Field label="Ưu đãi" className="col-span-2">
@@ -1608,7 +1618,10 @@ export function CollectFeeDialog({ studentId, onClose }: { studentId: string | n
           </div>
           <div className="rounded-lg border bg-slate-50 p-4 space-y-2 text-sm h-fit">
             <div className="font-semibold flex items-center gap-2"><Info className="h-4 w-4 text-indigo-600" /> Thông tin học phí</div>
-            <Row label="Số buổi còn lại" value={`${stu.bought - stu.attended} buổi`} highlight={(stu.bought - stu.attended) <= 3} />
+            <Row label="Lớp đang học" value={cls.name} />
+            <Row label="Tiến độ lớp" value={`${classDone}/${cls.totalSessions} buổi`} />
+            <Row label="Số buổi còn lại của HS" value={`${studentRemaining} buổi`} highlight={studentRemaining <= 3} />
+            <Row label="Cần đóng để khớp lớp" value={`${catchUpSessions} buổi`} highlight={catchUpSessions > 0} />
             <Row label="Học phí còn nợ" value={formatVND(oldDebt)} highlight={oldDebt > 0} />
             <Row label="Thanh toán" value={formatVND(base)} />
             <Row label={`Ưu đãi (${promo.label})`} value={`- ${formatVND(discount)}`} />
