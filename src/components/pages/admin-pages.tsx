@@ -1557,10 +1557,18 @@ export function CollectFeeDialog({ studentId, onClose }: { studentId: string | n
         : c));
     }
     setStudents((prev) => prev.map((s) => s.id === stu.id
-      ? { ...s, bought: s.bought + sessionsNum, debt: newDebt, transferDebt: newDebt === 0 ? 0 : s.transferDebt }
+      ? {
+          ...s,
+          bought: s.bought + sessionsNum,
+          debt: newDebt,
+          transferDebt: newDebt === 0 ? 0 : s.transferDebt,
+          feeStatus: (s.feeStatus ?? (s.debt > 0 ? "debt" : "ok")) === "pending" ? "ok" : "pending",
+        }
       : s));
-    toast.success("Đã cập nhật học phí", {
-      description: `${stu.name} · +${sessionsNum} buổi · Phiếu ${id} · Công nợ còn: ${formatVND(newDebt)}`,
+    const prevStatus = stu.feeStatus ?? (stu.debt > 0 ? "debt" : "ok");
+    const nextStatus = prevStatus === "pending" ? "Đã đóng đủ" : "Đã ghi nhận";
+    toast.success(`Đã cập nhật học phí · ${nextStatus}`, {
+      description: `${stu.name} · +${sessionsNum} buổi · Phiếu ${id}`,
     });
     onClose();
   };
