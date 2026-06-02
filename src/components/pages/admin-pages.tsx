@@ -1609,11 +1609,9 @@ export function CollectFeeDialog({ studentId, onClose }: { studentId: string | n
           <div className="rounded-lg border bg-slate-50 p-4 space-y-2 text-sm h-fit">
             <div className="font-semibold flex items-center gap-2"><Info className="h-4 w-4 text-indigo-600" /> Thông tin học phí</div>
             <Row label="Học phí còn nợ" value={formatVND(oldDebt)} highlight={oldDebt > 0} />
-            <Row label="Đã đóng (lịch sử)" value={formatVND(paidTotal)} />
-            <div className="border-t pt-2 space-y-1">
-              <Row label={`Ưu đãi (${promo.label})`} value={`- ${formatVND(discount)}`} />
-            </div>
-            <div className="border-t pt-2"><Row label="Thanh toán" value={formatVND(totalCollect)} bold highlight /></div>
+            <Row label="Thanh toán" value={formatVND(base)} />
+            <Row label={`Ưu đãi (${promo.label})`} value={`- ${formatVND(discount)}`} />
+            <div className="border-t pt-2"><Row label="Tổng thu" value={formatVND(totalCollect)} bold highlight /></div>
           </div>
         </div>
         <DialogFooter>
