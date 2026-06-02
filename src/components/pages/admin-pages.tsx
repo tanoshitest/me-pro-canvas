@@ -1575,14 +1575,14 @@ export function CollectFeeDialog({ studentId, onClose }: { studentId: string | n
 
   return (
     <Dialog open={!!studentId} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Wallet className="h-5 w-5" /> Thu học phí: {stu.name}
           </DialogTitle>
           <DialogDescription>Lớp {cls.name} · {stu.branch}</DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4 md:grid-cols-[3fr_2fr]">
+        <div className="grid gap-4 md:grid-cols-[1fr_22rem]">
           <div className="grid grid-cols-2 gap-3">
             <Field label="Số buổi đóng" className="col-span-2">
               <div className="flex items-center gap-2">
@@ -1634,7 +1634,7 @@ export function CollectFeeDialog({ studentId, onClose }: { studentId: string | n
             <Row label="Lớp đang học" value={cls.name} />
             <Row label="Tiến độ lớp" value={`${classDone}/${cls.totalSessions} buổi`} />
             <Row label="Số buổi còn lại của HS" value={`${studentRemaining} buổi`} highlight={studentRemaining <= 3} />
-            <Row label="Công nợ học phí" value={`${catchUpSessions} buổi · ${formatVND(catchUpAmount)}`} highlight={catchUpSessions > 0} />
+            <Row label="Công nợ học phí" value={<span className="whitespace-nowrap">{`${catchUpSessions} buổi · ${formatVND(catchUpAmount)}`}</span>} highlight={catchUpSessions > 0} />
             <Row label="Thanh toán" value={formatVND(base)} />
             <Row label={`Ưu đãi (${promo.label})`} value={`- ${formatVND(discount)}`} />
             <div className="border-t pt-2 space-y-2">
