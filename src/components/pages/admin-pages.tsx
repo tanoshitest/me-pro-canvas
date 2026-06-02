@@ -1148,9 +1148,11 @@ export function AdminFees() {
     .filter((s) => filterClassId === "all" || s.classId === filterClassId)
     .map((s) => {
       const remain = s.bought - s.attended;
-      const status = s.debt > 0
-        ? { key: "debt", label: "Còn nợ", variant: "destructive" as const }
-        : { key: "ok", label: "Đã đóng đủ", variant: "default" as const };
+      const fs = s.feeStatus ?? (s.debt > 0 ? "debt" : "ok");
+      const status =
+        fs === "debt"    ? { key: "debt",    label: "Còn nợ",      variant: "destructive" as const } :
+        fs === "pending" ? { key: "pending", label: "Đã ghi nhận", variant: "secondary"   as const } :
+                           { key: "ok",      label: "Đã đóng đủ",  variant: "default"     as const };
       return { s, remain, status };
     })
     .filter((r) => filterStatus === "all" || r.status.key === filterStatus);
@@ -1205,6 +1207,7 @@ export function AdminFees() {
                 <SelectContent>
                   <SelectItem value="all">Tất cả</SelectItem>
                   <SelectItem value="debt">Còn nợ</SelectItem>
+                  <SelectItem value="pending">Đã ghi nhận</SelectItem>
                   <SelectItem value="ok">Đã đóng đủ</SelectItem>
                 </SelectContent>
               </Select>
