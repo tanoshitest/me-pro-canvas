@@ -1471,8 +1471,8 @@ export function CollectFeeDialog({ studentId, onClose }: { studentId: string | n
   const stu = students.find((s) => s.id === studentId) ?? null;
   const cls = stu ? classes.find((c) => c.id === stu.classId) ?? null : null;
 
-  const [received, setReceived] = React.useState(0);
-  const [discount, setDiscount] = React.useState(0);
+  const [sessions, setSessions] = React.useState("24");
+  const [promoId, setPromoId] = React.useState("p0");
   const [method, setMethod] = React.useState<Receipt["method"]>("Tiền mặt");
   const [receiptNo, setReceiptNo] = React.useState("");
   const [date, setDate] = React.useState("26/05/2026");
@@ -1486,8 +1486,8 @@ export function CollectFeeDialog({ studentId, onClose }: { studentId: string | n
 
   React.useEffect(() => {
     if (studentId) {
-      setReceived(stu?.debt ?? 0);
-      setDiscount(0);
+      setSessions("24");
+      setPromoId("p0");
       setMethod("Tiền mặt"); setNote("");
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1507,8 +1507,13 @@ export function CollectFeeDialog({ studentId, onClose }: { studentId: string | n
   }, [studentId, method, stu, cashConfig, receipts.length]);
 
   const oldDebt = stu?.debt ?? 0;
-  const totalCollect = Number(received) + Number(discount);
-  const newDebt = Math.max(0, oldDebt - totalCollect);
+  const pricePerSession = cls?.pricePerSession ?? 0;
+  const sessionsNum = Number(sessions);
+  const base = sessionsNum * pricePerSession;
+  const promo = PROMOTIONS.find((p) => p.id === promoId) ?? PROMOTIONS[0];
+  const discount = promo.type === "fixed" ? promo.value : Math.round((base * promo.value) / 100);
+  const totalCollect = Math.max(0, base - discount);
+  const newDebt = Math.max(0, oldDebt + base - discount - totalCollect);
 
   if (!stu || !cls) return null;
   const cashCfg = cashConfig.find((c) => c.branch === stu.branch);
@@ -1519,14 +1524,14 @@ export function CollectFeeDialog({ studentId, onClose }: { studentId: string | n
       toast.error("Không sinh được số phiếu thu", { description: "Kiểm tra cấu hình dải phiếu thu của chi nhánh." });
       return;
     }
-    if (Number(received) <= 0 && Number(discount) <= 0) {
-      toast.error("Vui lòng nhập số tiền hoặc ưu đãi.");
+    if (totalCollect <= 0) {
+      toast.error("Vui lòng chọn số buổi đóng.");
       return;
     }
     const id = receiptNo.trim();
     const newReceipt: Receipt = {
       id, studentId: stu.id, studentName: stu.name, branch: stu.branch,
-      amount: Number(received), method, status: "Hiệu lực",
+      amount: totalCollect, method, status: "Hiệu lực",
       createdBy: "Admin (demo)", createdAt: date, note,
     };
     setReceipts((prev) => [newReceipt, ...prev]);
@@ -1536,10 +1541,10 @@ export function CollectFeeDialog({ studentId, onClose }: { studentId: string | n
         : c));
     }
     setStudents((prev) => prev.map((s) => s.id === stu.id
-      ? { ...s, debt: newDebt, transferDebt: newDebt === 0 ? 0 : s.transferDebt }
+      ? { ...s, bought: s.bought + sessionsNum, debt: newDebt, transferDebt: newDebt === 0 ? 0 : s.transferDebt }
       : s));
     toast.success("Đã cập nhật học phí", {
-      description: `${stu.name} · Phiếu ${id} · Công nợ còn: ${formatVND(newDebt)}`,
+      description: `${stu.name} · +${sessionsNum} buổi · Phiếu ${id} · Công nợ còn: ${formatVND(newDebt)}`,
     });
     onClose();
   };
@@ -1555,19 +1560,27 @@ export function CollectFeeDialog({ studentId, onClose }: { studentId: string | n
         </DialogHeader>
         <div className="grid gap-4 md:grid-cols-[3fr_2fr]">
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Số tiền nhập vào (VNĐ)" className="col-span-2">
-              <Input
-                type="number"
-                value={received}
-                onChange={(e) => setReceived(Number(e.target.value))}
-              />
+            <Field label="Số tiền nhập vào" className="col-span-2">
+              <Select value={sessions} onValueChange={setSessions}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {["24", "48", "72", "96"].map((n) => (
+                    <SelectItem key={n} value={n}>
+                      Đóng {n} buổi · {formatVND(Number(n) * pricePerSession)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </Field>
-            <Field label="Ưu đãi (VNĐ)" className="col-span-2">
-              <Input
-                type="number"
-                value={discount}
-                onChange={(e) => setDiscount(Number(e.target.value))}
-              />
+            <Field label="Ưu đãi" className="col-span-2">
+              <Select value={promoId} onValueChange={setPromoId}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {PROMOTIONS.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>{p.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </Field>
             <Field label="Phương thức">
               <Select value={method} onValueChange={(v) => setMethod(v as Receipt["method"])}>
@@ -1587,13 +1600,13 @@ export function CollectFeeDialog({ studentId, onClose }: { studentId: string | n
           <div className="rounded-lg border bg-slate-50 p-4 space-y-2 text-sm h-fit">
             <div className="font-semibold flex items-center gap-2"><Info className="h-4 w-4 text-indigo-600" /> Thông tin học phí</div>
             <Row label="Học phí còn nợ" value={formatVND(oldDebt)} highlight={oldDebt > 0} />
-            <Row label="Đã đóng" value={formatVND(paidTotal)} />
+            <Row label="Đã đóng (lịch sử)" value={formatVND(paidTotal)} />
             <div className="border-t pt-2 space-y-1">
-              <Row label="Số tiền nhập" value={formatVND(Number(received))} />
-              <Row label="Ưu đãi" value={`+ ${formatVND(Number(discount))}`} />
+              <Row label={`${sessionsNum} buổi × ${formatVND(pricePerSession)}`} value={formatVND(base)} />
+              <Row label={`Ưu đãi (${promo.label})`} value={`- ${formatVND(discount)}`} />
             </div>
             <div className="border-t pt-2"><Row label="Tổng thu" value={formatVND(totalCollect)} bold /></div>
-            <Row label="Công nợ sau cập nhật" value={formatVND(newDebt)} highlight={newDebt > 0} />
+            <Row label="Còn nợ − đã đóng" value={formatVND(newDebt)} highlight={newDebt > 0} />
           </div>
         </div>
         <DialogFooter>
