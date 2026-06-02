@@ -1490,10 +1490,7 @@ export function CollectFeeDialog({ studentId, onClose }: { studentId: string | n
       const debtSessions = price > 0 && (stu?.debt ?? 0) > 0
         ? Math.ceil((stu?.debt ?? 0) / price)
         : 0;
-      const studentRemaining = (stu?.bought ?? 0) - (stu?.attended ?? 0);
-      const classRemaining = cls?.remainingSessions ?? 0;
-      const catchUp = Math.max(0, classRemaining - studentRemaining);
-      const suggested = Math.max(debtSessions, catchUp) || 24;
+      const suggested = debtSessions > 0 ? debtSessions : 24;
       setSessions(suggested);
       setPromoId("p0");
       setMethod("Tiền mặt"); setNote("");
