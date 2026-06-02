@@ -1471,7 +1471,7 @@ export function CollectFeeDialog({ studentId, onClose }: { studentId: string | n
   const stu = students.find((s) => s.id === studentId) ?? null;
   const cls = stu ? classes.find((c) => c.id === stu.classId) ?? null : null;
 
-  const [sessions, setSessions] = React.useState("24");
+  const [sessions, setSessions] = React.useState(24);
   const [promoId, setPromoId] = React.useState("p0");
   const [method, setMethod] = React.useState<Receipt["method"]>("Tiền mặt");
   const [receiptNo, setReceiptNo] = React.useState("");
@@ -1486,7 +1486,11 @@ export function CollectFeeDialog({ studentId, onClose }: { studentId: string | n
 
   React.useEffect(() => {
     if (studentId) {
-      setSessions("24");
+      const price = cls?.pricePerSession ?? 0;
+      const suggested = price > 0 && (stu?.debt ?? 0) > 0
+        ? Math.ceil((stu?.debt ?? 0) / price)
+        : 24;
+      setSessions(suggested);
       setPromoId("p0");
       setMethod("Tiền mặt"); setNote("");
     }
@@ -1508,7 +1512,7 @@ export function CollectFeeDialog({ studentId, onClose }: { studentId: string | n
 
   const oldDebt = stu?.debt ?? 0;
   const pricePerSession = cls?.pricePerSession ?? 0;
-  const sessionsNum = Number(sessions);
+  const sessionsNum = Math.max(0, Number(sessions) || 0);
   const base = sessionsNum * pricePerSession;
   const promo = PROMOTIONS.find((p) => p.id === promoId) ?? PROMOTIONS[0];
   const discount = promo.type === "fixed" ? promo.value : Math.round((base * promo.value) / 100);
@@ -1560,17 +1564,22 @@ export function CollectFeeDialog({ studentId, onClose }: { studentId: string | n
         </DialogHeader>
         <div className="grid gap-4 md:grid-cols-[3fr_2fr]">
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Số tiền nhập vào" className="col-span-2">
-              <Select value={sessions} onValueChange={setSessions}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {["24", "48", "72", "96"].map((n) => (
-                    <SelectItem key={n} value={n}>
-                      Đóng {n} buổi · {formatVND(Number(n) * pricePerSession)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <Field label="Số buổi đóng" className="col-span-2">
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  min={0}
+                  value={sessions}
+                  onChange={(e) => setSessions(Number(e.target.value))}
+                  className="w-32"
+                />
+                <span className="text-sm text-slate-500">
+                  buổi · {formatVND(sessionsNum * pricePerSession)}
+                </span>
+              </div>
+              <div className="text-xs text-slate-500 mt-1">
+                Gợi ý theo công nợ: {pricePerSession > 0 && oldDebt > 0 ? Math.ceil(oldDebt / pricePerSession) : 0} buổi
+              </div>
             </Field>
             <Field label="Ưu đãi" className="col-span-2">
               <Select value={promoId} onValueChange={setPromoId}>
@@ -1606,7 +1615,6 @@ export function CollectFeeDialog({ studentId, onClose }: { studentId: string | n
               <Row label={`Ưu đãi (${promo.label})`} value={`- ${formatVND(discount)}`} />
             </div>
             <div className="border-t pt-2"><Row label="Tổng thu" value={formatVND(totalCollect)} bold /></div>
-            <Row label="Còn nợ − đã đóng" value={formatVND(newDebt)} highlight={newDebt > 0} />
           </div>
         </div>
         <DialogFooter>
