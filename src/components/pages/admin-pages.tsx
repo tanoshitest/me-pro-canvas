@@ -1471,18 +1471,13 @@ export function CollectFeeDialog({ studentId, onClose }: { studentId: string | n
   const stu = students.find((s) => s.id === studentId) ?? null;
   const cls = stu ? classes.find((c) => c.id === stu.classId) ?? null : null;
 
-  const [pkg, setPkg] = React.useState("1");
-  const [promoId, setPromoId] = React.useState("p0");
-  const [extra, setExtra] = React.useState(0);
   const [received, setReceived] = React.useState(0);
+  const [discount, setDiscount] = React.useState(0);
   const [method, setMethod] = React.useState<Receipt["method"]>("Tiền mặt");
   const [receiptNo, setReceiptNo] = React.useState("");
   const [date, setDate] = React.useState("26/05/2026");
   const [note, setNote] = React.useState("");
-  const [confirmOpen, setConfirmOpen] = React.useState(false);
-  const receivedTouched = React.useRef(false);
 
-  const isFullyPaid = !!stu && stu.debt === 0;
   const paidTotal = React.useMemo(
     () => receipts.filter((r) => r.studentId === studentId && r.status === "Hiệu lực")
       .reduce((s, r) => s + r.amount, 0),
@@ -1491,11 +1486,9 @@ export function CollectFeeDialog({ studentId, onClose }: { studentId: string | n
 
   React.useEffect(() => {
     if (studentId) {
-      // Học viên đã đóng đủ → mặc định không thu thêm (gói = 0)
-      setPkg(stu && stu.debt === 0 ? "0" : "1");
-      setPromoId("p0"); setExtra(0);
+      setReceived(stu?.debt ?? 0);
+      setDiscount(0);
       setMethod("Tiền mặt"); setNote("");
-      receivedTouched.current = false;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [studentId]);
@@ -1513,37 +1506,23 @@ export function CollectFeeDialog({ studentId, onClose }: { studentId: string | n
     }
   }, [studentId, method, stu, cashConfig, receipts.length]);
 
-  const sessionsToAdd = stu && cls ? Number(pkg) * cls.totalSessions : 0;
-  const base = cls ? cls.pricePerCourse * Number(pkg) : 0;
-  const promo = PROMOTIONS.find((p) => p.id === promoId)!;
-  const discount = promo.type === "fixed" ? promo.value : Math.round((base * promo.value) / 100);
-  const newCharge = Math.max(0, base - discount + Number(extra));
   const oldDebt = stu?.debt ?? 0;
-  const transferDebt = stu?.transferDebt ?? 0;
-  const tuitionDebt = Math.max(0, oldDebt - transferDebt);
-  const total = newCharge + oldDebt;
-  const debt = Math.max(0, total - Number(received));
-
-  // Mặc định "Thực thu" = "Thành tiền" (gồm cả nợ cũ) để công nợ về 0.
-  React.useEffect(() => {
-    if (!receivedTouched.current) setReceived(total);
-  }, [total]);
+  const totalCollect = Number(received) + Number(discount);
+  const newDebt = Math.max(0, oldDebt - totalCollect);
 
   if (!stu || !cls) return null;
   const cashCfg = cashConfig.find((c) => c.branch === stu.branch);
   const cashExhausted = method === "Tiền mặt" && (!cashCfg || Math.max(cashCfg.current + 1, cashCfg.start) > cashCfg.end);
-  const hasNewCharge = total > 0;
-  const newDebtAfter = debt;
 
   const submit = () => {
     if (!receiptNo.trim()) {
       toast.error("Không sinh được số phiếu thu", { description: "Kiểm tra cấu hình dải phiếu thu của chi nhánh." });
       return;
     }
-    setConfirmOpen(true);
-  };
-
-  const finalize = () => {
+    if (Number(received) <= 0 && Number(discount) <= 0) {
+      toast.error("Vui lòng nhập số tiền hoặc ưu đãi.");
+      return;
+    }
     const id = receiptNo.trim();
     const newReceipt: Receipt = {
       id, studentId: stu.id, studentName: stu.name, branch: stu.branch,
@@ -1557,139 +1536,72 @@ export function CollectFeeDialog({ studentId, onClose }: { studentId: string | n
         : c));
     }
     setStudents((prev) => prev.map((s) => s.id === stu.id
-      ? { ...s, bought: s.bought + sessionsToAdd, debt, transferDebt: debt === 0 ? 0 : s.transferDebt }
+      ? { ...s, debt: newDebt, transferDebt: newDebt === 0 ? 0 : s.transferDebt }
       : s));
-    toast.success("Đã tạo phiếu thu", {
-      description: `Cộng ${sessionsToAdd} buổi vào ví ${stu.name}. Phiếu: ${id}.`,
+    toast.success("Đã cập nhật học phí", {
+      description: `${stu.name} · Phiếu ${id} · Công nợ còn: ${formatVND(newDebt)}`,
     });
-    setConfirmOpen(false);
     onClose();
   };
 
   return (
-    <>
-      <Dialog open={!!studentId && !confirmOpen} onOpenChange={(v) => !v && onClose()}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Wallet className="h-5 w-5" /> Thu học phí: {stu.name}
-            </DialogTitle>
-            <DialogDescription>Lớp {cls.name} · {stu.branch}</DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 md:grid-cols-[3fr_2fr]">
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Lớp"><Input value={cls.name} readOnly /></Field>
-              <Field label="Chi nhánh"><Input value={stu.branch} readOnly /></Field>
-              <Field label="Gói thu trước">
-                <Select value={pkg} onValueChange={setPkg}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="0">— Không thu thêm —</SelectItem>
-                    {["1","2","3","4","5","6"].map((n) => <SelectItem key={n} value={n}>{n === "1" ? "Khóa này" : `${n} khóa`}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field label="Học phí gốc (auto)"><Input value={formatVND(base)} readOnly /></Field>
-              <Field label="Ưu đãi">
-                <Select value={promoId} onValueChange={setPromoId}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {PROMOTIONS.map((p) => <SelectItem key={p.id} value={p.id}>{p.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field label="Thu khác (VNĐ)">
-                <Input type="number" value={extra} onChange={(e) => setExtra(Number(e.target.value))} />
-              </Field>
-              <Field label="Thực thu (VNĐ)">
-                <Input
-                  type="number"
-                  value={received}
-                  onChange={(e) => { receivedTouched.current = true; setReceived(Number(e.target.value)); }}
-                />
-              </Field>
-              <Field label="Phương thức">
-                <Select value={method} onValueChange={(v) => setMethod(v as Receipt["method"])}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Tiền mặt">Tiền mặt</SelectItem>
-                    <SelectItem value="Chuyển khoản">Chuyển khoản</SelectItem>
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field label={`Số phiếu thu (auto · ${method === "Tiền mặt" ? "dải " + stu.branch : "chuyển khoản"})`}>
-                <Input value={receiptNo} readOnly className="font-mono bg-slate-50" placeholder={cashExhausted ? "Đã hết dải phiếu — cấu hình lại" : ""} />
-              </Field>
-              <Field label="Ngày thu"><Input value={date} onChange={(e) => setDate(e.target.value)} /></Field>
-              <Field label="Ghi chú" className="col-span-2"><Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} /></Field>
-            </div>
-            <div className="rounded-lg border bg-slate-50 p-4 space-y-2 text-sm h-fit">
-              <div className="font-semibold flex items-center gap-2"><Info className="h-4 w-4 text-indigo-600" /> Kết quả tính toán</div>
-              {isFullyPaid && (
-                <div className="rounded-md border border-emerald-200 bg-emerald-50 p-2 space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-emerald-800 font-medium">Tình trạng hiện tại</span>
-                    <span className="text-[11px] px-2 py-0.5 rounded bg-emerald-600 text-white">Đã đóng đủ</span>
-                  </div>
-                  <Row label="Đã đóng" value={formatVND(paidTotal)} />
-                  <Row label="Công nợ hiện tại" value={formatVND(0)} />
-                  <Row label="Còn buổi trong ví" value={`${Math.max(0, stu.bought - stu.attended)} buổi`} />
-                </div>
-              )}
-              <Row label="Số buổi cộng vào ví" value={`+${sessionsToAdd} buổi`} highlight />
-              <Row label="Học phí gốc" value={formatVND(base)} />
-              <Row label="Ưu đãi" value={`- ${formatVND(discount)}`} />
-              <Row label="Thu khác" value={`+ ${formatVND(Number(extra))}`} />
-              <div className="border-t pt-2 space-y-1">
-                <Row label="Học phí mới" value={formatVND(newCharge)} />
-                {oldDebt > 0 && (
-                  <>
-                    <Row label="Công nợ học phí cũ" value={formatVND(tuitionDebt)} highlight />
-                    {transferDebt > 0 && (
-                      <Row label="Nợ phát sinh chuyển lớp" value={formatVND(transferDebt)} highlight />
-                    )}
-                  </>
-                )}
-              </div>
-              <div className="border-t pt-2"><Row label="Tổng phải thu" value={formatVND(total)} bold /></div>
-              {hasNewCharge ? (
-                <>
-                  <Row label="Thực thu lần này" value={formatVND(Number(received))} />
-                  <Row label="Công nợ sau cập nhật" value={formatVND(newDebtAfter)} highlight={newDebtAfter > 0} />
-                </>
-              ) : (
-                <div className="text-xs text-slate-500 italic pt-1">Chọn gói hoặc nhập "Thu khác" để cập nhật học phí.</div>
-              )}
-            </div>
+    <Dialog open={!!studentId} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Wallet className="h-5 w-5" /> Thu học phí: {stu.name}
+          </DialogTitle>
+          <DialogDescription>Lớp {cls.name} · {stu.branch}</DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4 md:grid-cols-[3fr_2fr]">
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Số tiền nhập vào (VNĐ)" className="col-span-2">
+              <Input
+                type="number"
+                value={received}
+                onChange={(e) => setReceived(Number(e.target.value))}
+              />
+            </Field>
+            <Field label="Ưu đãi (VNĐ)" className="col-span-2">
+              <Input
+                type="number"
+                value={discount}
+                onChange={(e) => setDiscount(Number(e.target.value))}
+              />
+            </Field>
+            <Field label="Phương thức">
+              <Select value={method} onValueChange={(v) => setMethod(v as Receipt["method"])}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Tiền mặt">Tiền mặt</SelectItem>
+                  <SelectItem value="Chuyển khoản">Chuyển khoản</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field label="Ngày thu"><Input value={date} onChange={(e) => setDate(e.target.value)} /></Field>
+            <Field label="Số phiếu thu (auto)" className="col-span-2">
+              <Input value={receiptNo} readOnly className="font-mono bg-slate-50" placeholder={cashExhausted ? "Đã hết dải phiếu — cấu hình lại" : ""} />
+            </Field>
+            <Field label="Ghi chú" className="col-span-2"><Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} /></Field>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={onClose}>Hủy</Button>
-            <Button onClick={submit} disabled={!hasNewCharge}><Wallet className="h-4 w-4" /> Cập nhật học phí</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Xác nhận tạo phiếu thu</DialogTitle>
-            <DialogDescription>Vui lòng kiểm tra trước khi tạo phiếu.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2 text-sm">
-            <Row label="Học viên" value={stu.name} />
-            <Row label="Gói" value={`${pkg} khóa · +${sessionsToAdd} buổi`} />
-            <Row label="Thành tiền" value={formatVND(total)} bold />
-            <Row label="Thực thu" value={formatVND(Number(received))} />
-            <Row label="Công nợ" value={formatVND(debt)} highlight={debt > 0} />
-            <Row label="Phương thức" value={method} />
+          <div className="rounded-lg border bg-slate-50 p-4 space-y-2 text-sm h-fit">
+            <div className="font-semibold flex items-center gap-2"><Info className="h-4 w-4 text-indigo-600" /> Thông tin học phí</div>
+            <Row label="Học phí còn nợ" value={formatVND(oldDebt)} highlight={oldDebt > 0} />
+            <Row label="Đã đóng" value={formatVND(paidTotal)} />
+            <div className="border-t pt-2 space-y-1">
+              <Row label="Số tiền nhập" value={formatVND(Number(received))} />
+              <Row label="Ưu đãi" value={`+ ${formatVND(Number(discount))}`} />
+            </div>
+            <div className="border-t pt-2"><Row label="Tổng thu" value={formatVND(totalCollect)} bold /></div>
+            <Row label="Công nợ sau cập nhật" value={formatVND(newDebt)} highlight={newDebt > 0} />
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmOpen(false)}>Hủy</Button>
-            <Button onClick={finalize}><CheckCircle2 className="h-4 w-4" /> Xác nhận</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Hủy</Button>
+          <Button onClick={submit}><CheckCircle2 className="h-4 w-4" /> OK · Cập nhật học phí</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
