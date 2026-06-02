@@ -14,6 +14,7 @@ export interface Student {
   debt: number;
   transferDebt?: number; // công nợ phát sinh do chuyển lớp
   transferNote?: string;
+  feeStatus?: "debt" | "pending" | "ok"; // Còn nợ → Đã ghi nhận → Đã đóng đủ
   // Personal
   dob?: string;            // dd/mm/yyyy
   gender?: "Nam" | "Nữ";
