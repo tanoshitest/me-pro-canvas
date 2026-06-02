@@ -1645,7 +1645,12 @@ export function CollectFeeDialog({ studentId, onClose }: { studentId: string | n
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Hủy</Button>
-          <Button onClick={submit}><CheckCircle2 className="h-4 w-4" /> OK · Cập nhật học phí</Button>
+          <Button onClick={submit}>
+            <CheckCircle2 className="h-4 w-4" />
+            {(stu.feeStatus ?? (stu.debt > 0 ? "debt" : "ok")) === "pending"
+              ? "XÁC NHẬN HOÀN THÀNH"
+              : "GHI NHẬN THU HỌC PHÍ"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
