@@ -1490,10 +1490,7 @@ export function CollectFeeDialog({ studentId, onClose }: { studentId: string | n
       const debtSessions = price > 0 && (stu?.debt ?? 0) > 0
         ? Math.ceil((stu?.debt ?? 0) / price)
         : 0;
-      const studentRemaining = (stu?.bought ?? 0) - (stu?.attended ?? 0);
-      const classRemaining = cls?.remainingSessions ?? 0;
-      const catchUp = Math.max(0, classRemaining - studentRemaining);
-      const suggested = Math.max(debtSessions, catchUp) || 24;
+      const suggested = debtSessions > 0 ? debtSessions : 24;
       setSessions(suggested);
       setPromoId("p0");
       setMethod("Tiền mặt"); setNote("");
@@ -1526,7 +1523,10 @@ export function CollectFeeDialog({ studentId, onClose }: { studentId: string | n
   if (!stu || !cls) return null;
   const classDone = cls.totalSessions - cls.remainingSessions;
   const studentRemaining = stu.bought - stu.attended;
-  const catchUpSessions = Math.max(0, cls.remainingSessions - studentRemaining);
+  // Công nợ = số tiền cần đóng để khớp lớp → quy về số buổi
+  const catchUpSessions = pricePerSession > 0 && oldDebt > 0
+    ? Math.ceil(oldDebt / pricePerSession)
+    : 0;
   const cashCfg = cashConfig.find((c) => c.branch === stu.branch);
   const cashExhausted = method === "Tiền mặt" && (!cashCfg || Math.max(cashCfg.current + 1, cashCfg.start) > cashCfg.end);
 
