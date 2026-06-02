@@ -1523,10 +1523,9 @@ export function CollectFeeDialog({ studentId, onClose }: { studentId: string | n
   if (!stu || !cls) return null;
   const classDone = cls.totalSessions - cls.remainingSessions;
   const studentRemaining = stu.bought - stu.attended;
-  // Công nợ = số tiền cần đóng để khớp lớp → quy về số buổi
-  const catchUpSessions = pricePerSession > 0 && oldDebt > 0
-    ? Math.ceil(oldDebt / pricePerSession)
-    : 0;
+  // Số buổi cần đóng để khớp tiến độ lớp = số buổi còn lại của lớp - số buổi còn lại của HS
+  const catchUpSessions = Math.max(0, cls.remainingSessions - studentRemaining);
+  const catchUpAmount = catchUpSessions * pricePerSession;
   const cashCfg = cashConfig.find((c) => c.branch === stu.branch);
   const cashExhausted = method === "Tiền mặt" && (!cashCfg || Math.max(cashCfg.current + 1, cashCfg.start) > cashCfg.end);
 
