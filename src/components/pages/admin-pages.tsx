@@ -1611,10 +1611,9 @@ export function CollectFeeDialog({ studentId, onClose }: { studentId: string | n
             <Row label="Học phí còn nợ" value={formatVND(oldDebt)} highlight={oldDebt > 0} />
             <Row label="Đã đóng (lịch sử)" value={formatVND(paidTotal)} />
             <div className="border-t pt-2 space-y-1">
-              <Row label={`${sessionsNum} buổi × ${formatVND(pricePerSession)}`} value={formatVND(base)} />
               <Row label={`Ưu đãi (${promo.label})`} value={`- ${formatVND(discount)}`} />
             </div>
-            <div className="border-t pt-2"><Row label="Tổng thu" value={formatVND(totalCollect)} bold /></div>
+            <div className="border-t pt-2"><Row label="Thanh toán" value={formatVND(totalCollect)} bold highlight /></div>
           </div>
         </div>
         <DialogFooter>
