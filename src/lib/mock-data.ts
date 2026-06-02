@@ -76,7 +76,7 @@ export interface Receipt {
 export const STUDENTS: Student[] = [
   {
     id: "s1", name: "Hồng Diệp", nickname: "Kirito", branch: "Đội Cấn", classId: "c1",
-    bought: 32, attended: 22, debt: 0,
+    bought: 32, attended: 22, debt: 1160000,
     dob: "12/05/2016", gender: "Nữ", school: "Tiểu học Nguyễn Trãi",
     address: "12 Đội Cấn, Ba Đình, Hà Nội", email: "hongdiep.kirito@gmail.com",
     note: "Bé nhút nhát, cần khuyến khích nói nhiều hơn.",
@@ -120,7 +120,7 @@ export const STUDENTS: Student[] = [
   },
   {
     id: "s2", name: "Đăng Khoa", nickname: "Bing", branch: "Đội Cấn", classId: "c1",
-    bought: 14, attended: 24, debt: 1450000, transferDebt: 0,
+    bought: 14, attended: 24, debt: 4060000, transferDebt: 0,
     dob: "08/09/2015", gender: "Nam", school: "Tiểu học Kim Đồng",
     address: "45 Liễu Giai, Ba Đình, Hà Nội", email: "",
     note: "Hiếu động, học tốt phần Listening.",
@@ -135,7 +135,7 @@ export const STUDENTS: Student[] = [
   },
   {
     id: "s3", name: "Mimi", branch: "Hoàng Hoa Thám", classId: "c2",
-    bought: 24, attended: 10, debt: 0,
+    bought: 24, attended: 10, debt: 1450000,
     dob: "20/11/2016", gender: "Nữ", school: "Tiểu học Hoàng Hoa Thám",
     address: "120 Hoàng Hoa Thám, Ba Đình, Hà Nội", email: "",
     parentName: "Lê Minh Tâm", parentPhone: "0901 234 567",
@@ -158,7 +158,7 @@ export const STUDENTS: Student[] = [
   },
   {
     id: "s5", name: "Nguyễn Ngọc Linh", branch: "Đội Cấn", classId: "c1",
-    bought: 24, attended: 26, debt: 290000,
+    bought: 24, attended: 26, debt: 2900000,
     dob: "03/07/2016", gender: "Nữ", school: "Tiểu học Nguyễn Trãi",
     address: "27 Đội Cấn, Ba Đình, Hà Nội", email: "",
     parentName: "Nguyễn Thị Mai", parentPhone: "0936 777 888",
