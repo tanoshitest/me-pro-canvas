@@ -14,6 +14,7 @@ export interface Student {
   debt: number;
   transferDebt?: number; // công nợ phát sinh do chuyển lớp
   transferNote?: string;
+  feeStatus?: "debt" | "pending" | "ok"; // Còn nợ → Đã ghi nhận → Đã đóng đủ
   // Personal
   dob?: string;            // dd/mm/yyyy
   gender?: "Nam" | "Nữ";
@@ -76,7 +77,7 @@ export interface Receipt {
 export const STUDENTS: Student[] = [
   {
     id: "s1", name: "Hồng Diệp", nickname: "Kirito", branch: "Đội Cấn", classId: "c1",
-    bought: 32, attended: 22, debt: 1160000,
+    bought: 32, attended: 22, debt: 1160000, feeStatus: "debt",
     dob: "12/05/2016", gender: "Nữ", school: "Tiểu học Nguyễn Trãi",
     address: "12 Đội Cấn, Ba Đình, Hà Nội", email: "hongdiep.kirito@gmail.com",
     note: "Bé nhút nhát, cần khuyến khích nói nhiều hơn.",
@@ -120,7 +121,7 @@ export const STUDENTS: Student[] = [
   },
   {
     id: "s2", name: "Đăng Khoa", nickname: "Bing", branch: "Đội Cấn", classId: "c1",
-    bought: 14, attended: 24, debt: 4060000, transferDebt: 0,
+    bought: 14, attended: 24, debt: 4060000, transferDebt: 0, feeStatus: "pending",
     dob: "08/09/2015", gender: "Nam", school: "Tiểu học Kim Đồng",
     address: "45 Liễu Giai, Ba Đình, Hà Nội", email: "",
     note: "Hiếu động, học tốt phần Listening.",
@@ -135,7 +136,7 @@ export const STUDENTS: Student[] = [
   },
   {
     id: "s3", name: "Mimi", branch: "Hoàng Hoa Thám", classId: "c2",
-    bought: 24, attended: 10, debt: 1450000,
+    bought: 24, attended: 10, debt: 1450000, feeStatus: "debt",
     dob: "20/11/2016", gender: "Nữ", school: "Tiểu học Hoàng Hoa Thám",
     address: "120 Hoàng Hoa Thám, Ba Đình, Hà Nội", email: "",
     parentName: "Lê Minh Tâm", parentPhone: "0901 234 567",
@@ -145,7 +146,7 @@ export const STUDENTS: Student[] = [
   },
   {
     id: "s4", name: "Lại Thế Thái Dương", branch: "Ngọc Hà", classId: "c3",
-    bought: 96, attended: 30, debt: 0,
+    bought: 96, attended: 30, debt: 0, feeStatus: "ok",
     dob: "15/02/2015", gender: "Nam", school: "Tiểu học Ngọc Hà",
     address: "8 Ngọc Hà, Ba Đình, Hà Nội", email: "thaiduong.lai@gmail.com",
     parentName: "Lại Văn Bình", parentPhone: "0978 111 222",
@@ -158,7 +159,7 @@ export const STUDENTS: Student[] = [
   },
   {
     id: "s5", name: "Nguyễn Ngọc Linh", branch: "Đội Cấn", classId: "c1",
-    bought: 24, attended: 26, debt: 2900000,
+    bought: 24, attended: 26, debt: 2900000, feeStatus: "pending",
     dob: "03/07/2016", gender: "Nữ", school: "Tiểu học Nguyễn Trãi",
     address: "27 Đội Cấn, Ba Đình, Hà Nội", email: "",
     parentName: "Nguyễn Thị Mai", parentPhone: "0936 777 888",
