@@ -120,7 +120,7 @@ export const STUDENTS: Student[] = [
   },
   {
     id: "s2", name: "Đăng Khoa", nickname: "Bing", branch: "Đội Cấn", classId: "c1",
-    bought: 24, attended: 20, debt: 500000, transferDebt: 200000,
+    bought: 24, attended: 24, debt: 1450000, transferDebt: 0,
     dob: "08/09/2015", gender: "Nam", school: "Tiểu học Kim Đồng",
     address: "45 Liễu Giai, Ba Đình, Hà Nội", email: "",
     note: "Hiếu động, học tốt phần Listening.",
@@ -158,7 +158,7 @@ export const STUDENTS: Student[] = [
   },
   {
     id: "s5", name: "Nguyễn Ngọc Linh", branch: "Đội Cấn", classId: "c1",
-    bought: 24, attended: 23, debt: 200000,
+    bought: 24, attended: 26, debt: 290000,
     dob: "03/07/2016", gender: "Nữ", school: "Tiểu học Nguyễn Trãi",
     address: "27 Đội Cấn, Ba Đình, Hà Nội", email: "",
     parentName: "Nguyễn Thị Mai", parentPhone: "0936 777 888",
