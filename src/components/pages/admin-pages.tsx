@@ -1490,7 +1490,10 @@ export function CollectFeeDialog({ studentId, onClose }: { studentId: string | n
       const debtSessions = price > 0 && (stu?.debt ?? 0) > 0
         ? Math.ceil((stu?.debt ?? 0) / price)
         : 0;
-      const suggested = debtSessions > 0 ? debtSessions : 24;
+      const studentRemaining = (stu?.bought ?? 0) - (stu?.attended ?? 0);
+      const classRemaining = cls?.remainingSessions ?? 0;
+      const catchUp = Math.max(0, classRemaining - studentRemaining);
+      const suggested = catchUp > 0 ? catchUp : (debtSessions > 0 ? debtSessions : 24);
       setSessions(suggested);
       setPromoId("p0");
       setMethod("Tiền mặt"); setNote("");
@@ -1620,8 +1623,7 @@ export function CollectFeeDialog({ studentId, onClose }: { studentId: string | n
             <Row label="Lớp đang học" value={cls.name} />
             <Row label="Tiến độ lớp" value={`${classDone}/${cls.totalSessions} buổi`} />
             <Row label="Số buổi còn lại của HS" value={`${studentRemaining} buổi`} highlight={studentRemaining <= 3} />
-            <Row label="Cần đóng để khớp lớp" value={`${catchUpSessions} buổi`} highlight={catchUpSessions > 0} />
-            <Row label="Học phí còn nợ" value={formatVND(oldDebt)} highlight={oldDebt > 0} />
+            <Row label="Công nợ học phí" value={`${catchUpSessions} buổi · ${formatVND(catchUpAmount)}`} highlight={catchUpSessions > 0} />
             <Row label="Thanh toán" value={formatVND(base)} />
             <Row label={`Ưu đãi (${promo.label})`} value={`- ${formatVND(discount)}`} />
             <div className="border-t pt-2 space-y-2">
