@@ -3341,22 +3341,14 @@ export function AdminSchedule() {
   );
 }
 
-/* ============== ATTENDANCE & SALARY REPORTS (demo) ============== */
+/* ============== ATTENDANCE REPORT (demo) ============== */
 export function AdminAttendanceReport() {
-  return (
-    <Tabs defaultValue="attendance" className="space-y-4">
-      <TabsList>
-        <TabsTrigger value="attendance">Báo cáo chấm công</TabsTrigger>
-        <TabsTrigger value="finance">Báo cáo thu chi</TabsTrigger>
-      </TabsList>
-      <TabsContent value="attendance" className="mt-0">
-        <AttendanceReportCard />
-      </TabsContent>
-      <TabsContent value="finance" className="mt-0">
-        <FinanceReportCard />
-      </TabsContent>
-    </Tabs>
-  );
+  return <AttendanceReportCard />;
+}
+
+/* ============== FINANCE REPORT (Thu / Chi) ============== */
+export function AdminFinanceReport() {
+  return <FinanceReportCard />;
 }
 
 function AttendanceReportCard() {

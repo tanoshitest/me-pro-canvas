@@ -4,6 +4,7 @@ import { AppShell } from "@/components/app-shell";
 import {
   AdminStudents, AdminClasses, AdminTuition, AdminFees, AdminSyllabus,
   AdminTeachers, AdminSchedule, AdminAttendanceReport, AdminSalaryReport,
+  AdminFinanceReport,
 } from "@/components/pages/admin-pages";
 import { TeacherToday, TeacherSyllabus } from "@/components/pages/teacher-pages";
 import {
@@ -27,6 +28,7 @@ function PageRouter() {
       case "schedule-admin": return <AdminSchedule />;
       case "attendance-report": return <AdminAttendanceReport />;
       case "salary-report": return <AdminSalaryReport />;
+      case "finance-report": return <AdminFinanceReport />;
       case "tuition": return <AdminTuition />;
     }
   }
