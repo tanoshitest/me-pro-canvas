@@ -3414,6 +3414,7 @@ function FinanceReportCard() {
   const [to, setTo] = React.useState<string>("");
   const [typeFilter, setTypeFilter] = React.useState<string>("all");
   const [branchFilter, setBranchFilter] = React.useState<string>("all");
+  const [statusFilter, setStatusFilter] = React.useState<string>("all");
   const [open, setOpen] = React.useState<null | "thu" | "chi">(null);
 
   const filtered = txns.filter((t) => {
@@ -3421,6 +3422,10 @@ function FinanceReportCard() {
     if (to && t.date > to) return false;
     if (typeFilter !== "all" && t.type !== typeFilter) return false;
     if (branchFilter !== "all" && t.branch !== branchFilter) return false;
+    if (statusFilter !== "all") {
+      if (statusFilter === "ghi-nhan" && !t.category.includes("ghi nhận")) return false;
+      if (statusFilter === "da-xac-nhan" && !t.category.includes("đã xác nhận")) return false;
+    }
     return true;
   });
 
@@ -3457,7 +3462,7 @@ function FinanceReportCard() {
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Filters */}
-          <div className="grid gap-3 md:grid-cols-5">
+          <div className="grid gap-3 md:grid-cols-6">
             <div>
               <Label className="text-xs text-slate-500">Từ ngày</Label>
               <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
@@ -3487,8 +3492,19 @@ function FinanceReportCard() {
                 </SelectContent>
               </Select>
             </div>
+            <div>
+              <Label className="text-xs text-slate-500">Trạng thái</Label>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tất cả</SelectItem>
+                  <SelectItem value="ghi-nhan">Ghi nhận</SelectItem>
+                  <SelectItem value="da-xac-nhan">Đã xác nhận</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div className="flex items-end">
-              <Button variant="outline" className="w-full" onClick={() => { setFrom(""); setTo(""); setTypeFilter("all"); setBranchFilter("all"); }}>Đặt lại bộ lọc</Button>
+              <Button variant="outline" className="w-full" onClick={() => { setFrom(""); setTo(""); setTypeFilter("all"); setBranchFilter("all"); setStatusFilter("all"); }}>Đặt lại bộ lọc</Button>
             </div>
           </div>
 
@@ -3499,12 +3515,11 @@ function FinanceReportCard() {
               <TableHead>Hạng mục</TableHead>
               <TableHead>Chi nhánh</TableHead>
               <TableHead>Ghi chú</TableHead>
-              <TableHead>Nguồn</TableHead>
               <TableHead className="text-right">Số tiền</TableHead>
             </TableRow></TableHeader>
             <TableBody>
               {filtered.length === 0 && (
-                <TableRow><TableCell colSpan={7} className="text-center text-slate-500 py-8">Không có giao dịch phù hợp</TableCell></TableRow>
+                <TableRow><TableCell colSpan={6} className="text-center text-slate-500 py-8">Không có giao dịch phù hợp</TableCell></TableRow>
               )}
               {filtered.map((t) => (
                 <TableRow key={t.id}>
@@ -3517,11 +3532,6 @@ function FinanceReportCard() {
                   <TableCell className="font-medium">{t.category}</TableCell>
                   <TableCell>{t.branch}</TableCell>
                   <TableCell className="text-slate-600">{t.note ?? "—"}</TableCell>
-                  <TableCell>
-                    {t.source === "auto"
-                      ? <Badge variant="secondary">Tự động</Badge>
-                      : <Badge variant="outline">Thủ công</Badge>}
-                  </TableCell>
                   <TableCell className={cn("text-right font-semibold", t.type === "thu" ? "text-emerald-600" : "text-rose-600")}>
                     {t.type === "chi" ? "-" : ""}{formatVND(t.amount)}
                   </TableCell>
