@@ -1141,11 +1141,29 @@ export function AdminFees() {
   const [filterBranch, setFilterBranch] = React.useState<string>("all");
   const [filterClassId, setFilterClassId] = React.useState<string>("all");
   const [filterStatus, setFilterStatus] = React.useState<string>("all");
+  const [fromDate, setFromDate] = React.useState<string>(""); // yyyy-mm-dd
+  const [toDate, setToDate] = React.useState<string>("");
+
+  const parseDMY = (s?: string) => {
+    if (!s) return null;
+    const [dd, mm, yyyy] = s.split("/").map(Number);
+    return new Date(yyyy, mm - 1, dd).getTime();
+  };
+  const fromTs = fromDate ? new Date(fromDate).getTime() : null;
+  const toTs = toDate ? new Date(toDate).getTime() + 86399999 : null;
 
   const classOptions = classes.filter((c) => filterBranch === "all" || c.branch === filterBranch);
   const rows = students
     .filter((s) => filterBranch === "all" || s.branch === filterBranch)
     .filter((s) => filterClassId === "all" || s.classId === filterClassId)
+    .filter((s) => {
+      if (!fromTs && !toTs) return true;
+      const ts = parseDMY(s.feeUpdatedAt);
+      if (ts == null) return false;
+      if (fromTs && ts < fromTs) return false;
+      if (toTs && ts > toTs) return false;
+      return true;
+    })
     .map((s) => {
       const remain = s.bought - s.attended;
       const fs = s.feeStatus ?? (s.debt > 0 ? "debt" : "ok");
