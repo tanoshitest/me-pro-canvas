@@ -3393,6 +3393,235 @@ function AttendanceReportCard() {
   );
 }
 
+/* ============== FINANCE REPORT (Thu / Chi) ============== */
+type FinanceTxn = {
+  id: string;
+  date: string; // yyyy-mm-dd
+  type: "thu" | "chi";
+  category: string;
+  branch: Branch | "Tất cả";
+  amount: number;
+  note?: string;
+  source: "auto" | "manual";
+};
+
+const SEED_FINANCE: FinanceTxn[] = [
+  { id: "F-001", date: "2026-03-02", type: "thu", category: "Học phí (đã xác nhận)", branch: "Đội Cấn", amount: 6612000, note: "Phiếu DC-000123 — Hồng Diệp", source: "auto" },
+  { id: "F-002", date: "2026-03-02", type: "thu", category: "Học phí (ghi nhận)", branch: "Đội Cấn", amount: 3480000, note: "Phiếu DC-000124 — Đăng Khoa (học vụ duyệt)", source: "auto" },
+  { id: "F-003", date: "2026-03-06", type: "thu", category: "Học phí (đã xác nhận)", branch: "Hoàng Hoa Thám", amount: 3480000, note: "Phiếu HH-000045 — Mimi", source: "auto" },
+  { id: "F-004", date: "2026-02-28", type: "chi", category: "Lương giáo viên", branch: "Đội Cấn", amount: 18500000, note: "Trả lương T2/2026 — Trần Thu Hà", source: "auto" },
+  { id: "F-005", date: "2026-02-28", type: "chi", category: "Lương giáo viên", branch: "Hoàng Hoa Thám", amount: 16200000, note: "Trả lương T2/2026 — Nguyễn Minh Anh", source: "auto" },
+  { id: "F-006", date: "2026-03-01", type: "chi", category: "Tiền điện nước", branch: "Đội Cấn", amount: 2450000, source: "manual" },
+  { id: "F-007", date: "2026-03-05", type: "chi", category: "Văn phòng phẩm", branch: "Ngọc Hà", amount: 850000, source: "manual" },
+  { id: "F-008", date: "2026-03-10", type: "thu", category: "Bán giáo trình", branch: "Đội Cấn", amount: 1200000, source: "manual" },
+];
+
+function FinanceReportCard() {
+  const [txns, setTxns] = React.useState<FinanceTxn[]>(SEED_FINANCE);
+  const [from, setFrom] = React.useState<string>("");
+  const [to, setTo] = React.useState<string>("");
+  const [typeFilter, setTypeFilter] = React.useState<string>("all");
+  const [branchFilter, setBranchFilter] = React.useState<string>("all");
+  const [open, setOpen] = React.useState<null | "thu" | "chi">(null);
+
+  const filtered = txns.filter((t) => {
+    if (from && t.date < from) return false;
+    if (to && t.date > to) return false;
+    if (typeFilter !== "all" && t.type !== typeFilter) return false;
+    if (branchFilter !== "all" && t.branch !== branchFilter) return false;
+    return true;
+  });
+
+  const totalThu = filtered.filter((t) => t.type === "thu").reduce((s, t) => s + t.amount, 0);
+  const totalChi = filtered.filter((t) => t.type === "chi").reduce((s, t) => s + t.amount, 0);
+
+  return (
+    <div className="space-y-4">
+      {/* Summary */}
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Card><CardContent className="p-5">
+          <div className="text-sm text-slate-500">Tổng thu</div>
+          <div className="text-xl font-bold text-emerald-600">{formatVND(totalThu)}</div>
+        </CardContent></Card>
+        <Card><CardContent className="p-5">
+          <div className="text-sm text-slate-500">Tổng chi</div>
+          <div className="text-xl font-bold text-rose-600">-{formatVND(totalChi)}</div>
+        </CardContent></Card>
+        <Card><CardContent className="p-5">
+          <div className="text-sm text-slate-500">Chênh lệch</div>
+          <div className={cn("text-xl font-bold", totalThu - totalChi >= 0 ? "text-emerald-600" : "text-rose-600")}>
+            {formatVND(totalThu - totalChi)}
+          </div>
+        </CardContent></Card>
+      </div>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between gap-2">
+          <CardTitle>Nhật ký thu chi</CardTitle>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setOpen("thu")}><Plus className="h-4 w-4 mr-1" />Tạo khoản thu</Button>
+            <Button onClick={() => setOpen("chi")}><Plus className="h-4 w-4 mr-1" />Tạo khoản chi</Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Filters */}
+          <div className="grid gap-3 md:grid-cols-5">
+            <div>
+              <Label className="text-xs text-slate-500">Từ ngày</Label>
+              <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+            </div>
+            <div>
+              <Label className="text-xs text-slate-500">Đến ngày</Label>
+              <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+            </div>
+            <div>
+              <Label className="text-xs text-slate-500">Loại hình</Label>
+              <Select value={typeFilter} onValueChange={setTypeFilter}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tất cả</SelectItem>
+                  <SelectItem value="thu">Thu</SelectItem>
+                  <SelectItem value="chi">Chi</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs text-slate-500">Chi nhánh</Label>
+              <Select value={branchFilter} onValueChange={setBranchFilter}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tất cả</SelectItem>
+                  {BRANCHES.map((b) => (<SelectItem key={b} value={b}>{b}</SelectItem>))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-end">
+              <Button variant="outline" className="w-full" onClick={() => { setFrom(""); setTo(""); setTypeFilter("all"); setBranchFilter("all"); }}>Đặt lại bộ lọc</Button>
+            </div>
+          </div>
+
+          <Table>
+            <TableHeader><TableRow>
+              <TableHead>Ngày</TableHead>
+              <TableHead>Loại</TableHead>
+              <TableHead>Hạng mục</TableHead>
+              <TableHead>Chi nhánh</TableHead>
+              <TableHead>Ghi chú</TableHead>
+              <TableHead>Nguồn</TableHead>
+              <TableHead className="text-right">Số tiền</TableHead>
+            </TableRow></TableHeader>
+            <TableBody>
+              {filtered.length === 0 && (
+                <TableRow><TableCell colSpan={7} className="text-center text-slate-500 py-8">Không có giao dịch phù hợp</TableCell></TableRow>
+              )}
+              {filtered.map((t) => (
+                <TableRow key={t.id}>
+                  <TableCell>{t.date.split("-").reverse().join("/")}</TableCell>
+                  <TableCell>
+                    {t.type === "thu"
+                      ? <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">Thu</Badge>
+                      : <Badge className="bg-rose-100 text-rose-700 hover:bg-rose-100">Chi</Badge>}
+                  </TableCell>
+                  <TableCell className="font-medium">{t.category}</TableCell>
+                  <TableCell>{t.branch}</TableCell>
+                  <TableCell className="text-slate-600">{t.note ?? "—"}</TableCell>
+                  <TableCell>
+                    {t.source === "auto"
+                      ? <Badge variant="secondary">Tự động</Badge>
+                      : <Badge variant="outline">Thủ công</Badge>}
+                  </TableCell>
+                  <TableCell className={cn("text-right font-semibold", t.type === "thu" ? "text-emerald-600" : "text-rose-600")}>
+                    {t.type === "chi" ? "-" : ""}{formatVND(t.amount)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+
+          <div className="text-xs text-slate-500 leading-relaxed border-t pt-3">
+            <strong>Logic ghi nhận tự động:</strong> Khi chuyển trạng thái <em>"Trả lương"</em> cho giáo viên → tạo khoản <strong>Chi · Lương giáo viên</strong>.
+            Khi học vụ duyệt phiếu lần 1 → ghi nhận <strong>Thu · Học phí (ghi nhận)</strong>.
+            Khi admin duyệt thành công → chuyển thành <strong>Thu · Học phí (đã xác nhận)</strong>.
+          </div>
+        </CardContent>
+      </Card>
+
+      <FinanceTxnDialog
+        open={open !== null}
+        type={open ?? "thu"}
+        onClose={() => setOpen(null)}
+        onSubmit={(t) => { setTxns((prev) => [t, ...prev]); setOpen(null); toast.success(`Đã tạo khoản ${t.type === "thu" ? "thu" : "chi"}`); }}
+      />
+    </div>
+  );
+}
+
+function FinanceTxnDialog({ open, type, onClose, onSubmit }: {
+  open: boolean; type: "thu" | "chi"; onClose: () => void; onSubmit: (t: FinanceTxn) => void;
+}) {
+  const [date, setDate] = React.useState(new Date().toISOString().slice(0, 10));
+  const [category, setCategory] = React.useState("");
+  const [branch, setBranch] = React.useState<Branch>(BRANCHES[0]);
+  const [amount, setAmount] = React.useState<string>("");
+  const [note, setNote] = React.useState("");
+
+  React.useEffect(() => {
+    if (open) {
+      setDate(new Date().toISOString().slice(0, 10));
+      setCategory(""); setBranch(BRANCHES[0]); setAmount(""); setNote("");
+    }
+  }, [open]);
+
+  const submit = () => {
+    const amt = Number(amount.replace(/[^\d]/g, ""));
+    if (!category.trim() || !amt) { toast.error("Vui lòng nhập hạng mục và số tiền"); return; }
+    onSubmit({
+      id: `M-${Date.now().toString().slice(-6)}`,
+      date, type, category: category.trim(), branch, amount: amt,
+      note: note.trim() || undefined, source: "manual",
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Tạo khoản {type === "thu" ? "thu" : "chi"}</DialogTitle>
+          <DialogDescription>Nhập thông tin giao dịch để thêm vào nhật ký thu chi.</DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div><Label>Ngày</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
+            <div>
+              <Label>Chi nhánh</Label>
+              <Select value={branch} onValueChange={(v) => setBranch(v as Branch)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>{BRANCHES.map((b) => (<SelectItem key={b} value={b}>{b}</SelectItem>))}</SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div>
+            <Label>Hạng mục</Label>
+            <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder={type === "thu" ? "VD: Bán giáo trình" : "VD: Tiền điện nước"} />
+          </div>
+          <div>
+            <Label>Số tiền (VND)</Label>
+            <Input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" inputMode="numeric" />
+          </div>
+          <div>
+            <Label>Ghi chú</Label>
+            <Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Hủy</Button>
+          <Button onClick={submit}>Lưu giao dịch</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function AdminSalaryReport() {
   return (
     <Card>
