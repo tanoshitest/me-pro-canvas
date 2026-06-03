@@ -18,6 +18,7 @@ type NavItem = { id: string; label: string; icon: React.ComponentType<{ classNam
 const NAV: Record<string, NavItem[]> = {
   admin: [
     { id: "admissions", label: "Quản lý tuyển sinh", icon: UserPlus, disabled: true },
+    { id: "work-management", label: "Quản lý công việc", icon: Briefcase, disabled: true },
     { id: "teachers", label: "Quản lý giáo viên", icon: UserCog, done: true },
     { id: "students", label: "Quản lý học viên", icon: Users, done: true },
     { id: "syllabus", label: "Quản lý syllabus", icon: ClipboardCheck, done: true },
@@ -27,7 +28,6 @@ const NAV: Record<string, NavItem[]> = {
     { id: "finance-report", label: "Báo cáo thu chi", icon: BarChart3 },
     { id: "attendance-report", label: "Báo cáo chấm công", icon: ClipboardList },
     { id: "salary-report", label: "Báo cáo lương", icon: Wallet },
-    { id: "work-management", label: "Quản lý công việc", icon: Briefcase, disabled: true },
     { id: "tuition", label: "Cấu hình", icon: BookOpen, done: true },
   ],
   teacher: [

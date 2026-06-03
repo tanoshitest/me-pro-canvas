@@ -3464,24 +3464,6 @@ function FinanceReportCard() {
 
   return (
     <div className="space-y-4">
-      {/* Summary */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card><CardContent className="p-5">
-          <div className="text-sm text-slate-500">Tổng thu</div>
-          <div className="text-xl font-bold text-emerald-600">{formatVND(totalThu)}</div>
-        </CardContent></Card>
-        <Card><CardContent className="p-5">
-          <div className="text-sm text-slate-500">Tổng chi</div>
-          <div className="text-xl font-bold text-rose-600">-{formatVND(totalChi)}</div>
-        </CardContent></Card>
-        <Card><CardContent className="p-5">
-          <div className="text-sm text-slate-500">Chênh lệch</div>
-          <div className={cn("text-xl font-bold", totalThu - totalChi >= 0 ? "text-emerald-600" : "text-rose-600")}>
-            {formatVND(totalThu - totalChi)}
-          </div>
-        </CardContent></Card>
-      </div>
-
       <Card>
         <CardHeader className="flex flex-row items-center justify-between gap-2">
           <CardTitle>Nhật ký thu chi</CardTitle>
