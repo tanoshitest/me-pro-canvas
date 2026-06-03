@@ -1198,6 +1198,14 @@ export function AdminFees() {
       <Card>
         <CardHeader>
           <div className="flex flex-wrap items-end gap-3">
+            <div className="min-w-[150px]">
+              <Label className="text-xs text-slate-500">Từ ngày</Label>
+              <Input type="date" className="h-9 mt-1" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+            </div>
+            <div className="min-w-[150px]">
+              <Label className="text-xs text-slate-500">Đến ngày</Label>
+              <Input type="date" className="h-9 mt-1" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+            </div>
             <div className="flex-1 min-w-[180px]">
               <Label className="text-xs text-slate-500">Chi nhánh</Label>
               <Select value={filterBranch} onValueChange={(v) => { setFilterBranch(v); setFilterClassId("all"); }}>
