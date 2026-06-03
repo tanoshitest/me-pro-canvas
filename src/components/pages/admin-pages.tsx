@@ -1141,11 +1141,29 @@ export function AdminFees() {
   const [filterBranch, setFilterBranch] = React.useState<string>("all");
   const [filterClassId, setFilterClassId] = React.useState<string>("all");
   const [filterStatus, setFilterStatus] = React.useState<string>("all");
+  const [fromDate, setFromDate] = React.useState<string>(""); // yyyy-mm-dd
+  const [toDate, setToDate] = React.useState<string>("");
+
+  const parseDMY = (s?: string) => {
+    if (!s) return null;
+    const [dd, mm, yyyy] = s.split("/").map(Number);
+    return new Date(yyyy, mm - 1, dd).getTime();
+  };
+  const fromTs = fromDate ? new Date(fromDate).getTime() : null;
+  const toTs = toDate ? new Date(toDate).getTime() + 86399999 : null;
 
   const classOptions = classes.filter((c) => filterBranch === "all" || c.branch === filterBranch);
   const rows = students
     .filter((s) => filterBranch === "all" || s.branch === filterBranch)
     .filter((s) => filterClassId === "all" || s.classId === filterClassId)
+    .filter((s) => {
+      if (!fromTs && !toTs) return true;
+      const ts = parseDMY(s.feeUpdatedAt);
+      if (ts == null) return false;
+      if (fromTs && ts < fromTs) return false;
+      if (toTs && ts > toTs) return false;
+      return true;
+    })
     .map((s) => {
       const remain = s.bought - s.attended;
       const fs = s.feeStatus ?? (s.debt > 0 ? "debt" : "ok");
@@ -1180,6 +1198,14 @@ export function AdminFees() {
       <Card>
         <CardHeader>
           <div className="flex flex-wrap items-end gap-3">
+            <div className="min-w-[150px]">
+              <Label className="text-xs text-slate-500">Từ ngày</Label>
+              <Input type="date" className="h-9 mt-1" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+            </div>
+            <div className="min-w-[150px]">
+              <Label className="text-xs text-slate-500">Đến ngày</Label>
+              <Input type="date" className="h-9 mt-1" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+            </div>
             <div className="flex-1 min-w-[180px]">
               <Label className="text-xs text-slate-500">Chi nhánh</Label>
               <Select value={filterBranch} onValueChange={(v) => { setFilterBranch(v); setFilterClassId("all"); }}>
@@ -1563,6 +1589,10 @@ export function CollectFeeDialog({ studentId, onClose }: { studentId: string | n
           debt: newDebt,
           transferDebt: newDebt === 0 ? 0 : s.transferDebt,
           feeStatus: (s.feeStatus ?? (s.debt > 0 ? "debt" : "ok")) === "pending" ? "ok" : "pending",
+          feeUpdatedAt: (() => {
+            const d = new Date();
+            return `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}/${d.getFullYear()}`;
+          })(),
         }
       : s));
     const prevStatus = stu.feeStatus ?? (stu.debt > 0 ? "debt" : "ok");

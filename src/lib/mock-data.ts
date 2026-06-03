@@ -15,6 +15,7 @@ export interface Student {
   transferDebt?: number; // công nợ phát sinh do chuyển lớp
   transferNote?: string;
   feeStatus?: "debt" | "pending" | "ok"; // Còn nợ → Đã ghi nhận → Đã đóng đủ
+  feeUpdatedAt?: string; // dd/mm/yyyy - lần cập nhật học phí gần nhất
   // Personal
   dob?: string;            // dd/mm/yyyy
   gender?: "Nam" | "Nữ";
@@ -122,6 +123,7 @@ export const STUDENTS: Student[] = [
   {
     id: "s2", name: "Đăng Khoa", nickname: "Bing", branch: "Đội Cấn", classId: "c1",
     bought: 14, attended: 24, debt: 4060000, transferDebt: 0, feeStatus: "pending",
+    feeUpdatedAt: "01/06/2026",
     dob: "08/09/2015", gender: "Nam", school: "Tiểu học Kim Đồng",
     address: "45 Liễu Giai, Ba Đình, Hà Nội", email: "",
     note: "Hiếu động, học tốt phần Listening.",
@@ -160,6 +162,7 @@ export const STUDENTS: Student[] = [
   {
     id: "s5", name: "Nguyễn Ngọc Linh", branch: "Đội Cấn", classId: "c1",
     bought: 24, attended: 26, debt: 2900000, feeStatus: "pending",
+    feeUpdatedAt: "02/06/2026",
     dob: "03/07/2016", gender: "Nữ", school: "Tiểu học Nguyễn Trãi",
     address: "27 Đội Cấn, Ba Đình, Hà Nội", email: "",
     parentName: "Nguyễn Thị Mai", parentPhone: "0936 777 888",
