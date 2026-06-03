@@ -5,6 +5,7 @@ import {
   UserPlus,
   Briefcase,
   CheckCircle2,
+  BarChart3,
 } from "lucide-react";
 import { useApp } from "@/lib/app-store";
 import { cn } from "@/lib/utils";
@@ -23,6 +24,7 @@ const NAV: Record<string, NavItem[]> = {
     { id: "classes", label: "Quản lý lớp học", icon: GraduationCap, done: true },
     { id: "fees", label: "Quản lý học phí", icon: Wallet, done: true },
     { id: "schedule-admin", label: "Lịch dạy", icon: CalendarRange, done: true },
+    { id: "finance-report", label: "Báo cáo thu chi", icon: BarChart3 },
     { id: "attendance-report", label: "Báo cáo chấm công", icon: ClipboardList },
     { id: "salary-report", label: "Báo cáo lương", icon: Wallet },
     { id: "work-management", label: "Quản lý công việc", icon: Briefcase, disabled: true },
