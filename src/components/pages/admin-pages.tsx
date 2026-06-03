@@ -1589,6 +1589,10 @@ export function CollectFeeDialog({ studentId, onClose }: { studentId: string | n
           debt: newDebt,
           transferDebt: newDebt === 0 ? 0 : s.transferDebt,
           feeStatus: (s.feeStatus ?? (s.debt > 0 ? "debt" : "ok")) === "pending" ? "ok" : "pending",
+          feeUpdatedAt: (() => {
+            const d = new Date();
+            return `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}/${d.getFullYear()}`;
+          })(),
         }
       : s));
     const prevStatus = stu.feeStatus ?? (stu.debt > 0 ? "debt" : "ok");
