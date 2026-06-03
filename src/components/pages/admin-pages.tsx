@@ -3344,6 +3344,23 @@ export function AdminSchedule() {
 /* ============== ATTENDANCE & SALARY REPORTS (demo) ============== */
 export function AdminAttendanceReport() {
   return (
+    <Tabs defaultValue="attendance" className="space-y-4">
+      <TabsList>
+        <TabsTrigger value="attendance">Báo cáo chấm công</TabsTrigger>
+        <TabsTrigger value="finance">Báo cáo thu chi</TabsTrigger>
+      </TabsList>
+      <TabsContent value="attendance" className="mt-0">
+        <AttendanceReportCard />
+      </TabsContent>
+      <TabsContent value="finance" className="mt-0">
+        <FinanceReportCard />
+      </TabsContent>
+    </Tabs>
+  );
+}
+
+function AttendanceReportCard() {
+  return (
     <Card>
       <CardHeader><CardTitle>Báo cáo chấm công</CardTitle></CardHeader>
       <CardContent className="space-y-4">
