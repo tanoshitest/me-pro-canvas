@@ -4,7 +4,7 @@ import { AppShell } from "@/components/app-shell";
 import {
   AdminStudents, AdminClasses, AdminTuition, AdminFees, AdminSyllabus,
   AdminTeachers, AdminSchedule, AdminAttendanceReport, AdminSalaryReport,
-  AdminFinanceReport,
+  AdminFinanceReport, AdminAdmissions,
 } from "@/components/pages/admin-pages";
 import { TeacherToday, TeacherSyllabus } from "@/components/pages/teacher-pages";
 import {
@@ -20,6 +20,7 @@ function PageRouter() {
   const { role, page } = useApp();
   if (role === "admin") {
     switch (page) {
+      case "admissions": return <AdminAdmissions />;
       case "teachers": return <AdminTeachers />;
       case "students": return <AdminStudents />;
       case "syllabus": return <AdminSyllabus />;
