@@ -4164,15 +4164,6 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
   );
 }
 
-function Field({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
-  return (
-    <div className={cn("space-y-1.5", className)}>
-      <Label className="text-xs font-medium text-slate-600">{label}</Label>
-      {children}
-    </div>
-  );
-}
-
 function CheckRow({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
   return (
     <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
