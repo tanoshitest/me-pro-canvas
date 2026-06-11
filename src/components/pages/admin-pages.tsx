@@ -3747,15 +3747,19 @@ export function AdminAdmissions() {
   const [leads, setLeads] = React.useState<Lead[]>(INITIAL_LEADS);
   const [view, setView] = React.useState<"kanban" | "list">("kanban");
   const [search, setSearch] = React.useState("");
+  const [statusFilter, setStatusFilter] = React.useState<LeadStatus | "all">("all");
   const [open, setOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<Lead>(EMPTY_LEAD);
   const [activeStep, setActiveStep] = React.useState<1 | 2 | 3>(1);
 
   const filtered = React.useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return leads;
-    return leads.filter((l) => l.studentName.toLowerCase().includes(q) || l.phone.includes(q) || l.parentName.toLowerCase().includes(q));
-  }, [leads, search]);
+    return leads.filter((l) => {
+      if (statusFilter !== "all" && l.status !== statusFilter) return false;
+      if (!q) return true;
+      return l.studentName.toLowerCase().includes(q) || l.phone.includes(q) || l.parentName.toLowerCase().includes(q);
+    });
+  }, [leads, search, statusFilter]);
 
   const openNew = () => {
     setEditing({ ...EMPTY_LEAD, id: String(Date.now()) });
@@ -3808,6 +3812,22 @@ export function AdminAdmissions() {
             <ListIcon className="h-4 w-4" /> Danh sách
           </button>
         </div>
+        {view === "list" && (
+          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as LeadStatus | "all")}>
+            <SelectTrigger className="h-9 w-[180px]">
+              <SelectValue placeholder="Trạng thái" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tất cả trạng thái</SelectItem>
+              <SelectItem value="Lead Mới">Lead Mới</SelectItem>
+              <SelectItem value="Đang Tham Vấn">Đang Tham Vấn</SelectItem>
+              <SelectItem value="Fail">Fail</SelectItem>
+              <SelectItem value="Đang Học Thử">Đang Học Thử</SelectItem>
+              <SelectItem value="Đã Chốt">Đã Chốt</SelectItem>
+              <SelectItem value="Chăm Sóc">Chăm Sóc</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
         <div className="ml-auto flex items-center gap-2">
           <Badge variant="secondary" className="gap-1"><Users className="h-3 w-3" /> {filtered.length} lead</Badge>
           <Button onClick={openNew} className="bg-teal-600 hover:bg-teal-700 text-white gap-1.5">
