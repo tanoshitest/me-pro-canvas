@@ -28,6 +28,7 @@ import {
   Clock, DoorOpen, BookOpen, Tag, Hash, ArrowLeft,
   Layers, FileText, ClipboardCheck, BarChart3, ExternalLink, Plus, Pencil, Copy, Trash2, Download, FileSpreadsheet, ListChecks, Target, ChevronRight, ChevronLeft,
   CalendarIcon,
+  Search, LayoutGrid, List as ListIcon, Phone, School as SchoolIcon, MapPin,
 } from "lucide-react";
 
 /* ============== DASHBOARD ============== */
