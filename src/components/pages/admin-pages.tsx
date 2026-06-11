@@ -28,6 +28,7 @@ import {
   Clock, DoorOpen, BookOpen, Tag, Hash, ArrowLeft,
   Layers, FileText, ClipboardCheck, BarChart3, ExternalLink, Plus, Pencil, Copy, Trash2, Download, FileSpreadsheet, ListChecks, Target, ChevronRight, ChevronLeft,
   CalendarIcon,
+  Search, LayoutGrid, List as ListIcon, Phone, School as SchoolIcon, MapPin,
 } from "lucide-react";
 
 /* ============== DASHBOARD ============== */
@@ -3671,5 +3672,512 @@ export function AdminSalaryReport() {
         </Table>
       </CardContent>
     </Card>
+  );
+}
+
+/* ============== ADMISSIONS CRM ============== */
+type LeadStatus = "Lead Mới" | "Fail" | "Đang Học Thử" | "Đã Chốt" | "Đang Tham Vấn" | "Chăm Sóc";
+type Lead = {
+  id: string;
+  source: string;
+  parentName: string;
+  phone: string;
+  studentName: string;
+  dob: string;
+  grade: string;
+  school: string;
+  feature: string;
+  status: LeadStatus;
+  facility: string;
+  step: 1 | 2 | 3;
+  // step 1
+  assignDate?: string;
+  assignBy?: string;
+  tester?: string;
+  consultant?: string;
+  testResult?: "Pending" | "Thành công" | "Fail";
+  // step 2
+  trialClass?: string;
+  closedClass?: string;
+  tuition?: string;
+  paymentBy?: string;
+  startDate?: string;
+  doneTrial?: boolean;
+  gaveBooks?: boolean;
+  enrolled?: boolean;
+  // step 3
+  care1Date?: string; care1Note?: string;
+  care2Date?: string; care2Note?: string;
+  care3Date?: string; care3Note?: string;
+  managerChecked?: boolean;
+};
+
+const INITIAL_LEADS: Lead[] = [
+  { id: "1", source: "Chị Liên", parentName: "Mẹ Dương", phone: "0966033086", studentName: "Bùi Ngọc Mai", dob: "16/02/2014", grade: "Lớp 5", school: "TH Ba Đình", feature: "Mẹ không trả lời", status: "Lead Mới", facility: "ĐC", step: 1, testResult: "Pending" },
+  { id: "2", source: "Vãng lai", parentName: "Bố Tùng", phone: "0984759892", studentName: "Bảo Lâm", dob: "16/09/2016", grade: "Lớp 3", school: "TH Ngọc Hà", feature: "", status: "Fail", facility: "NH", step: 1, testResult: "Fail" },
+  { id: "3", source: "Chị Liên", parentName: "Mẹ Phượng", phone: "0984925795", studentName: "Nguyễn Phạm Bảo An", dob: "09/06/2015", grade: "Lớp 4", school: "TH Ngọc Hà", feature: "", status: "Đang Học Thử", facility: "HHT", step: 2, trialClass: "Cam 31", tuition: "1.520.000", testResult: "Thành công" },
+  { id: "4", source: "Page", parentName: "Nguyễn Gia Hưng", phone: "0972003736", studentName: "Nguyễn Gia Hưng", dob: "29/07/2018", grade: "Lớp 1", school: "TH Hoàng Diệu", feature: "Con tăng động", status: "Đã Chốt", facility: "ĐC", step: 3, trialClass: "Kindy 4", tuition: "2.575.000", closedClass: "Kindy 4", testResult: "Thành công", enrolled: true, doneTrial: true, gaveBooks: true, startDate: "01/06/2026" },
+  { id: "5", source: "Page", parentName: "Mẹ Khánh", phone: "0912345678", studentName: "Lê Minh Khánh", dob: "12/03/2017", grade: "Lớp 2", school: "TH Kim Đồng", feature: "Học vào cuối tuần", status: "Đang Tham Vấn", facility: "ĐC", step: 1, testResult: "Pending" },
+  { id: "6", source: "Chị Liên", parentName: "Bố An", phone: "0909112233", studentName: "Phạm Bảo An", dob: "05/11/2016", grade: "Lớp 3", school: "TH Nguyễn Du", feature: "", status: "Đang Học Thử", facility: "NH", step: 2, trialClass: "Cam 22", tuition: "1.800.000" },
+  { id: "7", source: "Vãng lai", parentName: "Mẹ Linh", phone: "0977665544", studentName: "Trần Khánh Linh", dob: "20/08/2015", grade: "Lớp 4", school: "TH Lý Thái Tổ", feature: "Đã học IELTS Junior", status: "Chăm Sóc", facility: "HHT", step: 3, trialClass: "Star 12", tuition: "2.200.000", closedClass: "Star 12", enrolled: true, startDate: "20/05/2026", care1Date: "27/05/2026", care1Note: "PH hài lòng, con thích lớp." },
+];
+
+const STAGES: { key: 1 | 2 | 3 | 0; title: string; statuses: LeadStatus[]; color: string; ring: string; chip: string; dot: string }[] = [
+  { key: 0, title: "Lead Mới", statuses: ["Lead Mới"], color: "bg-slate-50", ring: "border-slate-200", chip: "bg-slate-100 text-slate-700 border-slate-200", dot: "bg-slate-400" },
+  { key: 1, title: "Bước 1: Test & Tham vấn", statuses: ["Đang Tham Vấn", "Fail"], color: "bg-orange-50/60", ring: "border-orange-200", chip: "bg-orange-100 text-orange-700 border-orange-200", dot: "bg-orange-500" },
+  { key: 2, title: "Bước 2: Học thử & Chốt lớp", statuses: ["Đang Học Thử"], color: "bg-amber-50/60", ring: "border-amber-200", chip: "bg-amber-100 text-amber-800 border-amber-200", dot: "bg-amber-500" },
+  { key: 3, title: "Bước 3: Chăm sóc 1 tháng", statuses: ["Đã Chốt", "Chăm Sóc"], color: "bg-teal-50/60", ring: "border-teal-200", chip: "bg-teal-100 text-teal-700 border-teal-200", dot: "bg-teal-500" },
+];
+
+const STATUS_BADGE: Record<LeadStatus, string> = {
+  "Lead Mới": "bg-slate-100 text-slate-700 border-slate-200",
+  "Đang Tham Vấn": "bg-orange-100 text-orange-700 border-orange-200",
+  "Fail": "bg-rose-100 text-rose-700 border-rose-200",
+  "Đang Học Thử": "bg-amber-100 text-amber-800 border-amber-200",
+  "Đã Chốt": "bg-emerald-100 text-emerald-700 border-emerald-200",
+  "Chăm Sóc": "bg-teal-100 text-teal-700 border-teal-200",
+};
+
+const EMPTY_LEAD: Lead = {
+  id: "", source: "", parentName: "", phone: "", studentName: "", dob: "", grade: "", school: "",
+  feature: "", status: "Lead Mới", facility: "ĐC", step: 1, testResult: "Pending",
+};
+
+export function AdminAdmissions() {
+  const [leads, setLeads] = React.useState<Lead[]>(INITIAL_LEADS);
+  const [view, setView] = React.useState<"kanban" | "list">("kanban");
+  const [search, setSearch] = React.useState("");
+  const [open, setOpen] = React.useState(false);
+  const [editing, setEditing] = React.useState<Lead>(EMPTY_LEAD);
+  const [activeStep, setActiveStep] = React.useState<1 | 2 | 3>(1);
+
+  const filtered = React.useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return leads;
+    return leads.filter((l) => l.studentName.toLowerCase().includes(q) || l.phone.includes(q) || l.parentName.toLowerCase().includes(q));
+  }, [leads, search]);
+
+  const openNew = () => {
+    setEditing({ ...EMPTY_LEAD, id: String(Date.now()) });
+    setActiveStep(1);
+    setOpen(true);
+  };
+  const openEdit = (l: Lead) => {
+    setEditing({ ...l });
+    setActiveStep(l.step);
+    setOpen(true);
+  };
+  const upsert = (l: Lead) => {
+    setLeads((prev) => prev.some((p) => p.id === l.id) ? prev.map((p) => p.id === l.id ? l : p) : [l, ...prev]);
+  };
+  const handleSave = (l: Lead, msg = "Đã lưu thay đổi") => {
+    upsert(l);
+    setEditing(l);
+    toast.success(msg);
+  };
+
+  const byStage = (stageKey: 0 | 1 | 2 | 3) => {
+    const stage = STAGES.find((s) => s.key === stageKey)!;
+    return filtered.filter((l) => stage.statuses.includes(l.status));
+  };
+
+  return (
+    <div className="space-y-5 animate-fade-in">
+      {/* Top bar */}
+      <div className="flex flex-wrap items-center gap-3 bg-white border border-slate-200 rounded-lg px-4 py-3">
+        <div className="relative flex-1 min-w-[260px] max-w-md">
+          <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Tìm theo tên học viên hoặc số điện thoại..."
+            className="pl-9 h-9"
+          />
+        </div>
+        <div className="inline-flex rounded-md border border-slate-200 bg-slate-50 p-0.5">
+          <button
+            onClick={() => setView("kanban")}
+            className={cn("px-3 h-8 rounded-[5px] text-sm flex items-center gap-1.5 transition-colors", view === "kanban" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}
+          >
+            <LayoutGrid className="h-4 w-4" /> Kanban
+          </button>
+          <button
+            onClick={() => setView("list")}
+            className={cn("px-3 h-8 rounded-[5px] text-sm flex items-center gap-1.5 transition-colors", view === "list" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}
+          >
+            <ListIcon className="h-4 w-4" /> Danh sách
+          </button>
+        </div>
+        <div className="ml-auto flex items-center gap-2">
+          <Badge variant="secondary" className="gap-1"><Users className="h-3 w-3" /> {filtered.length} lead</Badge>
+          <Button onClick={openNew} className="bg-teal-600 hover:bg-teal-700 text-white gap-1.5">
+            <Plus className="h-4 w-4" /> Tạo Lead Mới
+          </Button>
+        </div>
+      </div>
+
+      {view === "kanban" ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+          {STAGES.map((stage) => {
+            const items = byStage(stage.key);
+            return (
+              <div key={stage.key} className={cn("rounded-lg border", stage.ring, stage.color, "flex flex-col min-h-[60vh]")}>
+                <div className="px-3.5 py-3 flex items-center gap-2 border-b border-slate-200/70">
+                  <span className={cn("h-2 w-2 rounded-full", stage.dot)} />
+                  <div className="font-semibold text-sm text-slate-800 flex-1">{stage.title}</div>
+                  <Badge variant="outline" className={cn("h-5 px-1.5 text-[11px] font-medium", stage.chip)}>
+                    {items.length}
+                  </Badge>
+                </div>
+                <div className="p-2.5 space-y-2.5 flex-1 overflow-y-auto">
+                  {items.map((l) => (
+                    <button
+                      key={l.id}
+                      onClick={() => openEdit(l)}
+                      className="w-full text-left bg-white rounded-md border border-slate-200 p-3 hover:border-teal-400 hover:shadow-sm transition-all"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="font-semibold text-sm text-slate-900 line-clamp-1">{l.studentName || "—"}</div>
+                        <Badge variant="outline" className={cn("text-[10px] h-5 px-1.5 font-medium shrink-0", STATUS_BADGE[l.status])}>{l.status}</Badge>
+                      </div>
+                      <div className="mt-1.5 space-y-1 text-xs text-slate-600">
+                        <div className="flex items-center gap-1.5"><Phone className="h-3 w-3 text-slate-400" /> {l.phone} <span className="text-slate-400">·</span> {l.parentName}</div>
+                        <div className="flex items-center gap-1.5"><SchoolIcon className="h-3 w-3 text-slate-400" /> {l.grade} <span className="text-slate-400">·</span> {l.school}</div>
+                        <div className="flex items-center gap-1.5"><MapPin className="h-3 w-3 text-slate-400" /> Cơ sở {l.facility}</div>
+                      </div>
+                    </button>
+                  ))}
+                  {items.length === 0 && (
+                    <div className="text-center text-xs text-slate-400 py-10">Chưa có lead</div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Học viên</TableHead>
+                  <TableHead>PHHS</TableHead>
+                  <TableHead>SĐT</TableHead>
+                  <TableHead>Lớp</TableHead>
+                  <TableHead>Trường</TableHead>
+                  <TableHead>Cơ sở</TableHead>
+                  <TableHead>Trạng thái</TableHead>
+                  <TableHead className="text-right">Hành động</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filtered.map((l) => (
+                  <TableRow key={l.id} className="cursor-pointer" onClick={() => openEdit(l)}>
+                    <TableCell className="font-medium">{l.studentName}</TableCell>
+                    <TableCell>{l.parentName}</TableCell>
+                    <TableCell>{l.phone}</TableCell>
+                    <TableCell>{l.grade}</TableCell>
+                    <TableCell>{l.school}</TableCell>
+                    <TableCell>{l.facility}</TableCell>
+                    <TableCell><Badge variant="outline" className={cn("text-[10px] font-medium", STATUS_BADGE[l.status])}>{l.status}</Badge></TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); openEdit(l); }}>
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {filtered.length === 0 && (
+                  <TableRow><TableCell colSpan={8} className="text-center text-slate-400 py-8">Không có lead phù hợp</TableCell></TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Dialog */}
+      <LeadDialog
+        open={open}
+        onOpenChange={setOpen}
+        lead={editing}
+        setLead={setEditing}
+        activeStep={activeStep}
+        setActiveStep={setActiveStep}
+        onSave={handleSave}
+      />
+    </div>
+  );
+}
+
+function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveStep, onSave }: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  lead: Lead;
+  setLead: (l: Lead) => void;
+  activeStep: 1 | 2 | 3;
+  setActiveStep: (s: 1 | 2 | 3) => void;
+  onSave: (l: Lead, msg?: string) => void;
+}) {
+  const update = <K extends keyof Lead>(k: K, v: Lead[K]) => setLead({ ...lead, [k]: v });
+  const isEmpty = !lead.studentName && !lead.parentName;
+
+  const toTrial = () => {
+    const next: Lead = { ...lead, step: 2, status: "Đang Học Thử", testResult: lead.testResult || "Thành công" };
+    onSave(next, "Đã chuyển sang Học thử");
+    setActiveStep(2);
+  };
+  const markFail = () => {
+    const next: Lead = { ...lead, status: "Fail", testResult: "Fail" };
+    onSave(next, "Đã đánh dấu Fail");
+  };
+  const confirmClose = () => {
+    const next: Lead = { ...lead, step: 3, status: "Đã Chốt", enrolled: true };
+    onSave(next, "Đã chốt lớp");
+    setActiveStep(3);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl p-0 gap-0 max-h-[92vh] overflow-hidden flex flex-col">
+        <DialogHeader className="px-6 py-4 border-b border-slate-200 bg-slate-50/60">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg bg-teal-100 text-teal-700 grid place-content-center font-bold">
+              {(lead.studentName || "L").charAt(0).toUpperCase()}
+            </div>
+            <div className="flex-1 min-w-0">
+              <DialogTitle className="text-base">
+                {isEmpty ? "Thêm Lead Mới" : lead.studentName}
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                {isEmpty ? "Điền thông tin để bắt đầu quy trình tuyển sinh" : `${lead.parentName} · ${lead.phone}`}
+              </DialogDescription>
+            </div>
+            <Badge variant="outline" className={cn("text-[11px] font-medium", STATUS_BADGE[lead.status])}>{lead.status}</Badge>
+          </div>
+
+          {/* Stepper */}
+          <div className="mt-4 flex items-center gap-2">
+            {[1, 2, 3].map((s, idx) => {
+              const reached = lead.step >= s || activeStep >= s;
+              const active = activeStep === s;
+              return (
+                <React.Fragment key={s}>
+                  <div className={cn("flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-medium transition-colors",
+                    active ? "bg-teal-600 text-white" : reached ? "bg-teal-100 text-teal-700" : "bg-slate-100 text-slate-500")}
+                  >
+                    <span className={cn("h-5 w-5 rounded-full grid place-content-center text-[11px] font-bold",
+                      active ? "bg-white text-teal-700" : reached ? "bg-teal-600 text-white" : "bg-slate-300 text-white")}>{s}</span>
+                    {s === 1 ? "Test & Tham vấn" : s === 2 ? "Học thử & Chốt lớp" : "Chăm sóc 1 tháng"}
+                  </div>
+                  {idx < 2 && <div className={cn("flex-1 h-0.5 rounded", reached && (lead.step > s || activeStep > s) ? "bg-teal-400" : "bg-slate-200")} />}
+                </React.Fragment>
+              );
+            })}
+          </div>
+        </DialogHeader>
+
+        <Tabs value={String(activeStep)} onValueChange={(v) => setActiveStep(Number(v) as 1 | 2 | 3)} className="flex-1 flex flex-col overflow-hidden">
+          <TabsList className="mx-6 mt-4 grid grid-cols-3 w-auto">
+            <TabsTrigger value="1">Bước 1</TabsTrigger>
+            <TabsTrigger value="2">Bước 2</TabsTrigger>
+            <TabsTrigger value="3">Bước 3</TabsTrigger>
+          </TabsList>
+
+          {/* TAB 1 */}
+          <TabsContent value="1" className="flex-1 overflow-y-auto px-6 py-4 mt-0 space-y-5">
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <div className="h-1.5 w-1.5 rounded-full bg-orange-500" />
+                <h3 className="text-sm font-semibold text-slate-800">Thông tin học viên</h3>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Nguồn data">
+                  <Select value={lead.source} onValueChange={(v) => update("source", v)}>
+                    <SelectTrigger><SelectValue placeholder="Chọn nguồn" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Chị Liên">Chị Liên</SelectItem>
+                      <SelectItem value="Page">Page</SelectItem>
+                      <SelectItem value="Vãng lai">Vãng lai</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field label="Họ tên PHHS"><Input value={lead.parentName} onChange={(e) => update("parentName", e.target.value)} placeholder="VD: Mẹ An" /></Field>
+                <Field label="SĐT"><Input value={lead.phone} onChange={(e) => update("phone", e.target.value)} placeholder="09xxxxxxxx" /></Field>
+                <Field label="Họ tên học sinh"><Input value={lead.studentName} onChange={(e) => update("studentName", e.target.value)} /></Field>
+                <Field label="Ngày sinh"><Input type="text" value={lead.dob} onChange={(e) => update("dob", e.target.value)} placeholder="dd/mm/yyyy" /></Field>
+                <Field label="Lớp">
+                  <Select value={lead.grade} onValueChange={(v) => update("grade", v)}>
+                    <SelectTrigger><SelectValue placeholder="Chọn lớp" /></SelectTrigger>
+                    <SelectContent>
+                      {["Mầm non","Lớp 1","Lớp 2","Lớp 3","Lớp 4","Lớp 5","Lớp 6","Lớp 7","Lớp 8","Lớp 9"].map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field label="Trường" className="col-span-2"><Input value={lead.school} onChange={(e) => update("school", e.target.value)} /></Field>
+                <Field label="Đặc điểm" className="col-span-2"><Textarea rows={2} value={lead.feature} onChange={(e) => update("feature", e.target.value)} placeholder="Ghi chú về học sinh, phụ huynh..." /></Field>
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <div className="h-1.5 w-1.5 rounded-full bg-orange-500" />
+                <h3 className="text-sm font-semibold text-slate-800">Tham vấn đầu vào</h3>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Ngày phân data"><Input type="text" value={lead.assignDate ?? ""} onChange={(e) => update("assignDate", e.target.value)} placeholder="dd/mm/yyyy" /></Field>
+                <Field label="NS phân data"><Input value={lead.assignBy ?? ""} onChange={(e) => update("assignBy", e.target.value)} placeholder="Nhân sự phân" /></Field>
+                <Field label="Cơ sở">
+                  <Select value={lead.facility} onValueChange={(v) => update("facility", v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ĐC">ĐC</SelectItem>
+                      <SelectItem value="NH">NH</SelectItem>
+                      <SelectItem value="HHT">HHT</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field label="Tester"><Input value={lead.tester ?? ""} onChange={(e) => update("tester", e.target.value)} /></Field>
+                <Field label="Tham vấn"><Input value={lead.consultant ?? ""} onChange={(e) => update("consultant", e.target.value)} /></Field>
+                <Field label="Kết quả Test">
+                  <Select value={lead.testResult ?? "Pending"} onValueChange={(v) => update("testResult", v as Lead["testResult"])}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Pending">Pending</SelectItem>
+                      <SelectItem value="Thành công">Thành công</SelectItem>
+                      <SelectItem value="Fail">Fail</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* TAB 2 */}
+          <TabsContent value="2" className="flex-1 overflow-y-auto px-6 py-4 mt-0 space-y-5">
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Lớp học thử"><Input value={lead.trialClass ?? ""} onChange={(e) => update("trialClass", e.target.value)} placeholder="VD: Cam 31" /></Field>
+              <Field label="Chốt lớp">
+                <Select value={lead.closedClass ?? ""} onValueChange={(v) => update("closedClass", v)}>
+                  <SelectTrigger><SelectValue placeholder="Chọn lớp chốt" /></SelectTrigger>
+                  <SelectContent>
+                    {["Kindy 4","Cam 22","Cam 31","Star 12","Junior A1","Junior A2"].map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label="Cơ sở">
+                <Select value={lead.facility} onValueChange={(v) => update("facility", v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ĐC">ĐC</SelectItem>
+                    <SelectItem value="NH">NH</SelectItem>
+                    <SelectItem value="HHT">HHT</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label="Thu tiền (VNĐ)">
+                <Input
+                  value={lead.tuition ?? ""}
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/\D/g, "");
+                    const formatted = raw ? Number(raw).toLocaleString("vi-VN") : "";
+                    update("tuition", formatted);
+                  }}
+                  placeholder="2.500.000"
+                />
+              </Field>
+              <Field label="NS Thu tiền"><Input value={lead.paymentBy ?? ""} onChange={(e) => update("paymentBy", e.target.value)} /></Field>
+              <Field label="Ngày bắt đầu học"><Input type="text" value={lead.startDate ?? ""} onChange={(e) => update("startDate", e.target.value)} placeholder="dd/mm/yyyy" /></Field>
+            </div>
+
+            <div className="border border-slate-200 rounded-md p-3 bg-slate-50/40 space-y-2">
+              <CheckRow checked={!!lead.doneTrial} onChange={(v) => update("doneTrial", v)} label="Đã hoàn thành học thử" />
+              <CheckRow checked={!!lead.gaveBooks} onChange={(v) => update("gaveBooks", v)} label="Đã phát sách" />
+              <CheckRow checked={!!lead.enrolled} onChange={(v) => update("enrolled", v)} label="Đã ghi danh" />
+            </div>
+          </TabsContent>
+
+          {/* TAB 3 */}
+          <TabsContent value="3" className="flex-1 overflow-y-auto px-6 py-4 mt-0 space-y-4">
+            <div className="relative pl-6 space-y-5 before:content-[''] before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-teal-200">
+              {[1, 2, 3].map((n) => {
+                const dKey = (`care${n}Date`) as "care1Date" | "care2Date" | "care3Date";
+                const nKey = (`care${n}Note`) as "care1Note" | "care2Note" | "care3Note";
+                return (
+                  <div key={n} className="relative">
+                    <span className="absolute -left-[18px] top-1 h-3.5 w-3.5 rounded-full bg-white border-2 border-teal-500" />
+                    <div className="text-sm font-semibold text-slate-800 mb-2">Chăm sóc lần {n}</div>
+                    <div className="grid grid-cols-1 md:grid-cols-[180px_1fr] gap-2">
+                      <Input type="text" placeholder="dd/mm/yyyy" value={lead[dKey] ?? ""} onChange={(e) => update(dKey, e.target.value)} />
+                      <Textarea rows={2} placeholder={`Ghi chú lần ${n}...`} value={lead[nKey] ?? ""} onChange={(e) => update(nKey, e.target.value)} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="border-t border-slate-200 pt-3">
+              <CheckRow checked={!!lead.managerChecked} onChange={(v) => update("managerChecked", v)} label="Quản lý check — Đã rà soát đầy đủ nhật ký chăm sóc" />
+            </div>
+          </TabsContent>
+        </Tabs>
+
+        {/* Footer per step */}
+        <DialogFooter className="px-6 py-3 border-t border-slate-200 bg-slate-50/60">
+          {activeStep === 1 && (
+            <div className="flex w-full justify-between gap-2">
+              <div />
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => onSave(lead)}>Lưu</Button>
+                <Button className="bg-teal-600 hover:bg-teal-700 text-white gap-1.5" onClick={toTrial}>
+                  Chuyển sang Học thử <ArrowRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+          {activeStep === 2 && (
+            <div className="flex w-full justify-between gap-2 flex-wrap">
+              <Button variant="ghost" onClick={() => setActiveStep(1)} className="gap-1.5">
+                <ArrowLeft className="h-4 w-4" /> Quay lại Bước 1
+              </Button>
+              <div className="flex gap-2">
+                <Button variant="outline" className="border-rose-200 text-rose-600 hover:bg-rose-50" onClick={markFail}>Đánh dấu Fail</Button>
+                <Button className="bg-teal-600 hover:bg-teal-700 text-white gap-1.5" onClick={confirmClose}>
+                  <CheckCircle2 className="h-4 w-4" /> Xác nhận Chốt lớp
+                </Button>
+              </div>
+            </div>
+          )}
+          {activeStep === 3 && (
+            <div className="flex w-full justify-between gap-2">
+              <Button variant="ghost" onClick={() => setActiveStep(2)} className="gap-1.5">
+                <ArrowLeft className="h-4 w-4" /> Quay lại Bước 2
+              </Button>
+              <Button className="bg-teal-600 hover:bg-teal-700 text-white" onClick={() => onSave({ ...lead, status: lead.managerChecked ? "Chăm Sóc" : lead.status }, "Đã lưu nhật ký chăm sóc")}>
+                Lưu Nhật Ký
+              </Button>
+            </div>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function Field({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
+  return (
+    <div className={cn("space-y-1.5", className)}>
+      <Label className="text-xs font-medium text-slate-600">{label}</Label>
+      {children}
+    </div>
+  );
+}
+
+function CheckRow({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
+  return (
+    <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500 cursor-pointer" />
+      {label}
+    </label>
   );
 }

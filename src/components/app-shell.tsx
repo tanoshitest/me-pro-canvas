@@ -17,7 +17,7 @@ type NavItem = { id: string; label: string; icon: React.ComponentType<{ classNam
 
 const NAV: Record<string, NavItem[]> = {
   admin: [
-    { id: "admissions", label: "Quản lý tuyển sinh", icon: UserPlus, disabled: true },
+    { id: "admissions", label: "Quản lý tuyển sinh", icon: UserPlus },
     { id: "work-management", label: "Quản lý công việc", icon: Briefcase, disabled: true },
     { id: "teachers", label: "Quản lý giáo viên", icon: UserCog, done: true },
     { id: "students", label: "Quản lý học viên", icon: Users, done: true },
