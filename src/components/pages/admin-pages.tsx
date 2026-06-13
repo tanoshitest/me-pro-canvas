@@ -3760,6 +3760,7 @@ export function AdminAdmissions() {
   const [view, setView] = React.useState<"kanban" | "list">("kanban");
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState<LeadStatus | "all">("all");
+  const [assigneeFilter, setAssigneeFilter] = React.useState<string>("all");
   const [open, setOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<Lead>(EMPTY_LEAD);
   const [activeStep, setActiveStep] = React.useState<1 | 2 | 3>(1);
@@ -3771,10 +3772,13 @@ export function AdminAdmissions() {
     return leads.filter((l) => {
       if (mode === "staff" && l.assignedTo !== currentStaffId) return false;
       if (statusFilter !== "all" && l.status !== statusFilter) return false;
+      if (mode === "admin" && assigneeFilter !== "all") {
+        if (assigneeFilter === "unassigned" ? !!l.assignedTo : l.assignedTo !== assigneeFilter) return false;
+      }
       if (!q) return true;
       return l.studentName.toLowerCase().includes(q) || l.phone.includes(q) || l.parentName.toLowerCase().includes(q);
     });
-  }, [leads, search, statusFilter, mode, currentStaffId]);
+  }, [leads, search, statusFilter, assigneeFilter, mode, currentStaffId]);
 
   const openNew = () => {
     setEditing({ ...EMPTY_LEAD, id: String(Date.now()) });
@@ -3876,6 +3880,25 @@ export function AdminAdmissions() {
               <SelectItem value="Đang Học Thử">Đang Học Thử</SelectItem>
               <SelectItem value="Đã Chốt">Đã Chốt</SelectItem>
               <SelectItem value="Chăm Sóc">Chăm Sóc</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
+        {view === "list" && mode === "admin" && (
+          <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
+            <SelectTrigger className="h-9 w-[220px]">
+              <SelectValue placeholder="Phụ trách" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tất cả phụ trách</SelectItem>
+              <SelectItem value="unassigned">Chưa phân</SelectItem>
+              {["ĐC", "NH", "HHT"].map((fac) => (
+                <React.Fragment key={fac}>
+                  <div className="px-2 py-1 text-[11px] font-semibold uppercase text-slate-400">Cơ sở {fac}</div>
+                  {STAFF.filter((s) => s.facility === fac).map((s) => (
+                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  ))}
+                </React.Fragment>
+              ))}
             </SelectContent>
           </Select>
         )}
