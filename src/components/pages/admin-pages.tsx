@@ -3690,6 +3690,7 @@ type Lead = {
   status: LeadStatus;
   facility: string;
   step: 1 | 2 | 3;
+  assignedTo?: string; // staff id
   // step 1
   assignDate?: string;
   assignBy?: string;
@@ -3712,14 +3713,25 @@ type Lead = {
   managerChecked?: boolean;
 };
 
+type Staff = { id: string; name: string; facility: string };
+const STAFF: Staff[] = [
+  { id: "s1", name: "Nguyễn Thị Mai", facility: "ĐC" },
+  { id: "s2", name: "Trần Văn Nam", facility: "ĐC" },
+  { id: "s3", name: "Lê Thu Hà", facility: "NH" },
+  { id: "s4", name: "Phạm Minh Tuấn", facility: "NH" },
+  { id: "s5", name: "Đỗ Khánh Linh", facility: "HHT" },
+  { id: "s6", name: "Vũ Quốc Bảo", facility: "HHT" },
+];
+const staffName = (id?: string) => STAFF.find((s) => s.id === id)?.name ?? "—";
+
 const INITIAL_LEADS: Lead[] = [
-  { id: "1", source: "Chị Liên", parentName: "Mẹ Dương", phone: "0966033086", studentName: "Bùi Ngọc Mai", dob: "16/02/2014", grade: "Lớp 5", school: "TH Ba Đình", feature: "Mẹ không trả lời", status: "Lead Mới", facility: "ĐC", step: 1, testResult: "Pending" },
-  { id: "2", source: "Vãng lai", parentName: "Bố Tùng", phone: "0984759892", studentName: "Bảo Lâm", dob: "16/09/2016", grade: "Lớp 3", school: "TH Ngọc Hà", feature: "", status: "Fail", facility: "NH", step: 1, testResult: "Fail" },
-  { id: "3", source: "Chị Liên", parentName: "Mẹ Phượng", phone: "0984925795", studentName: "Nguyễn Phạm Bảo An", dob: "09/06/2015", grade: "Lớp 4", school: "TH Ngọc Hà", feature: "", status: "Đang Học Thử", facility: "HHT", step: 2, trialClass: "Cam 31", tuition: "1.520.000", testResult: "Thành công" },
-  { id: "4", source: "Page", parentName: "Nguyễn Gia Hưng", phone: "0972003736", studentName: "Nguyễn Gia Hưng", dob: "29/07/2018", grade: "Lớp 1", school: "TH Hoàng Diệu", feature: "Con tăng động", status: "Đã Chốt", facility: "ĐC", step: 3, trialClass: "Kindy 4", tuition: "2.575.000", closedClass: "Kindy 4", testResult: "Thành công", enrolled: true, doneTrial: true, gaveBooks: true, startDate: "01/06/2026" },
-  { id: "5", source: "Page", parentName: "Mẹ Khánh", phone: "0912345678", studentName: "Lê Minh Khánh", dob: "12/03/2017", grade: "Lớp 2", school: "TH Kim Đồng", feature: "Học vào cuối tuần", status: "Đang Tham Vấn", facility: "ĐC", step: 1, testResult: "Pending" },
-  { id: "6", source: "Chị Liên", parentName: "Bố An", phone: "0909112233", studentName: "Phạm Bảo An", dob: "05/11/2016", grade: "Lớp 3", school: "TH Nguyễn Du", feature: "", status: "Đang Học Thử", facility: "NH", step: 2, trialClass: "Cam 22", tuition: "1.800.000" },
-  { id: "7", source: "Vãng lai", parentName: "Mẹ Linh", phone: "0977665544", studentName: "Trần Khánh Linh", dob: "20/08/2015", grade: "Lớp 4", school: "TH Lý Thái Tổ", feature: "Đã học IELTS Junior", status: "Chăm Sóc", facility: "HHT", step: 3, trialClass: "Star 12", tuition: "2.200.000", closedClass: "Star 12", enrolled: true, startDate: "20/05/2026", care1Date: "27/05/2026", care1Note: "PH hài lòng, con thích lớp." },
+  { id: "1", source: "Chị Liên", parentName: "Mẹ Dương", phone: "0966033086", studentName: "Bùi Ngọc Mai", dob: "16/02/2014", grade: "Lớp 5", school: "TH Ba Đình", feature: "Mẹ không trả lời", status: "Lead Mới", facility: "ĐC", step: 1, testResult: "Pending", assignedTo: "s1" },
+  { id: "2", source: "Vãng lai", parentName: "Bố Tùng", phone: "0984759892", studentName: "Bảo Lâm", dob: "16/09/2016", grade: "Lớp 3", school: "TH Ngọc Hà", feature: "", status: "Fail", facility: "NH", step: 1, testResult: "Fail", assignedTo: "s3" },
+  { id: "3", source: "Chị Liên", parentName: "Mẹ Phượng", phone: "0984925795", studentName: "Nguyễn Phạm Bảo An", dob: "09/06/2015", grade: "Lớp 4", school: "TH Ngọc Hà", feature: "", status: "Đang Học Thử", facility: "HHT", step: 2, trialClass: "Cam 31", tuition: "1.520.000", testResult: "Thành công", assignedTo: "s5" },
+  { id: "4", source: "Page", parentName: "Nguyễn Gia Hưng", phone: "0972003736", studentName: "Nguyễn Gia Hưng", dob: "29/07/2018", grade: "Lớp 1", school: "TH Hoàng Diệu", feature: "Con tăng động", status: "Đã Chốt", facility: "ĐC", step: 3, trialClass: "Kindy 4", tuition: "2.575.000", closedClass: "Kindy 4", testResult: "Thành công", enrolled: true, doneTrial: true, gaveBooks: true, startDate: "01/06/2026", assignedTo: "s2" },
+  { id: "5", source: "Page", parentName: "Mẹ Khánh", phone: "0912345678", studentName: "Lê Minh Khánh", dob: "12/03/2017", grade: "Lớp 2", school: "TH Kim Đồng", feature: "Học vào cuối tuần", status: "Đang Tham Vấn", facility: "ĐC", step: 1, testResult: "Pending", assignedTo: "s1" },
+  { id: "6", source: "Chị Liên", parentName: "Bố An", phone: "0909112233", studentName: "Phạm Bảo An", dob: "05/11/2016", grade: "Lớp 3", school: "TH Nguyễn Du", feature: "", status: "Đang Học Thử", facility: "NH", step: 2, trialClass: "Cam 22", tuition: "1.800.000", assignedTo: "s4" },
+  { id: "7", source: "Vãng lai", parentName: "Mẹ Linh", phone: "0977665544", studentName: "Trần Khánh Linh", dob: "20/08/2015", grade: "Lớp 4", school: "TH Lý Thái Tổ", feature: "Đã học IELTS Junior", status: "Chăm Sóc", facility: "HHT", step: 3, trialClass: "Star 12", tuition: "2.200.000", closedClass: "Star 12", enrolled: true, startDate: "20/05/2026", care1Date: "27/05/2026", care1Note: "PH hài lòng, con thích lớp.", assignedTo: "s6" },
 ];
 
 const STAGES: { key: 1 | 2 | 3 | 0; title: string; statuses: LeadStatus[]; color: string; ring: string; chip: string; dot: string }[] = [
