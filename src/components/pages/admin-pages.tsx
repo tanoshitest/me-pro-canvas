@@ -3796,7 +3796,37 @@ function generateLeads(): Lead[] {
   return leads;
 }
 
-const INITIAL_LEADS: Lead[] = generateLeads();
+const FACILITIES = ["ĐC", "NH", "HHT"];
+function generateUnassignedLeads(): Lead[] {
+  const leads: Lead[] = [];
+  for (let i = 0; i < 10; i++) {
+    const seed = 9000 + i;
+    const firstName = FIRST_NAMES[seed % FIRST_NAMES.length];
+    const lastName = LASTNAMES[seed % LASTNAMES.length];
+    const phone = `09${String(20000000 + seed * 137).slice(0, 8)}`;
+    const day = ((seed * 7) % 27) + 1;
+    const month = ((seed * 3) % 12) + 1;
+    const year = 2014 + (seed % 6);
+    leads.push({
+      id: `U${String(i + 1).padStart(4, "0")}`,
+      source: SOURCES[seed % SOURCES.length],
+      parentName: PARENTS[seed % PARENTS.length],
+      phone,
+      studentName: `${lastName} ${firstName}`,
+      dob: `${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")}/${year}`,
+      grade: GRADES[seed % GRADES.length],
+      school: SCHOOLS[seed % SCHOOLS.length],
+      feature: FEATURES[seed % FEATURES.length],
+      status: "Lead Mới",
+      facility: FACILITIES[i % FACILITIES.length],
+      step: 1,
+      testResult: "Pending",
+    });
+  }
+  return leads;
+}
+
+const INITIAL_LEADS: Lead[] = [...generateUnassignedLeads(), ...generateLeads()];
 
 const STAGES: { key: 1 | 2 | 3 | 0; title: string; statuses: LeadStatus[]; color: string; ring: string; chip: string; dot: string }[] = [
   { key: 0, title: "Lead Mới", statuses: ["Lead Mới"], color: "bg-slate-50", ring: "border-slate-200", chip: "bg-slate-100 text-slate-700 border-slate-200", dot: "bg-slate-400" },
