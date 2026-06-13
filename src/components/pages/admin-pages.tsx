@@ -4157,7 +4157,7 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl p-0 gap-0 max-h-[92vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-3xl p-0 gap-0 max-h-[92vh] overflow-hidden flex flex-col [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
         <DialogHeader className="px-6 py-4 border-b border-slate-200 bg-slate-50/60">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-lg bg-teal-100 text-teal-700 grid place-content-center font-bold">
@@ -4223,7 +4223,7 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
           </TabsList>
 
           {/* TAB 1 */}
-          <TabsContent value="1" className="flex-1 overflow-y-auto px-6 py-4 mt-0 space-y-5">
+          <TabsContent value="1" className="flex-1 overflow-y-auto px-6 py-4 mt-0 space-y-5 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <div className="h-1.5 w-1.5 rounded-full bg-orange-500" />
@@ -4259,7 +4259,21 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
           </TabsContent>
 
           {/* TAB 2 */}
-          <TabsContent value="2" className="flex-1 overflow-y-auto px-6 py-4 mt-0 space-y-5">
+          <TabsContent value="2" className="flex-1 overflow-y-auto px-6 py-4 mt-0 space-y-5 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+            <div className="flex items-center justify-end">
+              <label className="flex items-center gap-2 text-sm text-rose-600 cursor-pointer px-2.5 py-1 rounded-md border border-rose-200 bg-rose-50/60">
+                <input
+                  type="checkbox"
+                  checked={lead.status === "Fail"}
+                  onChange={(e) => {
+                    if (e.target.checked) markFail();
+                    else update("status", "Đang Học Thử");
+                  }}
+                  className="h-4 w-4 rounded border-rose-300 text-rose-600 focus:ring-rose-500 cursor-pointer"
+                />
+                Đánh dấu Fail
+              </label>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Lớp học thử"><Input value={lead.trialClass ?? ""} onChange={(e) => update("trialClass", e.target.value)} placeholder="VD: Cam 31" /></Field>
               <Field label="Chốt lớp">
@@ -4303,7 +4317,7 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
           </TabsContent>
 
           {/* TAB 3 */}
-          <TabsContent value="3" className="flex-1 overflow-y-auto px-6 py-4 mt-0 space-y-4">
+          <TabsContent value="3" className="flex-1 overflow-y-auto px-6 py-4 mt-0 space-y-4 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
             <div className="relative pl-6 space-y-5 before:content-[''] before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-teal-200">
               {[1, 2, 3].map((n) => {
                 const dKey = (`care${n}Date`) as "care1Date" | "care2Date" | "care3Date";
@@ -4345,7 +4359,7 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
                 <ArrowLeft className="h-4 w-4" /> Quay lại Bước 1
               </Button>
               <div className="flex gap-2">
-                <Button variant="outline" className="border-rose-200 text-rose-600 hover:bg-rose-50" onClick={markFail}>Đánh dấu Fail</Button>
+                <Button variant="outline" onClick={() => onSave(lead, "Đã lưu")}>Lưu</Button>
                 <Button className="bg-teal-600 hover:bg-teal-700 text-white gap-1.5" onClick={confirmClose}>
                   <CheckCircle2 className="h-4 w-4" /> Xác nhận Chốt lớp
                 </Button>
