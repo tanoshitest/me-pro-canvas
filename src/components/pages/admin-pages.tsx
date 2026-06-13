@@ -3763,15 +3763,18 @@ export function AdminAdmissions() {
   const [open, setOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<Lead>(EMPTY_LEAD);
   const [activeStep, setActiveStep] = React.useState<1 | 2 | 3>(1);
+  const [mode, setMode] = React.useState<"admin" | "staff">("admin");
+  const [currentStaffId, setCurrentStaffId] = React.useState<string>(STAFF[0].id);
 
   const filtered = React.useMemo(() => {
     const q = search.trim().toLowerCase();
     return leads.filter((l) => {
+      if (mode === "staff" && l.assignedTo !== currentStaffId) return false;
       if (statusFilter !== "all" && l.status !== statusFilter) return false;
       if (!q) return true;
       return l.studentName.toLowerCase().includes(q) || l.phone.includes(q) || l.parentName.toLowerCase().includes(q);
     });
-  }, [leads, search, statusFilter]);
+  }, [leads, search, statusFilter, mode, currentStaffId]);
 
   const openNew = () => {
     setEditing({ ...EMPTY_LEAD, id: String(Date.now()) });
@@ -3791,6 +3794,10 @@ export function AdminAdmissions() {
     setEditing(l);
     toast.success(msg);
   };
+  const assignLead = (leadId: string, staffId: string) => {
+    setLeads((prev) => prev.map((p) => p.id === leadId ? { ...p, assignedTo: staffId } : p));
+    toast.success(`Đã phân lead cho ${staffName(staffId)}`);
+  };
 
   const byStage = (stageKey: 0 | 1 | 2 | 3) => {
     const stage = STAGES.find((s) => s.key === stageKey)!;
@@ -3799,6 +3806,38 @@ export function AdminAdmissions() {
 
   return (
     <div className="space-y-5 animate-fade-in">
+      {/* Mode tabs */}
+      <Tabs value={mode} onValueChange={(v) => setMode(v as "admin" | "staff")}>
+        <div className="flex flex-wrap items-center gap-3">
+          <TabsList>
+            <TabsTrigger value="admin" className="gap-1.5"><Users className="h-3.5 w-3.5" /> Admin</TabsTrigger>
+            <TabsTrigger value="staff" className="gap-1.5"><Users className="h-3.5 w-3.5" /> Nhân sự</TabsTrigger>
+          </TabsList>
+          {mode === "staff" && (
+            <Select value={currentStaffId} onValueChange={setCurrentStaffId}>
+              <SelectTrigger className="h-9 w-[260px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {["ĐC", "NH", "HHT"].map((fac) => (
+                  <React.Fragment key={fac}>
+                    <div className="px-2 py-1 text-[11px] font-semibold uppercase text-slate-400">Cơ sở {fac}</div>
+                    {STAFF.filter((s) => s.facility === fac).map((s) => (
+                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                    ))}
+                  </React.Fragment>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          {mode === "staff" && (
+            <Badge variant="secondary" className="gap-1">
+              <MapPin className="h-3 w-3" /> Cơ sở {STAFF.find((s) => s.id === currentStaffId)?.facility}
+            </Badge>
+          )}
+        </div>
+      </Tabs>
+
       {/* Top bar */}
       <div className="flex flex-wrap items-center gap-3 bg-white border border-slate-200 rounded-lg px-4 py-3">
         <div className="relative flex-1 min-w-[260px] max-w-md">
@@ -3806,7 +3845,7 @@ export function AdminAdmissions() {
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Tìm theo tên học viên hoặc số điện thoại..."
+            placeholder={mode === "staff" ? "Tìm trong lead của tôi..." : "Tìm theo tên học viên hoặc số điện thoại..."}
             className="pl-9 h-9"
           />
         </div>
@@ -3842,9 +3881,11 @@ export function AdminAdmissions() {
         )}
         <div className="ml-auto flex items-center gap-2">
           <Badge variant="secondary" className="gap-1"><Users className="h-3 w-3" /> {filtered.length} lead</Badge>
-          <Button onClick={openNew} className="bg-teal-600 hover:bg-teal-700 text-white gap-1.5">
-            <Plus className="h-4 w-4" /> Tạo Lead Mới
-          </Button>
+          {mode === "admin" && (
+            <Button onClick={openNew} className="bg-teal-600 hover:bg-teal-700 text-white gap-1.5">
+              <Plus className="h-4 w-4" /> Tạo Lead Mới
+            </Button>
+          )}
         </div>
       </div>
 
@@ -3876,6 +3917,12 @@ export function AdminAdmissions() {
                         <div className="flex items-center gap-1.5"><Phone className="h-3 w-3 text-slate-400" /> {l.phone} <span className="text-slate-400">·</span> {l.parentName}</div>
                         <div className="flex items-center gap-1.5"><SchoolIcon className="h-3 w-3 text-slate-400" /> {l.grade} <span className="text-slate-400">·</span> {l.school}</div>
                         <div className="flex items-center gap-1.5"><MapPin className="h-3 w-3 text-slate-400" /> Cơ sở {l.facility}</div>
+                        <div className="flex items-center gap-1.5 pt-1 border-t border-slate-100 mt-1.5">
+                          <Users className="h-3 w-3 text-slate-400" />
+                          <span className={cn("font-medium", l.assignedTo ? "text-slate-700" : "text-rose-500")}>
+                            {l.assignedTo ? staffName(l.assignedTo) : "Chưa phân"}
+                          </span>
+                        </div>
                       </div>
                     </button>
                   ))}
@@ -3900,6 +3947,7 @@ export function AdminAdmissions() {
                   <TableHead>Trường</TableHead>
                   <TableHead>Cơ sở</TableHead>
                   <TableHead>Trạng thái</TableHead>
+                  <TableHead>Phụ trách</TableHead>
                   <TableHead className="text-right">Hành động</TableHead>
                 </TableRow>
               </TableHeader>
@@ -3913,6 +3961,22 @@ export function AdminAdmissions() {
                     <TableCell>{l.school}</TableCell>
                     <TableCell>{l.facility}</TableCell>
                     <TableCell><Badge variant="outline" className={cn("text-[10px] font-medium", STATUS_BADGE[l.status])}>{l.status}</Badge></TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      {mode === "admin" ? (
+                        <Select value={l.assignedTo ?? ""} onValueChange={(v) => assignLead(l.id, v)}>
+                          <SelectTrigger className="h-8 w-[170px] text-xs">
+                            <SelectValue placeholder="Chưa phân" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {STAFF.map((s) => (
+                              <SelectItem key={s.id} value={s.id} className="text-xs">{s.name} <span className="text-slate-400">· {s.facility}</span></SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <span className="text-xs">{staffName(l.assignedTo)}</span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-right">
                       <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); openEdit(l); }}>
                         <Pencil className="h-3.5 w-3.5" />
@@ -3921,7 +3985,7 @@ export function AdminAdmissions() {
                   </TableRow>
                 ))}
                 {filtered.length === 0 && (
-                  <TableRow><TableCell colSpan={8} className="text-center text-slate-400 py-8">Không có lead phù hợp</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={9} className="text-center text-slate-400 py-8">Không có lead phù hợp</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
@@ -3938,6 +4002,8 @@ export function AdminAdmissions() {
         activeStep={activeStep}
         setActiveStep={setActiveStep}
         onSave={handleSave}
+        staff={STAFF}
+        canAssign={mode === "admin"}
       />
     </div>
   );
