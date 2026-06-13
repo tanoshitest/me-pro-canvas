@@ -4009,7 +4009,7 @@ export function AdminAdmissions() {
   );
 }
 
-function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveStep, onSave }: {
+function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveStep, onSave, staff, canAssign }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   lead: Lead;
@@ -4017,6 +4017,8 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
   activeStep: 1 | 2 | 3;
   setActiveStep: (s: 1 | 2 | 3) => void;
   onSave: (l: Lead, msg?: string) => void;
+  staff: Staff[];
+  canAssign: boolean;
 }) {
   const update = <K extends keyof Lead>(k: K, v: Lead[K]) => setLead({ ...lead, [k]: v });
   const isEmpty = !lead.studentName && !lead.parentName;
@@ -4053,6 +4055,26 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
               </DialogDescription>
             </div>
             <Badge variant="outline" className={cn("text-[11px] font-medium", STATUS_BADGE[lead.status])}>{lead.status}</Badge>
+          </div>
+
+          {/* Assignment */}
+          <div className="mt-3 flex items-center gap-2 text-xs">
+            <Users className="h-3.5 w-3.5 text-slate-500" />
+            <span className="text-slate-500">Phụ trách:</span>
+            {canAssign ? (
+              <Select value={lead.assignedTo ?? ""} onValueChange={(v) => update("assignedTo", v)}>
+                <SelectTrigger className="h-7 w-[220px] text-xs">
+                  <SelectValue placeholder="Chưa phân" />
+                </SelectTrigger>
+                <SelectContent>
+                  {staff.map((s) => (
+                    <SelectItem key={s.id} value={s.id} className="text-xs">{s.name} <span className="text-slate-400">· {s.facility}</span></SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <span className="font-medium text-slate-700">{staff.find((s) => s.id === lead.assignedTo)?.name ?? "Chưa phân"}</span>
+            )}
           </div>
 
           {/* Stepper */}
