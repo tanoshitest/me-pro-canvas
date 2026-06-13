@@ -4139,39 +4139,6 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
                 <Field label="Đặc điểm" className="col-span-2"><Textarea rows={2} value={lead.feature} onChange={(e) => update("feature", e.target.value)} placeholder="Ghi chú về học sinh, phụ huynh..." /></Field>
               </div>
             </div>
-
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <div className="h-1.5 w-1.5 rounded-full bg-orange-500" />
-                <h3 className="text-sm font-semibold text-slate-800">Tham vấn đầu vào</h3>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Ngày phân data"><Input type="text" value={lead.assignDate ?? ""} onChange={(e) => update("assignDate", e.target.value)} placeholder="dd/mm/yyyy" /></Field>
-                <Field label="NS phân data"><Input value={lead.assignBy ?? ""} onChange={(e) => update("assignBy", e.target.value)} placeholder="Nhân sự phân" /></Field>
-                <Field label="Cơ sở">
-                  <Select value={lead.facility} onValueChange={(v) => update("facility", v)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="ĐC">ĐC</SelectItem>
-                      <SelectItem value="NH">NH</SelectItem>
-                      <SelectItem value="HHT">HHT</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field label="Tester"><Input value={lead.tester ?? ""} onChange={(e) => update("tester", e.target.value)} /></Field>
-                <Field label="Tham vấn"><Input value={lead.consultant ?? ""} onChange={(e) => update("consultant", e.target.value)} /></Field>
-                <Field label="Kết quả Test">
-                  <Select value={lead.testResult ?? "Pending"} onValueChange={(v) => update("testResult", v as Lead["testResult"])}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Pending">Pending</SelectItem>
-                      <SelectItem value="Thành công">Thành công</SelectItem>
-                      <SelectItem value="Fail">Fail</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </Field>
-              </div>
-            </div>
           </TabsContent>
 
           {/* TAB 2 */}
