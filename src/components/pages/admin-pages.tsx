@@ -3724,15 +3724,79 @@ const STAFF: Staff[] = [
 ];
 const staffName = (id?: string) => STAFF.find((s) => s.id === id)?.name ?? "—";
 
-const INITIAL_LEADS: Lead[] = [
-  { id: "1", source: "Chị Liên", parentName: "Mẹ Dương", phone: "0966033086", studentName: "Bùi Ngọc Mai", dob: "16/02/2014", grade: "Lớp 5", school: "TH Ba Đình", feature: "Mẹ không trả lời", status: "Lead Mới", facility: "ĐC", step: 1, testResult: "Pending", assignedTo: "s1" },
-  { id: "2", source: "Vãng lai", parentName: "Bố Tùng", phone: "0984759892", studentName: "Bảo Lâm", dob: "16/09/2016", grade: "Lớp 3", school: "TH Ngọc Hà", feature: "", status: "Fail", facility: "NH", step: 1, testResult: "Fail", assignedTo: "s3" },
-  { id: "3", source: "Chị Liên", parentName: "Mẹ Phượng", phone: "0984925795", studentName: "Nguyễn Phạm Bảo An", dob: "09/06/2015", grade: "Lớp 4", school: "TH Ngọc Hà", feature: "", status: "Đang Học Thử", facility: "HHT", step: 2, trialClass: "Cam 31", tuition: "1.520.000", testResult: "Thành công", assignedTo: "s5" },
-  { id: "4", source: "Page", parentName: "Nguyễn Gia Hưng", phone: "0972003736", studentName: "Nguyễn Gia Hưng", dob: "29/07/2018", grade: "Lớp 1", school: "TH Hoàng Diệu", feature: "Con tăng động", status: "Đã Chốt", facility: "ĐC", step: 3, trialClass: "Kindy 4", tuition: "2.575.000", closedClass: "Kindy 4", testResult: "Thành công", enrolled: true, doneTrial: true, gaveBooks: true, startDate: "01/06/2026", assignedTo: "s2" },
-  { id: "5", source: "Page", parentName: "Mẹ Khánh", phone: "0912345678", studentName: "Lê Minh Khánh", dob: "12/03/2017", grade: "Lớp 2", school: "TH Kim Đồng", feature: "Học vào cuối tuần", status: "Đang Tham Vấn", facility: "ĐC", step: 1, testResult: "Pending", assignedTo: "s1" },
-  { id: "6", source: "Chị Liên", parentName: "Bố An", phone: "0909112233", studentName: "Phạm Bảo An", dob: "05/11/2016", grade: "Lớp 3", school: "TH Nguyễn Du", feature: "", status: "Đang Học Thử", facility: "NH", step: 2, trialClass: "Cam 22", tuition: "1.800.000", assignedTo: "s4" },
-  { id: "7", source: "Vãng lai", parentName: "Mẹ Linh", phone: "0977665544", studentName: "Trần Khánh Linh", dob: "20/08/2015", grade: "Lớp 4", school: "TH Lý Thái Tổ", feature: "Đã học IELTS Junior", status: "Chăm Sóc", facility: "HHT", step: 3, trialClass: "Star 12", tuition: "2.200.000", closedClass: "Star 12", enrolled: true, startDate: "20/05/2026", care1Date: "27/05/2026", care1Note: "PH hài lòng, con thích lớp.", assignedTo: "s6" },
-];
+const ALL_STATUSES: LeadStatus[] = ["Lead Mới", "Đang Tham Vấn", "Fail", "Đang Học Thử", "Đã Chốt", "Chăm Sóc"];
+const SOURCES = ["Chị Liên", "Vãng lai", "Page", "Zalo OA", "Giới thiệu", "Tiktok"];
+const FIRST_NAMES = ["Bảo An", "Gia Hưng", "Khánh Linh", "Minh Khôi", "Ngọc Mai", "Tuấn Kiệt", "Thảo Vy", "Hà My", "Quang Minh", "Tú Anh", "Đức Anh", "Phương Linh", "Hải Đăng", "Nhật Minh", "Bảo Châu", "Khôi Nguyên", "Thanh Trúc", "Gia Bảo", "Hoàng Long", "Thùy Dương"];
+const LASTNAMES = ["Nguyễn", "Trần", "Lê", "Phạm", "Hoàng", "Vũ", "Đỗ", "Bùi", "Đặng", "Ngô"];
+const PARENTS = ["Mẹ Hương", "Bố Tùng", "Mẹ Dương", "Bố An", "Mẹ Linh", "Mẹ Khánh", "Bố Quang", "Mẹ Trang", "Bố Hải", "Mẹ Phượng"];
+const GRADES = ["Mầm", "Lớp 1", "Lớp 2", "Lớp 3", "Lớp 4", "Lớp 5"];
+const SCHOOLS = ["TH Ba Đình", "TH Ngọc Hà", "TH Hoàng Diệu", "TH Kim Đồng", "TH Nguyễn Du", "TH Lý Thái Tổ", "TH Cát Linh", "MN Hoa Sen"];
+const FEATURES = ["", "Mẹ không trả lời", "Học vào cuối tuần", "Đã học IELTS Junior", "Con nhút nhát", "Con tăng động", "Cần ưu đãi học phí", ""];
+const TRIAL_CLASSES = ["Cam 31", "Cam 22", "Star 12", "Kindy 4", "Pre A1.2", "A1 Mover", "Flyers 3"];
+const TUITIONS = ["1.520.000", "1.800.000", "2.200.000", "2.575.000", "3.100.000"];
+
+function generateLeads(): Lead[] {
+  const leads: Lead[] = [];
+  let counter = 1;
+  STAFF.forEach((staff) => {
+    ALL_STATUSES.forEach((status) => {
+      for (let i = 0; i < 10; i++) {
+        const seed = counter;
+        const firstName = FIRST_NAMES[seed % FIRST_NAMES.length];
+        const lastName = LASTNAMES[seed % LASTNAMES.length];
+        const studentName = `${lastName} ${firstName}`;
+        const phone = `09${String(10000000 + seed * 73 + staff.id.charCodeAt(1) * 1117).slice(0, 8)}`;
+        const day = ((seed * 7) % 27) + 1;
+        const month = ((seed * 3) % 12) + 1;
+        const year = 2014 + (seed % 6);
+        const dob = `${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")}/${year}`;
+        const step: 1 | 2 | 3 =
+          status === "Lead Mới" || status === "Đang Tham Vấn" || status === "Fail"
+            ? 1
+            : status === "Đang Học Thử"
+            ? 2
+            : 3;
+        const base: Lead = {
+          id: `L${String(counter).padStart(4, "0")}`,
+          source: SOURCES[seed % SOURCES.length],
+          parentName: PARENTS[seed % PARENTS.length],
+          phone,
+          studentName,
+          dob,
+          grade: GRADES[seed % GRADES.length],
+          school: SCHOOLS[seed % SCHOOLS.length],
+          feature: FEATURES[seed % FEATURES.length],
+          status,
+          facility: staff.facility,
+          step,
+          assignedTo: staff.id,
+          testResult:
+            status === "Fail" ? "Fail" : status === "Lead Mới" || status === "Đang Tham Vấn" ? "Pending" : "Thành công",
+        };
+        if (step >= 2) {
+          base.trialClass = TRIAL_CLASSES[seed % TRIAL_CLASSES.length];
+          base.tuition = TUITIONS[seed % TUITIONS.length];
+        }
+        if (step === 3) {
+          base.closedClass = base.trialClass;
+          base.enrolled = true;
+          base.doneTrial = true;
+          base.gaveBooks = true;
+          base.startDate = `${String(((seed * 5) % 27) + 1).padStart(2, "0")}/05/2026`;
+          if (status === "Chăm Sóc") {
+            base.care1Date = `${String(((seed * 5) % 27) + 1).padStart(2, "0")}/06/2026`;
+            base.care1Note = "PH hài lòng, con thích lớp.";
+          }
+        }
+        leads.push(base);
+        counter++;
+      }
+    });
+  });
+  return leads;
+}
+
+const INITIAL_LEADS: Lead[] = generateLeads();
 
 const STAGES: { key: 1 | 2 | 3 | 0; title: string; statuses: LeadStatus[]; color: string; ring: string; chip: string; dot: string }[] = [
   { key: 0, title: "Lead Mới", statuses: ["Lead Mới"], color: "bg-slate-50", ring: "border-slate-200", chip: "bg-slate-100 text-slate-700 border-slate-200", dot: "bg-slate-400" },
