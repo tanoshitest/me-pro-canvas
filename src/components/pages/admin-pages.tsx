@@ -3266,31 +3266,65 @@ function parseHour(t: string) {
   return h + (m ?? 0) / 60;
 }
 
+function toDateKey(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function formatDateKey(value: string) {
+  const [year, month, day] = value.split("-");
+  return `${day}/${month}/${year}`;
+}
+
 export function AdminSchedule() {
-  const { classes } = useApp();
+  const { classes, scheduledSessions, setScheduledSessions } = useApp();
   const colors = ["bg-indigo-100 border-indigo-300 text-indigo-800", "bg-emerald-100 border-emerald-300 text-emerald-800", "bg-amber-100 border-amber-300 text-amber-800", "bg-rose-100 border-rose-300 text-rose-800", "bg-sky-100 border-sky-300 text-sky-800"];
   const [branch, setBranch] = React.useState<"all" | Branch>("all");
   const [weekOffset, setWeekOffset] = React.useState(0);
+  const [assignOpen, setAssignOpen] = React.useState(false);
+  const [selectedSlot, setSelectedSlot] = React.useState<{ date: string; day: string; hour: number } | null>(null);
+  const [assignment, setAssignment] = React.useState({
+    classId: "",
+    teacherId: "",
+    branch: "Đội Cấn" as Branch,
+    room: "",
+    start: "08:00",
+    end: "09:30",
+  });
 
-  const weekLabel = React.useMemo(() => {
+  const weekStart = React.useMemo(() => {
     const now = new Date();
     const day = (now.getDay() + 6) % 7; // Mon=0
     const monday = new Date(now);
     monday.setDate(now.getDate() - day + weekOffset * 7);
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
-    const f = (d: Date) => `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
-    return `${f(monday)} – ${f(sunday)}/${sunday.getFullYear()}`;
+    monday.setHours(0, 0, 0, 0);
+    return monday;
   }, [weekOffset]);
 
+  const weekLabel = React.useMemo(() => {
+    const sunday = new Date(weekStart);
+    sunday.setDate(weekStart.getDate() + 6);
+    const f = (d: Date) => `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+    return `${f(weekStart)} – ${f(sunday)}/${sunday.getFullYear()}`;
+  }, [weekStart]);
+
+  const weekDates = React.useMemo(
+    () => DAYS.map((_, index) => {
+      const date = new Date(weekStart);
+      date.setDate(weekStart.getDate() + index);
+      return toDateKey(date);
+    }),
+    [weekStart],
+  );
+
   // Build events
-  const events: { day: string; start: number; end: number; cls: string; teacher: string; room: string; color: string }[] = [];
+  const events: { id: string; day: string; date?: string; start: number; end: number; cls: string; teacher: string; room: string; color: string }[] = [];
   classes
     .filter((c) => branch === "all" || c.branch === branch)
     .forEach((c, idx) => {
     (c.sessions ?? []).forEach((s) => {
       const [a, b] = s.time.split(" - ");
       events.push({
+        id: `${c.id}-${s.day}-${s.time}`,
         day: s.day,
         start: parseHour(a),
         end: parseHour(b),
@@ -3301,6 +3335,69 @@ export function AdminSchedule() {
       });
     });
   });
+  scheduledSessions
+    .filter((session) => weekDates.includes(session.date) && (branch === "all" || session.branch === branch))
+    .forEach((session, index) => {
+      const dayIndex = weekDates.indexOf(session.date);
+      events.push({
+        id: session.id,
+        day: DAYS[dayIndex],
+        date: session.date,
+        start: parseHour(session.start),
+        end: parseHour(session.end),
+        cls: session.className,
+        teacher: session.teacherName,
+        room: `${session.branch} · ${session.room}`,
+        color: colors[(index + 2) % colors.length],
+      });
+    });
+
+  const openAssignment = (dayIndex: number, hour: number) => {
+    const date = weekDates[dayIndex];
+    setSelectedSlot({ date, day: DAYS[dayIndex], hour });
+    setAssignment({
+      classId: "",
+      teacherId: "",
+      branch: branch === "all" ? "Đội Cấn" : branch,
+      room: "",
+      start: `${String(hour).padStart(2, "0")}:00`,
+      end: `${String(Math.min(hour + 1, 20)).padStart(2, "0")}:30`,
+    });
+    setAssignOpen(true);
+  };
+
+  const selectedClass = classes.find((item) => item.id === assignment.classId);
+  const branchRooms = ROOMS.filter((room) => room.branch === assignment.branch);
+
+  const saveAssignment = () => {
+    const teacher = TEACHERS.find((item) => item.id === assignment.teacherId);
+    if (!selectedSlot || !selectedClass || !teacher || !assignment.room || assignment.end <= assignment.start) {
+      toast.error("Vui lòng chọn đủ lớp, giáo viên, phòng và giờ dạy hợp lệ.");
+      return;
+    }
+
+    setScheduledSessions((current) => [
+      ...current,
+      {
+        id: `scheduled-${Date.now()}`,
+        date: selectedSlot.date,
+        start: assignment.start,
+        end: assignment.end,
+        classId: selectedClass.id,
+        className: selectedClass.name,
+        teacherId: teacher.id,
+        teacherName: teacher.name,
+        branch: assignment.branch,
+        room: assignment.room,
+        checkIn: null,
+        checkOut: null,
+      },
+    ]);
+    toast.success(`Đã gán ${teacher.name} dạy lớp ${selectedClass.name}`, {
+      description: `${selectedSlot.day}, ${formatDateKey(selectedSlot.date)} · ${assignment.start} - ${assignment.end}`,
+    });
+    setAssignOpen(false);
+  };
 
   return (
     <Card className="flex flex-col h-[calc(100vh-7rem)]">
@@ -3342,18 +3439,28 @@ export function AdminSchedule() {
             {HOURS.map((h) => (
               <React.Fragment key={h}>
                 <div className="text-[10px] text-slate-400 pr-2 text-right border-t pt-0.5">{`${h}:00`}</div>
-                {DAYS.map((d) => (
-                  <div key={d + h} className="relative border-t border-l">
+                {DAYS.map((d, dayIndex) => (
+                  <button
+                    type="button"
+                    key={d + h}
+                    className="group relative border-t border-l text-left hover:bg-indigo-50/60"
+                    onClick={() => openAssignment(dayIndex, h)}
+                    title={`Gán ca dạy ${d} lúc ${h}:00`}
+                  >
+                    <span className="pointer-events-none absolute inset-0 hidden place-content-center text-[10px] font-medium text-indigo-500 group-hover:grid">
+                      + Gán ca
+                    </span>
                     {events
-                      .filter((e) => e.day === d && Math.floor(e.start) === h)
-                      .map((e, i) => {
+                      .filter((e) => e.day === d && (!e.date || e.date === weekDates[dayIndex]) && Math.floor(e.start) === h)
+                      .map((e) => {
                         const heightPct = (e.end - e.start) * 100;
                         const topPct = (e.start - h) * 100;
                         return (
                           <div
-                            key={i}
-                            className={`absolute left-1 right-1 rounded-md border px-1.5 py-0.5 text-[10px] leading-tight shadow-sm overflow-hidden ${e.color}`}
+                            key={e.id}
+                            className={`absolute left-1 right-1 z-[1] rounded-md border px-1.5 py-0.5 text-[10px] leading-tight shadow-sm overflow-hidden ${e.color}`}
                             style={{ top: `${topPct}%`, height: `${heightPct}%` }}
+                            onClick={(event) => event.stopPropagation()}
                           >
                             <div className="font-semibold truncate">{e.cls}</div>
                             <div className="truncate opacity-80">{e.teacher}</div>
@@ -3361,13 +3468,87 @@ export function AdminSchedule() {
                           </div>
                         );
                       })}
-                  </div>
+                  </button>
                 ))}
               </React.Fragment>
             ))}
           </div>
         </div>
       </CardContent>
+      <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Gán ca dạy</DialogTitle>
+            <DialogDescription>
+              {selectedSlot ? `${selectedSlot.day}, ${formatDateKey(selectedSlot.date)} · ô ${selectedSlot.hour}:00` : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-2">
+            <div className="space-y-1.5">
+              <Label>Lớp học</Label>
+              <Select value={assignment.classId} onValueChange={(value) => {
+                const cls = classes.find((item) => item.id === value);
+                const teacher = TEACHERS.find((item) => item.name === cls?.teacher);
+                setAssignment((current) => ({
+                  ...current,
+                  classId: value,
+                  teacherId: teacher?.id ?? current.teacherId,
+                  branch: cls?.branch ?? current.branch,
+                  room: cls?.room ?? "",
+                }));
+              }}>
+                <SelectTrigger><SelectValue placeholder="Chọn lớp" /></SelectTrigger>
+                <SelectContent>
+                  {classes.map((item) => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label>Giáo viên</Label>
+                <Select value={assignment.teacherId} onValueChange={(value) => setAssignment((current) => ({ ...current, teacherId: value }))}>
+                  <SelectTrigger><SelectValue placeholder="Chọn giáo viên" /></SelectTrigger>
+                  <SelectContent>
+                    {TEACHERS.map((item) => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Trung tâm</Label>
+                <Select value={assignment.branch} onValueChange={(value) => setAssignment((current) => ({ ...current, branch: value as Branch, room: "" }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {BRANCHES.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="space-y-1.5">
+                <Label>Phòng</Label>
+                <Select value={assignment.room} onValueChange={(value) => setAssignment((current) => ({ ...current, room: value }))}>
+                  <SelectTrigger><SelectValue placeholder="Chọn phòng" /></SelectTrigger>
+                  <SelectContent>
+                    {branchRooms.map((item) => <SelectItem key={item.id} value={item.name}>{item.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Giờ bắt đầu</Label>
+                <Input type="time" value={assignment.start} onChange={(event) => setAssignment((current) => ({ ...current, start: event.target.value }))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Giờ kết thúc</Label>
+                <Input type="time" value={assignment.end} onChange={(event) => setAssignment((current) => ({ ...current, end: event.target.value }))} />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAssignOpen(false)}>Hủy</Button>
+            <Button onClick={saveAssignment}>Gán ca dạy</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
@@ -3383,37 +3564,507 @@ export function AdminFinanceReport() {
 }
 
 function AttendanceReportCard() {
+  const { scheduledSessions } = useApp();
+  const [teacherId, setTeacherId] = React.useState(TEACHERS[0]?.id ?? "");
+  const [month, setMonth] = React.useState("06/2026");
+  const teacher = TEACHERS.find((item) => item.id === teacherId) ?? TEACHERS[0];
+  const attendanceRows = React.useMemo(
+    () => createMonthlyAttendance(teacherId, month, scheduledSessions),
+    [teacherId, month, scheduledSessions],
+  );
+  const workingRows = attendanceRows.filter((row) => row.shift !== null);
+  const lateCount = workingRows.filter((row) => row.lateMinutes > 0).length;
+  const earlyCount = workingRows.filter((row) => row.earlyMinutes > 0).length;
+  const absentCount = workingRows.filter((row) => row.status === "absent").length;
+  const successfulCount = workingRows.filter((row) => row.status === "present").length;
+
   return (
-    <Card>
-      <CardHeader><CardTitle>Báo cáo chấm công</CardTitle></CardHeader>
-      <CardContent className="space-y-4">
-        <p className="text-sm text-slate-500">Tổng hợp số buổi dạy, vắng, đi muộn của giáo viên theo tháng.</p>
-        <div className="flex gap-2">
-          <Button onClick={() => toast.success("Đã xuất báo cáo chấm công (demo)")}>Xuất báo cáo Excel</Button>
-          <Button variant="outline" onClick={() => toast.info("Tính năng demo")}>Lọc theo tháng</Button>
+    <Card className="flex h-[calc(100vh-7rem)] min-h-0 flex-col overflow-hidden">
+      <CardHeader className="shrink-0 space-y-1 px-5 pb-3 pt-4">
+        <CardTitle className="text-lg">Báo cáo chấm công</CardTitle>
+        <p className="text-sm leading-5 text-slate-500">
+          Chi tiết ca làm, giờ vào và giờ ra của giáo viên theo từng ngày trong tháng.
+        </p>
+      </CardHeader>
+      <CardContent className="flex min-h-0 flex-1 flex-col gap-3 px-5 pb-4">
+        <div className="flex shrink-0 flex-col gap-2 rounded-lg border bg-slate-50 px-3 py-2.5 lg:flex-row lg:items-end">
+          <div className="grid flex-1 gap-3 sm:grid-cols-2">
+            <div className="space-y-1">
+              <Label className="text-xs">Giáo viên</Label>
+              <Select value={teacherId} onValueChange={setTeacherId}>
+                <SelectTrigger className="h-9 bg-white">
+                  <SelectValue placeholder="Chọn giáo viên" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TEACHERS.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      {item.name} - {item.branch}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Tháng báo cáo</Label>
+              <Select value={month} onValueChange={setMonth}>
+                <SelectTrigger className="h-9 bg-white">
+                  <SelectValue placeholder="Chọn tháng" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="01/2026">Tháng 01/2026</SelectItem>
+                  <SelectItem value="02/2026">Tháng 02/2026</SelectItem>
+                  <SelectItem value="03/2026">Tháng 03/2026</SelectItem>
+                  <SelectItem value="06/2026">Tháng 06/2026</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <Button
+            className="h-9 lg:min-w-44"
+            onClick={() => {
+              exportAttendanceExcel({
+                teacherName: teacher?.name ?? "Giáo viên",
+                branch: teacher?.branch ?? "",
+                month,
+                rows: attendanceRows,
+                totalShifts: workingRows.length,
+                successful: successfulCount,
+                late: lateCount,
+                early: earlyCount,
+                absent: absentCount,
+              });
+              toast.success(`Đã xuất báo cáo ${teacher?.name} - ${month}`);
+            }}
+          >
+            <FileSpreadsheet className="mr-2 h-4 w-4" />
+            Xuất báo cáo Excel
+          </Button>
         </div>
-        <Table>
-          <TableHeader><TableRow>
-            <TableHead>Giáo viên</TableHead><TableHead>Tháng</TableHead>
-            <TableHead className="text-right">Buổi dạy</TableHead><TableHead className="text-right">Vắng</TableHead><TableHead className="text-right">Đi muộn</TableHead>
-          </TableRow></TableHeader>
-          <TableBody>
-            {TEACHERS.flatMap((t) =>
-              t.attendanceReport.map((a, i) => (
-                <TableRow key={t.id + i}>
-                  <TableCell className="font-medium">{t.name}</TableCell>
-                  <TableCell>{a.month}</TableCell>
-                  <TableCell className="text-right">{a.sessions}</TableCell>
-                  <TableCell className="text-right">{a.absent}</TableCell>
-                  <TableCell className="text-right">{a.late}</TableCell>
+
+        <div className="grid shrink-0 gap-2 sm:grid-cols-2 xl:grid-cols-6">
+          <AttendanceSummary label="Giáo viên" value={teacher?.name ?? "-"} />
+          <AttendanceSummary label="Ca được xếp" value={`${workingRows.length} ca`} />
+          <AttendanceSummary label="Điểm danh thành công" value={`${successfulCount} ca`} tone="success" />
+          <AttendanceSummary label="Đi muộn" value={`${lateCount} ca`} tone={lateCount ? "danger" : "default"} />
+          <AttendanceSummary label="Về sớm" value={`${earlyCount} ca`} tone={earlyCount ? "warning" : "default"} />
+          <AttendanceSummary label="Vắng" value={`${absentCount} ca`} tone={absentCount ? "danger" : "default"} />
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-hidden rounded-lg border">
+          <div className="h-full overflow-hidden [&>div]:h-full">
+            <Table className="min-w-[1260px]">
+              <TableHeader className="sticky top-0 z-10 bg-slate-50 shadow-[0_1px_0_0_rgb(226_232_240)]">
+                <TableRow>
+                  <TableHead className="w-14">STT</TableHead>
+                  <TableHead className="min-w-36">Ngày</TableHead>
+                  <TableHead className="min-w-32">Ca làm</TableHead>
+                  <TableHead className="min-w-44">Trung tâm</TableHead>
+                  <TableHead className="min-w-36">Lớp học</TableHead>
+                  <TableHead className="min-w-28">Giờ vào</TableHead>
+                  <TableHead className="min-w-28">Giờ ra</TableHead>
+                  <TableHead className="min-w-64">Ghi chú</TableHead>
                 </TableRow>
-              )),
-            )}
-          </TableBody>
-        </Table>
+              </TableHeader>
+              <TableBody>
+                {attendanceRows.map((row) => (
+                  <TableRow
+                    key={row.id}
+                    className={row.status === "off" ? "bg-slate-50/60 text-slate-400" : undefined}
+                  >
+                    {row.shiftIndex === 0 && (
+                      <>
+                        <TableCell rowSpan={row.totalShifts} className="align-top pt-4">
+                          {row.dayNumber}
+                        </TableCell>
+                        <TableCell rowSpan={row.totalShifts} className="align-top pt-4">
+                          <div className="font-medium text-slate-900">{row.displayDate}</div>
+                          <div className="text-xs text-slate-500">{row.weekday}</div>
+                          {row.totalShifts > 1 && (
+                            <Badge className="mt-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-50">
+                              {row.totalShifts} ca trong ngày
+                            </Badge>
+                          )}
+                        </TableCell>
+                      </>
+                    )}
+                    <TableCell>
+                      {row.shift ? (
+                        <Badge variant="outline" className="whitespace-nowrap bg-white font-normal">
+                          <Clock className="mr-1.5 h-3.5 w-3.5" />
+                          {row.shift.start} - {row.shift.end}
+                        </Badge>
+                      ) : (
+                        <span className="text-sm">Không có ca</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {row.branch ? (
+                        <div className="flex items-center gap-1.5 font-medium text-slate-700">
+                          <MapPin className="h-3.5 w-3.5 text-indigo-500" />
+                          {row.branch}
+                        </div>
+                      ) : (
+                        <span className="text-slate-400">--</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="font-medium text-slate-700">
+                      {row.className ?? "--"}
+                    </TableCell>
+                    <TableCell className={row.lateMinutes > 0 ? "font-semibold text-red-600" : ""}>
+                      {row.checkIn ?? "--:--"}
+                    </TableCell>
+                    <TableCell className={row.earlyMinutes > 0 ? "font-semibold text-amber-600" : ""}>
+                      {row.checkOut ?? "--:--"}
+                    </TableCell>
+                    <TableCell>
+                      <AttendanceNote row={row} />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );
+}
+
+type AttendanceStatus = "present" | "absent" | "scheduled" | "off";
+
+type AttendanceRow = {
+  id: string;
+  dayNumber: number;
+  date: string;
+  displayDate: string;
+  weekday: string;
+  shiftIndex: number;
+  totalShifts: number;
+  shift: { start: string; end: string } | null;
+  branch: Branch | null;
+  className: string | null;
+  checkIn: string | null;
+  checkOut: string | null;
+  lateMinutes: number;
+  earlyMinutes: number;
+  status: AttendanceStatus;
+};
+
+function AttendanceSummary({
+  label,
+  value,
+  tone = "default",
+}: {
+  label: string;
+  value: string;
+  tone?: "default" | "success" | "danger" | "warning";
+}) {
+  return (
+    <div className="rounded-lg border bg-white px-3 py-2">
+      <div className="text-[11px] font-medium uppercase tracking-wide text-slate-500">{label}</div>
+      <div
+        className={cn(
+          "mt-0.5 text-base font-semibold",
+          tone === "success" && "text-emerald-600",
+          tone === "danger" && "text-red-600",
+          tone === "warning" && "text-amber-600",
+        )}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function AttendanceNote({ row }: { row: AttendanceRow }) {
+  if (row.status === "off") return <span className="text-sm text-slate-400">Ngày nghỉ / không xếp ca</span>;
+  if (row.status === "absent") return <Badge variant="destructive">Vắng mặt</Badge>;
+  if (row.status === "scheduled") return <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100">Chờ chấm công</Badge>;
+
+  const hasIssue = row.lateMinutes > 0 || row.earlyMinutes > 0 || !row.checkOut;
+  if (!hasIssue) return <span className="text-sm text-emerald-600">Đúng giờ</span>;
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {row.lateMinutes > 0 && (
+        <span className="font-semibold text-red-600">Đi trễ {row.lateMinutes} phút</span>
+      )}
+      {row.earlyMinutes > 0 && (
+        <span className="font-medium text-amber-600">Về sớm {row.earlyMinutes} phút</span>
+      )}
+      {!row.checkOut && <span className="font-medium text-slate-600">Chưa ghi nhận giờ ra</span>}
+    </div>
+  );
+}
+
+function createMonthlyAttendance(
+  teacherId: string,
+  monthValue: string,
+  scheduledSessions: ReturnType<typeof useApp>["scheduledSessions"],
+): AttendanceRow[] {
+  const [month, year] = monthValue.split("/").map(Number);
+  const totalDays = new Date(year, month, 0).getDate();
+  const teacherOffset = Math.max(0, TEACHERS.findIndex((item) => item.id === teacherId));
+  const teacher = TEACHERS[teacherOffset];
+  const weekdays = ["Chủ nhật", "Thứ hai", "Thứ ba", "Thứ tư", "Thứ năm", "Thứ sáu", "Thứ bảy"];
+  const shifts = [
+    { start: "08:00", end: "10:00" },
+    { start: "14:00", end: "16:00" },
+    { start: "18:00", end: "20:00" },
+  ];
+
+  const baseRows: AttendanceRow[] = Array.from({ length: totalDays }, (_, index) => {
+    const day = index + 1;
+    const date = new Date(year, month - 1, day);
+    const weekdayIndex = date.getDay();
+    const dateKey = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    const baseRow = {
+      dayNumber: day,
+      date: dateKey,
+      displayDate: `${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")}/${year}`,
+      weekday: weekdays[weekdayIndex],
+    };
+
+    if (weekdayIndex === 0) {
+      return [{
+        ...baseRow,
+        id: `${dateKey}-off`,
+        shiftIndex: 0,
+        totalShifts: 1,
+        shift: null,
+        branch: null,
+        className: null,
+        checkIn: null,
+        checkOut: null,
+        lateMinutes: 0,
+        earlyMinutes: 0,
+        status: "off" as const,
+      }];
+    }
+
+    const totalShifts = day % 10 === 0 ? 3 : day % 4 === 0 || day % 7 === 0 ? 2 : 1;
+    const startShiftIndex = totalShifts === 1 ? (day + teacherOffset) % shifts.length : totalShifts === 2 ? day % 2 : 0;
+
+    return Array.from({ length: totalShifts }, (_, shiftIndex) => {
+      const shift = shifts[startShiftIndex + shiftIndex];
+      const anomalySeed = day * 3 + shiftIndex * 5 + teacherOffset * 7 + month;
+      const isAbsent = anomalySeed % 29 === 0;
+      const lateMinutes = !isAbsent && anomalySeed % 9 === 0 ? 7 + ((day + shiftIndex) % 12) : 0;
+      const earlyMinutes = !isAbsent && anomalySeed % 13 === 0 ? 9 + ((day + shiftIndex) % 14) : 0;
+      const missingCheckout = !isAbsent && anomalySeed % 31 === 0;
+      const normalEarlyArrival = 3 + ((day + teacherOffset + shiftIndex) % 8);
+      const normalLateDeparture = 2 + ((day + month + shiftIndex) % 7);
+      const homeBranchIndex = BRANCHES.indexOf(teacher.branch);
+      const branchIndex = totalShifts > 1
+        ? (homeBranchIndex + shiftIndex + Math.floor(day / 4)) % BRANCHES.length
+        : homeBranchIndex;
+
+      return {
+        ...baseRow,
+        id: `${dateKey}-${shiftIndex}`,
+        shiftIndex,
+        totalShifts,
+        shift,
+        branch: BRANCHES[branchIndex],
+        className: teacher.classes.length
+          ? CLASSES.find((item) => item.id === teacher.classes[(day + shiftIndex) % teacher.classes.length])?.name ?? "Ca dạy"
+          : "Ca dạy",
+        checkIn: isAbsent
+          ? null
+          : addMinutes(shift.start, lateMinutes > 0 ? lateMinutes : -normalEarlyArrival),
+        checkOut: isAbsent || missingCheckout
+          ? null
+          : addMinutes(shift.end, earlyMinutes > 0 ? -earlyMinutes : normalLateDeparture),
+        lateMinutes,
+        earlyMinutes,
+        status: isAbsent ? "absent" as const : "present" as const,
+      };
+    });
+  }).flat();
+
+  const assignedRows: AttendanceRow[] = scheduledSessions
+    .filter((session) => {
+      const [sessionYear, sessionMonth] = session.date.split("-").map(Number);
+      return session.teacherId === teacherId && sessionYear === year && sessionMonth === month;
+    })
+    .map((session) => {
+      const date = new Date(`${session.date}T00:00:00`);
+      return {
+        id: session.id,
+        dayNumber: date.getDate(),
+        date: session.date,
+        displayDate: formatDateKey(session.date),
+        weekday: weekdays[date.getDay()],
+        shiftIndex: 0,
+        totalShifts: 1,
+        shift: { start: session.start, end: session.end },
+        branch: session.branch,
+        className: session.className,
+        checkIn: session.checkIn,
+        checkOut: session.checkOut,
+        lateMinutes: session.checkIn ? Math.max(0, minutesBetween(session.start, session.checkIn)) : 0,
+        earlyMinutes: session.checkOut ? Math.max(0, minutesBetween(session.checkOut, session.end)) : 0,
+        status: session.checkIn ? "present" : "scheduled",
+      };
+    });
+
+  const assignedDates = new Set(assignedRows.map((row) => row.date));
+  const combined = [
+    ...baseRows.filter((row) => !(row.status === "off" && assignedDates.has(row.date))),
+    ...assignedRows,
+  ].sort((a, b) => a.date.localeCompare(b.date) || (a.shift?.start ?? "").localeCompare(b.shift?.start ?? ""));
+
+  const counts = combined.reduce<Record<string, number>>((result, row) => {
+    result[row.date] = (result[row.date] ?? 0) + 1;
+    return result;
+  }, {});
+  const indices: Record<string, number> = {};
+
+  return combined.map((row) => {
+    const shiftIndex = indices[row.date] ?? 0;
+    indices[row.date] = shiftIndex + 1;
+    return { ...row, shiftIndex, totalShifts: counts[row.date] };
+  });
+}
+
+function addMinutes(time: string, minutes: number) {
+  const [hour, minute] = time.split(":").map(Number);
+  const total = hour * 60 + minute + minutes;
+  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+}
+
+function minutesBetween(start: string, end: string) {
+  const [startHour, startMinute] = start.split(":").map(Number);
+  const [endHour, endMinute] = end.split(":").map(Number);
+  return endHour * 60 + endMinute - (startHour * 60 + startMinute);
+}
+
+function exportAttendanceExcel({
+  teacherName,
+  branch,
+  month,
+  rows,
+  totalShifts,
+  successful,
+  late,
+  early,
+  absent,
+}: {
+  teacherName: string;
+  branch: string;
+  month: string;
+  rows: AttendanceRow[];
+  totalShifts: number;
+  successful: number;
+  late: number;
+  early: number;
+  absent: number;
+}) {
+  const escapeCell = (value: string | number) =>
+    String(value)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;");
+
+  const noteForRow = (row: AttendanceRow) => {
+    if (row.status === "off") return "Ngày nghỉ / không xếp ca";
+    if (row.status === "absent") return "Vắng mặt";
+    if (row.status === "scheduled") return "Chờ giáo viên chấm công in/out";
+
+    const notes: string[] = [];
+    if (row.lateMinutes > 0) notes.push(`Đi trễ ${row.lateMinutes} phút`);
+    if (row.earlyMinutes > 0) notes.push(`Về sớm ${row.earlyMinutes} phút`);
+    if (!row.checkOut) notes.push("Chưa ghi nhận giờ ra");
+    return notes.length ? notes.join("; ") : "Đúng giờ";
+  };
+
+  const detailRows = rows.map((row) => `
+    <tr>
+      <td>${row.dayNumber}</td>
+      <td>${escapeCell(row.displayDate)}</td>
+      <td>${escapeCell(row.weekday)}</td>
+      <td>${row.shift ? `${row.shift.start} - ${row.shift.end}` : "Không có ca"}</td>
+      <td>${escapeCell(row.branch ?? "--")}</td>
+      <td>${escapeCell(row.className ?? "--")}</td>
+      <td>${row.checkIn ?? "--:--"}</td>
+      <td>${row.checkOut ?? "--:--"}</td>
+      <td>${escapeCell(row.status === "present" ? "Đã điểm danh" : row.status === "absent" ? "Vắng" : row.status === "scheduled" ? "Chờ chấm công" : "Không xếp ca")}</td>
+      <td>${escapeCell(noteForRow(row))}</td>
+    </tr>
+  `).join("");
+
+  const content = `
+    <html xmlns:o="urn:schemas-microsoft-com:office:office"
+      xmlns:x="urn:schemas-microsoft-com:office:excel"
+      xmlns="http://www.w3.org/TR/REC-html40">
+      <head>
+        <meta charset="UTF-8">
+        <!--[if gte mso 9]>
+        <xml>
+          <x:ExcelWorkbook>
+            <x:ExcelWorksheets>
+              <x:ExcelWorksheet>
+                <x:Name>Cham cong</x:Name>
+                <x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>
+              </x:ExcelWorksheet>
+            </x:ExcelWorksheets>
+          </x:ExcelWorkbook>
+        </xml>
+        <![endif]-->
+        <style>
+          body { font-family: Arial, sans-serif; }
+          table { border-collapse: collapse; }
+          td, th { border: 1px solid #cbd5e1; padding: 6px 10px; white-space: nowrap; }
+          .title { font-size: 18px; font-weight: bold; text-align: center; background: #e0e7ff; }
+          .label { font-weight: bold; background: #f1f5f9; }
+          .header { font-weight: bold; color: white; background: #312e81; text-align: center; }
+          .success { color: #047857; font-weight: bold; }
+          .danger { color: #dc2626; font-weight: bold; }
+          .warning { color: #d97706; font-weight: bold; }
+        </style>
+      </head>
+      <body>
+        <table>
+          <tr><td class="title" colspan="10">BÁO CÁO CHẤM CÔNG GIÁO VIÊN</td></tr>
+          <tr><td class="label">Giáo viên</td><td colspan="4">${escapeCell(teacherName)}</td><td class="label">Tháng</td><td colspan="4">${escapeCell(month)}</td></tr>
+          <tr><td class="label">Chi nhánh chính</td><td colspan="9">${escapeCell(branch)}</td></tr>
+          <tr>
+            <td class="label">Ca được xếp</td><td>${totalShifts}</td>
+            <td class="label">Điểm danh thành công</td><td class="success">${successful}</td>
+            <td class="label">Đi muộn</td><td class="danger">${late}</td>
+            <td class="label">Về sớm</td><td class="warning">${early}</td>
+            <td><b>Vắng:</b> <span class="danger">${absent}</span></td>
+          </tr>
+          <tr><td colspan="10"></td></tr>
+          <tr>
+            <th class="header">STT ngày</th>
+            <th class="header">Ngày</th>
+            <th class="header">Thứ</th>
+            <th class="header">Ca làm</th>
+            <th class="header">Trung tâm</th>
+            <th class="header">Lớp học</th>
+            <th class="header">Giờ vào</th>
+            <th class="header">Giờ ra</th>
+            <th class="header">Trạng thái</th>
+            <th class="header">Ghi chú</th>
+          </tr>
+          ${detailRows}
+        </table>
+      </body>
+    </html>
+  `;
+
+  const blob = new Blob(["\ufeff", content], {
+    type: "application/vnd.ms-excel;charset=utf-8",
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `bao-cao-cham-cong-${teacherName.toLowerCase().replaceAll(" ", "-")}-${month.replace("/", "-")}.xls`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 /* ============== FINANCE REPORT (Thu / Chi) ============== */
