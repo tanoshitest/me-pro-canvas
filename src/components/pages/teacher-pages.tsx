@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useApp } from "@/lib/app-store";
 import { SYLLABUS_LESSONS } from "@/lib/mock-data";
 import { toast } from "sonner";
-import { CheckCircle2, Clock, MapPin, BookOpen } from "lucide-react";
+import { CheckCircle2, Clock, MapPin, BookOpen, LogIn, LogOut, CalendarDays } from "lucide-react";
 
 const TEACHER_STUDENTS = [
   { id: "s1", name: "Hồng Diệp (Kirito)" },
@@ -20,9 +20,68 @@ const TEACHER_STUDENTS = [
 const STATUSES = ["Có mặt", "Vắng có phép", "Vắng không phép", "Học bù"] as const;
 
 export function TeacherToday() {
-  const { classes } = useApp();
+  const { classes, scheduledSessions, setScheduledSessions } = useApp();
+  const recordAttendance = (sessionId: string, type: "in" | "out") => {
+    const now = new Date();
+    const time = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+    setScheduledSessions((current) => current.map((session) =>
+      session.id === sessionId
+        ? { ...session, [type === "in" ? "checkIn" : "checkOut"]: time }
+        : session,
+    ));
+    toast.success(type === "in" ? `Check-in thành công lúc ${time}` : `Check-out thành công lúc ${time}`);
+  };
+
   return (
     <div className="space-y-4">
+      {scheduledSessions.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <CalendarDays className="h-4 w-4 text-indigo-600" />
+              Ca dạy được phân công
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {scheduledSessions.map((session) => (
+              <div key={session.id} className="grid gap-3 rounded-lg border p-4 md:grid-cols-[1.2fr_1fr_1fr_auto] md:items-center">
+                <div>
+                  <div className="font-semibold text-indigo-700">{session.className}</div>
+                  <div className="text-xs text-slate-500">{session.teacherName} · {formatTeacherDate(session.date)}</div>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <Clock className="h-4 w-4 text-slate-400" />
+                  {session.start} - {session.end}
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <MapPin className="h-4 w-4 text-slate-400" />
+                  {session.branch} · {session.room}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant={session.checkIn ? "outline" : "default"}
+                    disabled={Boolean(session.checkIn)}
+                    onClick={() => recordAttendance(session.id, "in")}
+                  >
+                    <LogIn className="h-4 w-4" />
+                    {session.checkIn ? `In ${session.checkIn}` : "Check-in"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={!session.checkIn || Boolean(session.checkOut)}
+                    onClick={() => recordAttendance(session.id, "out")}
+                  >
+                    <LogOut className="h-4 w-4" />
+                    {session.checkOut ? `Out ${session.checkOut}` : "Check-out"}
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
       {classes.map((c) => (
         <Card key={c.id}>
           <CardContent className="p-5 grid sm:grid-cols-5 gap-4 items-center">
@@ -158,4 +217,9 @@ function Info({ label, value }: { label: string; value: string }) {
       <div className="mt-1">{value}</div>
     </div>
   );
+}
+
+function formatTeacherDate(value: string) {
+  const [year, month, day] = value.split("-");
+  return `${day}/${month}/${year}`;
 }

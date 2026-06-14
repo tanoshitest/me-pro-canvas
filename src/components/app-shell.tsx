@@ -18,17 +18,17 @@ type NavItem = { id: string; label: string; icon: React.ComponentType<{ classNam
 const NAV: Record<string, NavItem[]> = {
   admin: [
     { id: "admissions", label: "Quản lý tuyển sinh", icon: UserPlus, done: true },
-    { id: "work-management", label: "Quản lý công việc", icon: Briefcase, disabled: true },
     { id: "teachers", label: "Quản lý giáo viên", icon: UserCog, done: true },
     { id: "students", label: "Quản lý học viên", icon: Users, done: true },
     { id: "syllabus", label: "Quản lý syllabus", icon: ClipboardCheck, done: true },
     { id: "classes", label: "Quản lý lớp học", icon: GraduationCap, done: true },
     { id: "fees", label: "Quản lý học phí", icon: Wallet, done: true },
     { id: "schedule-admin", label: "Lịch dạy", icon: CalendarRange, done: true },
-    { id: "finance-report", label: "Báo cáo thu chi", icon: BarChart3 },
+    { id: "finance-report", label: "Báo cáo thu chi", icon: BarChart3, done: true },
     { id: "attendance-report", label: "Báo cáo chấm công", icon: ClipboardList, done: true },
-    { id: "salary-report", label: "Báo cáo lương", icon: Wallet },
+    { id: "salary-report", label: "Báo cáo lương", icon: Wallet, done: true },
     { id: "tuition", label: "Cấu hình", icon: BookOpen, done: true },
+    { id: "work-management", label: "Quản lý công việc", icon: Briefcase, disabled: true },
   ],
   teacher: [
     { id: "today", label: "Lịch dạy hôm nay", icon: CalendarDays },
