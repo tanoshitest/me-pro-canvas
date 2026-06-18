@@ -4420,41 +4420,308 @@ function FinanceTxnDialog({ open, type, onClose, onSubmit }: {
   );
 }
 
+/* ============== SALARY REPORT ============== */
+type TeacherSalary = {
+  id: string;
+  name: string;
+  position: string;
+  sessionsWithForeign: number;
+  sessionsWithoutForeign: number;
+  allowance: number;
+  parking: number;
+  students: number;
+  status: "Đã duyệt" | "Chờ duyệt" | "Đã chi";
+  rateA?: number;
+  rateB?: number;
+  rateStudent?: number;
+};
+type StaffSalary = {
+  id: string;
+  name: string;
+  position: string;
+  baseSalary: number;
+  revenue: number;
+  closedStudents: number;
+  renewalBase: number;
+  absentStudents: number;
+  kpiTarget: number;
+  kpiPercent: number;
+  status: "Đã duyệt" | "Chờ duyệt" | "Đã chi";
+};
+
+const DEFAULT_RATE_A = 350000;
+const DEFAULT_RATE_B = 250000;
+const DEFAULT_RATE_STUDENT = 15000;
+
+const INITIAL_TEACHER_SALARY: TeacherSalary[] = [
+  { id: "T01", name: "Cô Mai Anh", position: "GV Tiếng Anh", sessionsWithForeign: 12, sessionsWithoutForeign: 18, allowance: 1500000, parking: 200000, students: 45, status: "Chờ duyệt" },
+  { id: "T02", name: "Thầy Quang Huy", position: "GV Toán", sessionsWithForeign: 0, sessionsWithoutForeign: 32, allowance: 1000000, parking: 200000, students: 38, status: "Đã duyệt" },
+  { id: "T03", name: "Cô Thu Hà", position: "GV Tiếng Anh", sessionsWithForeign: 16, sessionsWithoutForeign: 14, allowance: 2000000, parking: 200000, students: 52, status: "Đã duyệt" },
+  { id: "T04", name: "Thầy David Brown", position: "GV Nước ngoài", sessionsWithForeign: 24, sessionsWithoutForeign: 0, allowance: 3000000, parking: 0, students: 60, status: "Đã chi" },
+  { id: "T05", name: "Cô Phương Linh", position: "GV Tiếng Anh", sessionsWithForeign: 10, sessionsWithoutForeign: 20, allowance: 1200000, parking: 200000, students: 40, status: "Chờ duyệt" },
+  { id: "T06", name: "Thầy Minh Đức", position: "GV Văn", sessionsWithForeign: 0, sessionsWithoutForeign: 28, allowance: 800000, parking: 200000, students: 35, status: "Chờ duyệt" },
+  { id: "T07", name: "Cô Ngọc Bích", position: "GV Tiếng Anh", sessionsWithForeign: 14, sessionsWithoutForeign: 16, allowance: 1500000, parking: 200000, students: 48, status: "Đã duyệt" },
+  { id: "T08", name: "Cô Sarah Lee", position: "GV Nước ngoài", sessionsWithForeign: 22, sessionsWithoutForeign: 0, allowance: 2800000, parking: 0, students: 55, status: "Đã chi" },
+];
+
+const INITIAL_STAFF_SALARY: StaffSalary[] = [
+  { id: "S01", name: "Nguyễn Thu Trang", position: "Học vụ ĐC", baseSalary: 8000000, revenue: 280000000, closedStudents: 18, renewalBase: 120000000, absentStudents: 0, kpiTarget: 3000000, kpiPercent: 95, status: "Chờ duyệt" },
+  { id: "S02", name: "Lê Minh Châu", position: "Học vụ NH", baseSalary: 8000000, revenue: 150000000, closedStudents: 12, renewalBase: 90000000, absentStudents: 1, kpiTarget: 3000000, kpiPercent: 88, status: "Đã duyệt" },
+  { id: "S03", name: "Phạm Hoài An", position: "Học vụ HHT", baseSalary: 8500000, revenue: 320000000, closedStudents: 22, renewalBase: 150000000, absentStudents: 2, kpiTarget: 3500000, kpiPercent: 100, status: "Đã chi" },
+  { id: "S04", name: "Trần Khánh Linh", position: "Học vụ ĐC", baseSalary: 8000000, revenue: 95000000, closedStudents: 8, renewalBase: 75000000, absentStudents: 3, kpiTarget: 3000000, kpiPercent: 70, status: "Chờ duyệt" },
+];
+
+function calcTeacherSalary(t: TeacherSalary, rA: number, rB: number, rS: number) {
+  const a = t.sessionsWithForeign * (t.rateA ?? rA);
+  const b = t.sessionsWithoutForeign * (t.rateB ?? rB);
+  const s = t.students * (t.rateStudent ?? rS);
+  const total = a + b + t.allowance + t.parking + s;
+  return { a, b, s, total };
+}
+
+function calcStaffSalary(s: StaffSalary) {
+  const revPct = s.closedStudents >= 17 ? 0.05 : s.closedStudents >= 1 ? 0.03 : 0;
+  const revenueSalary = Math.round(s.revenue * revPct);
+  const renewPct = s.absentStudents === 0 ? 0.01 : s.absentStudents === 1 ? 0.008 : s.absentStudents === 2 ? 0.005 : 0;
+  const renewalSalary = Math.round(s.renewalBase * renewPct);
+  const kpiBonus = Math.round((s.kpiTarget * s.kpiPercent) / 100);
+  const total = s.baseSalary + revenueSalary + renewalSalary + kpiBonus;
+  return { revPct, revenueSalary, renewPct, renewalSalary, kpiBonus, total };
+}
+
+function StatusBadge({ status }: { status: TeacherSalary["status"] }) {
+  const map: Record<string, string> = {
+    "Đã duyệt": "bg-emerald-100 text-emerald-700",
+    "Chờ duyệt": "bg-amber-100 text-amber-700",
+    "Đã chi": "bg-slate-200 text-slate-700",
+  };
+  return <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${map[status]}`}>{status}</span>;
+}
+
 export function AdminSalaryReport() {
+  const [rateA, setRateA] = React.useState(DEFAULT_RATE_A);
+  const [rateB, setRateB] = React.useState(DEFAULT_RATE_B);
+  const [rateStudent, setRateStudent] = React.useState(DEFAULT_RATE_STUDENT);
+  const [teachers, setTeachers] = React.useState<TeacherSalary[]>(INITIAL_TEACHER_SALARY);
+  const [staff, setStaff] = React.useState<StaffSalary[]>(INITIAL_STAFF_SALARY);
+  const [openTeacher, setOpenTeacher] = React.useState<TeacherSalary | null>(null);
+  const [openStaff, setOpenStaff] = React.useState<StaffSalary | null>(null);
+
+  const updateTeacher = (id: string, patch: Partial<TeacherSalary>) => {
+    setTeachers((arr) => arr.map((t) => (t.id === id ? { ...t, ...patch } : t)));
+    setOpenTeacher((cur) => (cur && cur.id === id ? { ...cur, ...patch } : cur));
+  };
+  const updateStaff = (id: string, patch: Partial<StaffSalary>) => {
+    setStaff((arr) => arr.map((t) => (t.id === id ? { ...t, ...patch } : t)));
+    setOpenStaff((cur) => (cur && cur.id === id ? { ...cur, ...patch } : cur));
+  };
+
   return (
     <Card>
       <CardHeader><CardTitle>Báo cáo lương</CardTitle></CardHeader>
       <CardContent className="space-y-4">
-        <p className="text-sm text-slate-500">Bảng lương theo tháng dựa trên số buổi dạy và các khoản trừ.</p>
-        <div className="flex gap-2">
-          <Button onClick={() => toast.success("Đã xuất bảng lương (demo)")}>Xuất bảng lương Excel</Button>
-          <Button variant="outline" onClick={() => toast.info("Tính năng demo")}>Lọc theo tháng</Button>
+        <div className="rounded-lg border bg-slate-50 p-3 grid gap-3 sm:grid-cols-3">
+          <div>
+            <Label className="text-xs">Đơn giá A (có GV nước ngoài)</Label>
+            <Input type="number" className="h-9 mt-1" value={rateA} onChange={(e) => setRateA(Number(e.target.value))} />
+          </div>
+          <div>
+            <Label className="text-xs">Đơn giá B (không có GV nước ngoài)</Label>
+            <Input type="number" className="h-9 mt-1" value={rateB} onChange={(e) => setRateB(Number(e.target.value))} />
+          </div>
+          <div>
+            <Label className="text-xs">Đơn giá / học sinh</Label>
+            <Input type="number" className="h-9 mt-1" value={rateStudent} onChange={(e) => setRateStudent(Number(e.target.value))} />
+          </div>
         </div>
-        <Table>
-          <TableHeader><TableRow>
-            <TableHead>Giáo viên</TableHead><TableHead>Tháng</TableHead>
-            <TableHead className="text-right">Buổi</TableHead>
-            <TableHead className="text-right">Tổng</TableHead>
-            <TableHead className="text-right">Trừ</TableHead>
-            <TableHead className="text-right">Thực nhận</TableHead>
-          </TableRow></TableHeader>
-          <TableBody>
-            {TEACHERS.flatMap((t) =>
-              t.salaryReport.map((s, i) => (
-                <TableRow key={t.id + i}>
-                  <TableCell className="font-medium">{t.name}</TableCell>
-                  <TableCell>{s.month}</TableCell>
-                  <TableCell className="text-right">{s.sessions}</TableCell>
-                  <TableCell className="text-right">{formatVND(s.gross)}</TableCell>
-                  <TableCell className="text-right text-rose-600">-{formatVND(s.deduct)}</TableCell>
-                  <TableCell className="text-right font-semibold">{formatVND(s.net)}</TableCell>
-                </TableRow>
-              )),
-            )}
-          </TableBody>
-        </Table>
+
+        <Tabs defaultValue="teacher">
+          <TabsList>
+            <TabsTrigger value="teacher">Giáo viên ({teachers.length})</TabsTrigger>
+            <TabsTrigger value="staff">Học vụ ({staff.length})</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="teacher" className="mt-3">
+            <Table>
+              <TableHeader><TableRow>
+                <TableHead>Tên</TableHead>
+                <TableHead>Vị trí</TableHead>
+                <TableHead className="text-right">Tổng lương</TableHead>
+                <TableHead>Trạng thái</TableHead>
+              </TableRow></TableHeader>
+              <TableBody>
+                {teachers.map((t) => {
+                  const { total } = calcTeacherSalary(t, rateA, rateB, rateStudent);
+                  return (
+                    <TableRow key={t.id} className="cursor-pointer hover:bg-slate-50" onClick={() => setOpenTeacher(t)}>
+                      <TableCell className="font-medium">{t.name}</TableCell>
+                      <TableCell>{t.position}</TableCell>
+                      <TableCell className="text-right font-semibold">{formatVND(total)}</TableCell>
+                      <TableCell><StatusBadge status={t.status} /></TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </TabsContent>
+
+          <TabsContent value="staff" className="mt-3">
+            <Table>
+              <TableHeader><TableRow>
+                <TableHead>Tên</TableHead>
+                <TableHead>Vị trí</TableHead>
+                <TableHead className="text-right">Tổng lương</TableHead>
+                <TableHead>Trạng thái</TableHead>
+              </TableRow></TableHeader>
+              <TableBody>
+                {staff.map((s) => {
+                  const { total } = calcStaffSalary(s);
+                  return (
+                    <TableRow key={s.id} className="cursor-pointer hover:bg-slate-50" onClick={() => setOpenStaff(s)}>
+                      <TableCell className="font-medium">{s.name}</TableCell>
+                      <TableCell>{s.position}</TableCell>
+                      <TableCell className="text-right font-semibold">{formatVND(total)}</TableCell>
+                      <TableCell><StatusBadge status={s.status} /></TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </TabsContent>
+        </Tabs>
       </CardContent>
+
+      {/* Teacher breakdown popup */}
+      <Dialog open={!!openTeacher} onOpenChange={(o) => !o && setOpenTeacher(null)}>
+        <DialogContent className="max-w-2xl">
+          {openTeacher && (() => {
+            const t = openTeacher;
+            const rA = t.rateA ?? rateA;
+            const rB = t.rateB ?? rateB;
+            const rS = t.rateStudent ?? rateStudent;
+            const { a, b, s, total } = calcTeacherSalary(t, rateA, rateB, rateStudent);
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle>{t.name} — {t.position}</DialogTitle>
+                  <DialogDescription>Chi tiết các khoản lương. Có thể chỉnh sửa trực tiếp.</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-3 text-sm">
+                  <BreakdownRow label={`Buổi có GV nước ngoài: ${t.sessionsWithForeign} × ${formatVND(rA)}`} value={a}>
+                    <Input type="number" className="h-8 w-24" value={t.sessionsWithForeign}
+                      onChange={(e) => updateTeacher(t.id, { sessionsWithForeign: Number(e.target.value) })} />
+                  </BreakdownRow>
+                  <BreakdownRow label={`Buổi không có GV nước ngoài: ${t.sessionsWithoutForeign} × ${formatVND(rB)}`} value={b}>
+                    <Input type="number" className="h-8 w-24" value={t.sessionsWithoutForeign}
+                      onChange={(e) => updateTeacher(t.id, { sessionsWithoutForeign: Number(e.target.value) })} />
+                  </BreakdownRow>
+                  <BreakdownRow label="Phụ cấp hỗ trợ" value={t.allowance}>
+                    <Input type="number" className="h-8 w-32" value={t.allowance}
+                      onChange={(e) => updateTeacher(t.id, { allowance: Number(e.target.value) })} />
+                  </BreakdownRow>
+                  <BreakdownRow label="Tiền gửi xe" value={t.parking}>
+                    <Input type="number" className="h-8 w-32" value={t.parking}
+                      onChange={(e) => updateTeacher(t.id, { parking: Number(e.target.value) })} />
+                  </BreakdownRow>
+                  <BreakdownRow label={`Học sinh phụ trách: ${t.students} × ${formatVND(rS)}`} value={s}>
+                    <Input type="number" className="h-8 w-24" value={t.students}
+                      onChange={(e) => updateTeacher(t.id, { students: Number(e.target.value) })} />
+                  </BreakdownRow>
+                  <div className="flex items-center justify-between border-t pt-3 text-base font-semibold">
+                    <span>Tổng lương</span>
+                    <span className="text-emerald-600">{formatVND(total)}</span>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setOpenTeacher(null)}>Đóng</Button>
+                  <Button onClick={() => { toast.success("Đã lưu (demo)"); setOpenTeacher(null); }}>Lưu</Button>
+                </DialogFooter>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
+
+      {/* Staff breakdown popup */}
+      <Dialog open={!!openStaff} onOpenChange={(o) => !o && setOpenStaff(null)}>
+        <DialogContent className="max-w-2xl">
+          {openStaff && (() => {
+            const s = openStaff;
+            const c = calcStaffSalary(s);
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle>{s.name} — {s.position}</DialogTitle>
+                  <DialogDescription>Chi tiết các khoản lương. Có thể chỉnh sửa trực tiếp.</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-3 text-sm">
+                  <BreakdownRow label="Lương cứng" value={s.baseSalary}>
+                    <Input type="number" className="h-8 w-36" value={s.baseSalary}
+                      onChange={(e) => updateStaff(s.id, { baseSalary: Number(e.target.value) })} />
+                  </BreakdownRow>
+                  <div className="rounded-md border p-3 space-y-2">
+                    <div className="text-xs font-semibold text-slate-600">Lương doanh số ({(c.revPct * 100).toFixed(1)}%)</div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div><Label className="text-xs">Doanh số (VNĐ)</Label>
+                        <Input type="number" className="h-8 mt-1" value={s.revenue}
+                          onChange={(e) => updateStaff(s.id, { revenue: Number(e.target.value) })} /></div>
+                      <div><Label className="text-xs">Số HS chốt</Label>
+                        <Input type="number" className="h-8 mt-1" value={s.closedStudents}
+                          onChange={(e) => updateStaff(s.id, { closedStudents: Number(e.target.value) })} /></div>
+                    </div>
+                    <div className="text-right text-sm font-semibold">{formatVND(c.revenueSalary)}</div>
+                    <div className="text-[11px] text-slate-500">1-16 HS: 3% · từ 17 HS: 5%</div>
+                  </div>
+                  <div className="rounded-md border p-3 space-y-2">
+                    <div className="text-xs font-semibold text-slate-600">Lương tái tục ({(c.renewPct * 100).toFixed(1)}%)</div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div><Label className="text-xs">Doanh số tái tục</Label>
+                        <Input type="number" className="h-8 mt-1" value={s.renewalBase}
+                          onChange={(e) => updateStaff(s.id, { renewalBase: Number(e.target.value) })} /></div>
+                      <div><Label className="text-xs">Số HS nghỉ</Label>
+                        <Input type="number" className="h-8 mt-1" value={s.absentStudents}
+                          onChange={(e) => updateStaff(s.id, { absentStudents: Number(e.target.value) })} /></div>
+                    </div>
+                    <div className="text-right text-sm font-semibold">{formatVND(c.renewalSalary)}</div>
+                    <div className="text-[11px] text-slate-500">0 HS nghỉ: 1% · 1: 0.8% · 2: 0.5% · ≥3: 0%</div>
+                  </div>
+                  <div className="rounded-md border p-3 space-y-2">
+                    <div className="text-xs font-semibold text-slate-600">Thưởng KPI</div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div><Label className="text-xs">Định mức KPI</Label>
+                        <Input type="number" className="h-8 mt-1" value={s.kpiTarget}
+                          onChange={(e) => updateStaff(s.id, { kpiTarget: Number(e.target.value) })} /></div>
+                      <div><Label className="text-xs">% Đạt được</Label>
+                        <Input type="number" className="h-8 mt-1" value={s.kpiPercent}
+                          onChange={(e) => updateStaff(s.id, { kpiPercent: Number(e.target.value) })} /></div>
+                    </div>
+                    <div className="text-right text-sm font-semibold">{formatVND(c.kpiBonus)}</div>
+                  </div>
+                  <div className="flex items-center justify-between border-t pt-3 text-base font-semibold">
+                    <span>Tổng lương</span>
+                    <span className="text-emerald-600">{formatVND(c.total)}</span>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setOpenStaff(null)}>Đóng</Button>
+                  <Button onClick={() => { toast.success("Đã lưu (demo)"); setOpenStaff(null); }}>Lưu</Button>
+                </DialogFooter>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </Card>
+  );
+}
+
+function BreakdownRow({ label, value, children }: { label: string; value: number; children?: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-md border px-3 py-2">
+      <div className="text-sm flex-1">{label}</div>
+      {children}
+      <div className="w-32 text-right font-semibold">{formatVND(value)}</div>
+    </div>
   );
 }
 
