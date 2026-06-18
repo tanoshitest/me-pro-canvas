@@ -3567,6 +3567,8 @@ function AttendanceReportCard() {
   const { scheduledSessions } = useApp();
   const [teacherId, setTeacherId] = React.useState(TEACHERS[0]?.id ?? "");
   const [month, setMonth] = React.useState("06/2026");
+  const [view, setView] = React.useState<"admin" | "teacher">("admin");
+  const [punches, setPunches] = React.useState<Record<string, { in?: string; out?: string }>>({});
   const teacher = TEACHERS.find((item) => item.id === teacherId) ?? TEACHERS[0];
   const attendanceRows = React.useMemo(
     () => createMonthlyAttendance(teacherId, month, scheduledSessions),
@@ -3581,10 +3583,22 @@ function AttendanceReportCard() {
   return (
     <Card className="flex h-[calc(100vh-7rem)] min-h-0 flex-col overflow-hidden">
       <CardHeader className="shrink-0 space-y-1 px-5 pb-3 pt-4">
-        <CardTitle className="text-lg">Báo cáo chấm công</CardTitle>
-        <p className="text-sm leading-5 text-slate-500">
-          Chi tiết ca làm, giờ vào và giờ ra của giáo viên theo từng ngày trong tháng.
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <CardTitle className="text-lg">Báo cáo chấm công</CardTitle>
+            <p className="text-sm leading-5 text-slate-500">
+              {view === "admin"
+                ? "Chi tiết ca làm, giờ vào và giờ ra của giáo viên theo từng ngày trong tháng."
+                : "Giáo viên bấm IN khi vào ca và OUT khi kết thúc ca."}
+            </p>
+          </div>
+          <Tabs value={view} onValueChange={(v) => setView(v as "admin" | "teacher")}>
+            <TabsList>
+              <TabsTrigger value="admin">Admin</TabsTrigger>
+              <TabsTrigger value="teacher">Giáo viên</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
       </CardHeader>
       <CardContent className="flex min-h-0 flex-1 flex-col gap-3 px-5 pb-4">
         <div className="flex shrink-0 flex-col gap-2 rounded-lg border bg-slate-50 px-3 py-2.5 lg:flex-row lg:items-end">
@@ -3711,13 +3725,29 @@ function AttendanceReportCard() {
                       {row.className ?? "--"}
                     </TableCell>
                     <TableCell className={row.lateMinutes > 0 ? "font-semibold text-red-600" : ""}>
-                      {row.checkIn ?? "--:--"}
+                      <AttendanceCheckCell
+                        row={row}
+                        kind="in"
+                        view={view}
+                        punches={punches}
+                        setPunches={setPunches}
+                      />
                     </TableCell>
                     <TableCell className={row.earlyMinutes > 0 ? "font-semibold text-amber-600" : ""}>
-                      {row.checkOut ?? "--:--"}
+                      <AttendanceCheckCell
+                        row={row}
+                        kind="out"
+                        view={view}
+                        punches={punches}
+                        setPunches={setPunches}
+                      />
                     </TableCell>
                     <TableCell>
-                      <AttendanceNote row={row} />
+                      {view === "teacher" ? (
+                        <TeacherAttendanceNote row={row} punch={punches[row.id]} />
+                      ) : (
+                        <AttendanceNote row={row} />
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -3795,6 +3825,108 @@ function AttendanceNote({ row }: { row: AttendanceRow }) {
       {!row.checkOut && <span className="font-medium text-slate-600">Chưa ghi nhận giờ ra</span>}
     </div>
   );
+}
+
+function AttendanceCheckCell({
+  row,
+  kind,
+  view,
+  punches,
+  setPunches,
+}: {
+  row: AttendanceRow;
+  kind: "in" | "out";
+  view: "admin" | "teacher";
+  punches: Record<string, { in?: string; out?: string }>;
+  setPunches: React.Dispatch<React.SetStateAction<Record<string, { in?: string; out?: string }>>>;
+}) {
+  if (view === "admin") {
+    const value = kind === "in" ? row.checkIn : row.checkOut;
+    return <>{value ?? "--:--"}</>;
+  }
+  if (!row.shift) return <span className="text-slate-400">--</span>;
+  const current = punches[row.id]?.[kind];
+  const handleClick = () => {
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2, "0");
+    const mm = String(now.getMinutes()).padStart(2, "0");
+    setPunches((prev) => ({
+      ...prev,
+      [row.id]: { ...prev[row.id], [kind]: `${hh}:${mm}` },
+    }));
+  };
+  if (current) {
+    return (
+      <button
+        type="button"
+        onClick={handleClick}
+        className={cn(
+          "rounded-md px-2 py-1 text-sm font-semibold tabular-nums",
+          kind === "in" ? "text-emerald-600 hover:bg-emerald-50" : "text-red-600 hover:bg-red-50",
+        )}
+        title="Bấm lại để cập nhật giờ"
+      >
+        {current}
+      </button>
+    );
+  }
+  return (
+    <Button
+      type="button"
+      size="sm"
+      onClick={handleClick}
+      className={cn(
+        "h-8 w-16 font-bold tracking-wide text-white",
+        kind === "in"
+          ? "bg-emerald-500 hover:bg-emerald-600"
+          : "bg-red-500 hover:bg-red-600",
+      )}
+    >
+      {kind === "in" ? "IN" : "OUT"}
+    </Button>
+  );
+}
+
+function diffMinutes(a: string, b: string) {
+  const [ah, am] = a.split(":").map(Number);
+  const [bh, bm] = b.split(":").map(Number);
+  return (bh * 60 + bm) - (ah * 60 + am);
+}
+
+function TeacherAttendanceNote({
+  row,
+  punch,
+}: {
+  row: AttendanceRow;
+  punch?: { in?: string; out?: string };
+}) {
+  if (!row.shift) return <span className="text-sm text-slate-400">Không có ca</span>;
+  if (!punch?.in && !punch?.out)
+    return <span className="text-sm text-slate-500">Chưa chấm công</span>;
+  if (punch.in && !punch.out) {
+    const late = diffMinutes(row.shift.start, punch.in);
+    return (
+      <span className={cn("text-sm font-medium", late > 0 ? "text-red-600" : "text-emerald-600")}>
+        Đã IN lúc {punch.in}
+        {late > 0 ? ` (trễ ${late}p)` : " (đúng giờ)"}
+      </span>
+    );
+  }
+  if (punch.in && punch.out) {
+    const late = diffMinutes(row.shift.start, punch.in);
+    const early = diffMinutes(punch.out, row.shift.end);
+    const parts: React.ReactNode[] = [];
+    if (late > 0) parts.push(<span key="l" className="font-semibold text-red-600">Trễ {late} phút</span>);
+    if (early > 0) parts.push(<span key="e" className="font-medium text-amber-600">Về sớm {early} phút</span>);
+    if (parts.length === 0) parts.push(<span key="ok" className="font-medium text-emerald-600">Đúng giờ</span>);
+    return (
+      <div className="flex flex-col gap-0.5 text-sm">
+        <div className="flex flex-wrap items-center gap-2">{parts}</div>
+        <div className="text-xs text-slate-500">IN {punch.in} · OUT {punch.out}</div>
+      </div>
+    );
+  }
+  return <span className="text-sm text-amber-600">Đã OUT lúc {punch.out} — thiếu IN</span>;
 }
 
 function createMonthlyAttendance(
