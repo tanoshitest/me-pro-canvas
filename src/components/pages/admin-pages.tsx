@@ -3567,6 +3567,8 @@ function AttendanceReportCard() {
   const { scheduledSessions } = useApp();
   const [teacherId, setTeacherId] = React.useState(TEACHERS[0]?.id ?? "");
   const [month, setMonth] = React.useState("06/2026");
+  const [view, setView] = React.useState<"admin" | "teacher">("admin");
+  const [punches, setPunches] = React.useState<Record<string, { in?: string; out?: string }>>({});
   const teacher = TEACHERS.find((item) => item.id === teacherId) ?? TEACHERS[0];
   const attendanceRows = React.useMemo(
     () => createMonthlyAttendance(teacherId, month, scheduledSessions),
@@ -3581,10 +3583,22 @@ function AttendanceReportCard() {
   return (
     <Card className="flex h-[calc(100vh-7rem)] min-h-0 flex-col overflow-hidden">
       <CardHeader className="shrink-0 space-y-1 px-5 pb-3 pt-4">
-        <CardTitle className="text-lg">Báo cáo chấm công</CardTitle>
-        <p className="text-sm leading-5 text-slate-500">
-          Chi tiết ca làm, giờ vào và giờ ra của giáo viên theo từng ngày trong tháng.
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <CardTitle className="text-lg">Báo cáo chấm công</CardTitle>
+            <p className="text-sm leading-5 text-slate-500">
+              {view === "admin"
+                ? "Chi tiết ca làm, giờ vào và giờ ra của giáo viên theo từng ngày trong tháng."
+                : "Giáo viên bấm IN khi vào ca và OUT khi kết thúc ca."}
+            </p>
+          </div>
+          <Tabs value={view} onValueChange={(v) => setView(v as "admin" | "teacher")}>
+            <TabsList>
+              <TabsTrigger value="admin">Admin</TabsTrigger>
+              <TabsTrigger value="teacher">Giáo viên</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
       </CardHeader>
       <CardContent className="flex min-h-0 flex-1 flex-col gap-3 px-5 pb-4">
         <div className="flex shrink-0 flex-col gap-2 rounded-lg border bg-slate-50 px-3 py-2.5 lg:flex-row lg:items-end">
@@ -3711,13 +3725,29 @@ function AttendanceReportCard() {
                       {row.className ?? "--"}
                     </TableCell>
                     <TableCell className={row.lateMinutes > 0 ? "font-semibold text-red-600" : ""}>
-                      {row.checkIn ?? "--:--"}
+                      <AttendanceCheckCell
+                        row={row}
+                        kind="in"
+                        view={view}
+                        punches={punches}
+                        setPunches={setPunches}
+                      />
                     </TableCell>
                     <TableCell className={row.earlyMinutes > 0 ? "font-semibold text-amber-600" : ""}>
-                      {row.checkOut ?? "--:--"}
+                      <AttendanceCheckCell
+                        row={row}
+                        kind="out"
+                        view={view}
+                        punches={punches}
+                        setPunches={setPunches}
+                      />
                     </TableCell>
                     <TableCell>
-                      <AttendanceNote row={row} />
+                      {view === "teacher" ? (
+                        <TeacherAttendanceNote row={row} punch={punches[row.id]} />
+                      ) : (
+                        <AttendanceNote row={row} />
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
