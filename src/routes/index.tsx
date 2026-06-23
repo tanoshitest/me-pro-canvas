@@ -4,7 +4,7 @@ import { AppShell } from "@/components/app-shell";
 import {
   AdminStudents, AdminClasses, AdminTuition, AdminFees, AdminSyllabus,
   AdminTeachers, AdminSchedule, AdminAttendanceReport, AdminSalaryReport,
-  AdminFinanceReport, AdminAdmissions,
+  AdminFinanceReport, AdminAdmissions, AdminWorkManagement,
 } from "@/components/pages/admin-pages";
 import { TeacherToday, TeacherSyllabus } from "@/components/pages/teacher-pages";
 import {
@@ -31,6 +31,7 @@ function PageRouter() {
       case "salary-report": return <AdminSalaryReport />;
       case "finance-report": return <AdminFinanceReport />;
       case "tuition": return <AdminTuition />;
+      case "work-management": return <AdminWorkManagement />;
     }
   }
   if (role === "teacher") {

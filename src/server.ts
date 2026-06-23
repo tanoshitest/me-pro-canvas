@@ -7,6 +7,41 @@ type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
 };
 
+type Env = {
+  ZAI_API_KEY?: string;
+};
+
+async function handleZaiProxy(request: Request, env: Env): Promise<Response | undefined> {
+  const url = new URL(request.url);
+  if (url.pathname !== "/api/zai") return;
+
+  if (request.method !== "POST") {
+    return new Response("Method not allowed", { status: 405 });
+  }
+
+  const apiKey = env.ZAI_API_KEY ??
+    (typeof process !== "undefined" ? process.env?.ZAI_API_KEY : undefined) ??
+    (typeof globalThis !== "undefined" ? (globalThis as any).ZAI_API_KEY : undefined);
+  if (!apiKey) {
+    return new Response("ZAI_API_KEY not configured", { status: 500 });
+  }
+
+  const body = await request.text();
+  const response = await fetch("https://api.zai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body,
+  });
+
+  return new Response(await response.text(), {
+    status: response.status,
+    headers: { "content-type": response.headers.get("content-type") ?? "application/json" },
+  });
+}
+
 let serverEntryPromise: Promise<ServerEntry> | undefined;
 
 async function getServerEntry(): Promise<ServerEntry> {
@@ -68,6 +103,11 @@ async function normalizeCatastrophicSsrResponse(response: Response): Promise<Res
 
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
+    const zaiResponse = await handleZaiProxy(request, env as Env);
+    if (zaiResponse) {
+      return zaiResponse;
+    }
+
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);

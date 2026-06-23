@@ -13,6 +13,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarUI } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
+import { callZaiChat } from "@/lib/zai";
 import { useApp } from "@/lib/app-store";
 import {
   BRANCHES, CLASSES, PROMOTIONS, TUITION_CONFIG, formatVND,
@@ -42,6 +43,28 @@ export function AdminDashboard() {
   const cancelled = receipts.filter((r) => r.status === "Đã hủy").length;
   const lowSessions = students.filter((s) => s.bought - s.attended <= 3);
 
+  const [aiPrompt, setAiPrompt] = React.useState("Tóm tắt tình hình học viên sắp hết buổi.");
+  const [aiResponse, setAiResponse] = React.useState<string | null>(null);
+  const [aiLoading, setAiLoading] = React.useState(false);
+
+  const askZai = async () => {
+    setAiLoading(true);
+    setAiResponse(null);
+
+    try {
+      const result = await callZaiChat([
+        { role: "system", content: "Bạn là trợ lý quản lý trung tâm ngoại ngữ." },
+        { role: "user", content: aiPrompt },
+      ]);
+      setAiResponse(result.choices[0]?.message.content ?? "Không có phản hồi.");
+    } catch (error) {
+      console.error(error);
+      setAiResponse(error instanceof Error ? error.message : "Lỗi khi gọi ZAI");
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   const cards = [
     { label: "Tổng học viên", value: totalStudents, icon: Users, color: "bg-indigo-500" },
     { label: "Lớp đang học", value: totalClasses, icon: GraduationCap, color: "bg-emerald-500" },
@@ -68,6 +91,27 @@ export function AdminDashboard() {
           </Card>
         ))}
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BookOpen className="h-5 w-5" /> Trợ lý ZAI
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+            <Input value={aiPrompt} onChange={(event) => setAiPrompt(event.target.value)} />
+            <Button onClick={askZai} disabled={aiLoading}>
+              {aiLoading ? "Đang gửi..." : "Gửi ZAI"}
+            </Button>
+          </div>
+          {aiResponse ? (
+            <div className="rounded-lg border border-border bg-muted p-4 text-sm whitespace-pre-wrap">
+              {aiResponse}
+            </div>
+          ) : null}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
@@ -876,43 +920,19 @@ export function AdminClasses() {
                 <TabsTrigger value="syllabus"><BookOpen className="h-4 w-4 mr-1" /> Syllabus</TabsTrigger>
               </TabsList>
               <TabsContent value="info" className="space-y-4">
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <Info2 label="Chi nhánh" value={cls.branch} />
-              <Info2 label="Giáo viên" value={cls.teacher} />
-              <Info2 label="Syllabus" value={cls.syllabus} />
-              <div className="rounded-md border bg-slate-50 px-3 py-2 col-span-1">
-                <div className="text-xs text-slate-500 mb-1">Lịch học</div>
-                {cls.sessions?.length ? (
-                  <div className="space-y-0.5">
-                    {cls.sessions.map((sess, i) => (
-                      <div key={i} className="font-medium text-sm">
-                        <span className="text-slate-700">{sess.day}</span>
-                        <span className="text-slate-400 mx-1">·</span>
-                        <span>{sess.time}</span>
-                        <span className="text-slate-400 mx-1">·</span>
-                        <span className="text-indigo-700">{sess.room}</span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="font-medium">{cls.schedule} · {cls.time} · {cls.room}</div>
-                )}
+              <div className="grid grid-cols-2 gap-3">
+                <Info2
+                  label="Tiến độ"
+                  value={`${Math.min(
+                    cls.totalSessions,
+                    Math.max(0, ...students.filter((s) => s.classId === cls.id).map((s) => s.attended)),
+                  )}/${cls.totalSessions} buổi`}
+                />
+                <Info2 label="Học phí" value={formatVND(cls.pricePerCourse)} />
               </div>
-              <Info2 label="Ngày bắt đầu" value={cls.startDate} />
-              <Info2 label="Ngày kết thúc dự kiến" value={cls.endDate} />
-              <Info2 label="Số buổi / khóa" value={cls.totalSessions.toString()} />
-              <Info2
-                label="Tiến độ"
-                value={`${Math.min(
-                  cls.totalSessions,
-                  Math.max(0, ...students.filter((s) => s.classId === cls.id).map((s) => s.attended)),
-                )}/${cls.totalSessions} buổi`}
-              />
-              <Info2 label="Học phí" value={formatVND(cls.pricePerCourse)} />
-            </div>
 
             <div>
-            <ClassStudentsTabs cls={cls} students={students.filter((s) => s.classId === cls.id)} onTransfer={setTransferStudentId} />
+              <ClassStudentsTabs cls={cls} students={students.filter((s) => s.classId === cls.id)} onTransfer={setTransferStudentId} />
             </div>
               </TabsContent>
               <TabsContent value="syllabus">
@@ -3555,7 +3575,26 @@ export function AdminSchedule() {
 
 /* ============== ATTENDANCE REPORT (demo) ============== */
 export function AdminAttendanceReport() {
-  return <AttendanceReportCard />;
+  return (
+    <div className="space-y-4">
+      <Tabs defaultValue="admin" className="space-y-4">
+        <TabsList className="h-10">
+          <TabsTrigger value="admin" className="gap-2">
+            <Users className="h-4 w-4" /> Admin
+          </TabsTrigger>
+          <TabsTrigger value="teacher" className="gap-2">
+            <GraduationCap className="h-4 w-4" /> Giáo viên
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="admin">
+          <AttendanceReportCard />
+        </TabsContent>
+        <TabsContent value="teacher">
+          <AttendanceReportCard selfCheck />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
 }
 
 /* ============== FINANCE REPORT (Thu / Chi) ============== */
@@ -3563,20 +3602,49 @@ export function AdminFinanceReport() {
   return <FinanceReportCard />;
 }
 
-function AttendanceReportCard() {
-  const { scheduledSessions } = useApp();
+function AttendanceReportCard({ selfCheck = false }: { selfCheck?: boolean }) {
+  const { scheduledSessions, setScheduledSessions } = useApp();
   const [teacherId, setTeacherId] = React.useState(TEACHERS[0]?.id ?? "");
   const [month, setMonth] = React.useState("06/2026");
+  const [selfCheckTimes, setSelfCheckTimes] = React.useState<
+    Record<string, { checkIn: string | null; checkOut: string | null }>
+  >({});
   const teacher = TEACHERS.find((item) => item.id === teacherId) ?? TEACHERS[0];
-  const attendanceRows = React.useMemo(
+  const baseAttendanceRows = React.useMemo(
     () => createMonthlyAttendance(teacherId, month, scheduledSessions),
     [teacherId, month, scheduledSessions],
   );
+  const attendanceRows = baseAttendanceRows;
   const workingRows = attendanceRows.filter((row) => row.shift !== null);
   const lateCount = workingRows.filter((row) => row.lateMinutes > 0).length;
   const earlyCount = workingRows.filter((row) => row.earlyMinutes > 0).length;
   const absentCount = workingRows.filter((row) => row.status === "absent").length;
   const successfulCount = workingRows.filter((row) => row.status === "present").length;
+
+  const updateSelfCheck = (row: AttendanceRow, field: "checkIn" | "checkOut") => {
+    if (!row.shift) return;
+    const selfCheckKey = `${teacherId}-${row.id}`;
+    const current = selfCheckTimes[selfCheckKey];
+    if (field === "checkOut" && !current?.checkIn) {
+      toast.error("Vui lòng bấm IN trước khi bấm OUT");
+      return;
+    }
+
+    const time = getNow();
+    setSelfCheckTimes((previous) => ({
+      ...previous,
+      [selfCheckKey]: {
+        checkIn: field === "checkIn" ? time : previous[selfCheckKey]?.checkIn ?? null,
+        checkOut: field === "checkOut" ? time : previous[selfCheckKey]?.checkOut ?? null,
+      },
+    }));
+    setScheduledSessions((previous) =>
+      previous.map((session) =>
+        session.id === row.id ? { ...session, [field]: time } : session,
+      ),
+    );
+    toast.success(`${field === "checkIn" ? "Check-in" : "Check-out"} thành công lúc ${time}`);
+  };
 
   return (
     <Card className="flex h-[calc(100vh-7rem)] min-h-0 flex-col overflow-hidden">
@@ -3711,10 +3779,40 @@ function AttendanceReportCard() {
                       {row.className ?? "--"}
                     </TableCell>
                     <TableCell className={row.lateMinutes > 0 ? "font-semibold text-red-600" : ""}>
-                      {row.checkIn ?? "--:--"}
+                      {selfCheck && row.shift ? (
+                        selfCheckTimes[`${teacherId}-${row.id}`]?.checkIn ? (
+                          <span>{selfCheckTimes[`${teacherId}-${row.id}`]?.checkIn}</span>
+                        ) : (
+                          <Button
+                            size="sm"
+                            className="h-8 min-w-16 bg-emerald-500 font-bold hover:bg-emerald-600"
+                            onClick={() => updateSelfCheck(row, "checkIn")}
+                          >
+                            IN
+                          </Button>
+                        )
+                      ) : (
+                        row.checkIn ?? "--:--"
+                      )}
                     </TableCell>
                     <TableCell className={row.earlyMinutes > 0 ? "font-semibold text-amber-600" : ""}>
-                      {row.checkOut ?? "--:--"}
+                      {selfCheck && row.shift ? (
+                        selfCheckTimes[`${teacherId}-${row.id}`]?.checkOut ? (
+                          <span>{selfCheckTimes[`${teacherId}-${row.id}`]?.checkOut}</span>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            className="h-8 min-w-16 font-bold"
+                            disabled={!selfCheckTimes[`${teacherId}-${row.id}`]?.checkIn}
+                            onClick={() => updateSelfCheck(row, "checkOut")}
+                          >
+                            OUT
+                          </Button>
+                        )
+                      ) : (
+                        row.checkOut ?? "--:--"
+                      )}
                     </TableCell>
                     <TableCell>
                       <AttendanceNote row={row} />
@@ -3730,7 +3828,236 @@ function AttendanceReportCard() {
   );
 }
 
+/* ===== Teacher Self-Check-In Card ===== */
+type SelfCheckSession = {
+  id: string;
+  className: string;
+  branch: Branch;
+  room: string;
+  scheduledStart: string;
+  scheduledEnd: string;
+  checkIn: string | null;
+  checkOut: string | null;
+};
+
+function getNow() {
+  const now = new Date();
+  return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+}
+
+function diffMinutes(a: string, b: string): number {
+  const [ah, am] = a.split(":").map(Number);
+  const [bh, bm] = b.split(":").map(Number);
+  return (bh * 60 + bm) - (ah * 60 + am);
+}
+
+function TeacherSelfCheckCard() {
+  const { scheduledSessions, setScheduledSessions } = useApp();
+  const [teacherId, setTeacherId] = React.useState(TEACHERS[0]?.id ?? "");
+  const [selfSessions, setSelfSessions] = React.useState<SelfCheckSession[]>(() =>
+    buildDemoSessions(TEACHERS[0]?.id ?? ""),
+  );
+
+  React.useEffect(() => {
+    setSelfSessions(buildDemoSessions(teacherId));
+  }, [teacherId]);
+
+  const teacher = TEACHERS.find((t) => t.id === teacherId) ?? TEACHERS[0];
+
+  const handleIn = (id: string) => {
+    const time = getNow();
+    setSelfSessions((prev) =>
+      prev.map((s) => s.id === id && !s.checkIn ? { ...s, checkIn: time } : s),
+    );
+    // also update scheduledSessions if this session exists
+    setScheduledSessions((prev) =>
+      prev.map((s) => s.id === id && !s.checkIn ? { ...s, checkIn: time } : s),
+    );
+    toast.success(`Check-in thành công lúc ${time}`);
+  };
+
+  const handleOut = (id: string) => {
+    const sess = selfSessions.find((s) => s.id === id);
+    if (!sess?.checkIn) { toast.error("Chưa check-in!"); return; }
+    const time = getNow();
+    setSelfSessions((prev) =>
+      prev.map((s) => s.id === id && s.checkIn && !s.checkOut ? { ...s, checkOut: time } : s),
+    );
+    setScheduledSessions((prev) =>
+      prev.map((s) => s.id === id && s.checkIn && !s.checkOut ? { ...s, checkOut: time } : s),
+    );
+    toast.success(`Check-out thành công lúc ${time}`);
+  };
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <CardTitle className="text-lg">Chấm công giáo viên</CardTitle>
+            <p className="text-sm text-slate-500 mt-0.5">
+              Bấm <span className="font-semibold text-emerald-600">IN</span> khi vào, <span className="font-semibold text-rose-600">OUT</span> khi ra. Kết quả hiển thị tự động.
+            </p>
+          </div>
+          <div className="space-y-1 min-w-[200px]">
+            <Label className="text-xs">Giáo viên</Label>
+            <Select value={teacherId} onValueChange={setTeacherId}>
+              <SelectTrigger className="h-9 bg-white">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {TEACHERS.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>{t.name} · {t.branch}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="p-0">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm border-collapse">
+            <thead className="bg-slate-50 border-y">
+              <tr>
+                <th className="text-left px-4 py-3 font-semibold text-slate-600 min-w-[140px]">Lớp học</th>
+                <th className="text-left px-4 py-3 font-semibold text-slate-600">Trung tâm</th>
+                <th className="text-left px-4 py-3 font-semibold text-slate-600">Phòng</th>
+                <th className="text-left px-4 py-3 font-semibold text-slate-600">Ca</th>
+                <th className="text-center px-4 py-3 font-semibold text-slate-600 min-w-[110px]">Giờ vào</th>
+                <th className="text-center px-4 py-3 font-semibold text-slate-600 min-w-[110px]">Giờ ra</th>
+                <th className="text-left px-4 py-3 font-semibold text-slate-600 min-w-[160px]">Kết quả</th>
+              </tr>
+            </thead>
+            <tbody>
+              {selfSessions.map((sess) => {
+                const lateMin = sess.checkIn ? diffMinutes(sess.scheduledStart, sess.checkIn) : 0;
+                const earlyMin = sess.checkOut ? diffMinutes(sess.checkOut, sess.scheduledEnd) : 0;
+                const isDone = !!(sess.checkIn && sess.checkOut);
+                const isAbsent = false;
+
+                let resultNode: React.ReactNode = null;
+                if (isDone) {
+                  if (lateMin > 0 || earlyMin > 0) {
+                    resultNode = (
+                      <div className="flex flex-wrap gap-1.5">
+                        {lateMin > 0 && <Badge className="bg-rose-100 text-rose-700 hover:bg-rose-100">Đi trễ {lateMin} phút</Badge>}
+                        {earlyMin > 0 && <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100">Về sớm {earlyMin} phút</Badge>}
+                      </div>
+                    );
+                  } else {
+                    resultNode = <span className="text-emerald-600 font-semibold">✓ Đúng giờ</span>;
+                  }
+                } else if (sess.checkIn) {
+                  resultNode = <span className="text-blue-600 text-xs">Đang trong ca...</span>;
+                } else {
+                  resultNode = <span className="text-slate-400 text-xs">Chờ check-in</span>;
+                }
+
+                return (
+                  <tr key={sess.id} className="border-b hover:bg-slate-50/60 transition-colors">
+                    <td className="px-4 py-3 font-semibold text-indigo-700">{sess.className}</td>
+                    <td className="px-4 py-3 text-slate-600">{sess.branch}</td>
+                    <td className="px-4 py-3 text-slate-600">{sess.room}</td>
+                    <td className="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">
+                      {sess.scheduledStart} – {sess.scheduledEnd}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      {sess.checkIn ? (
+                        <div className="flex flex-col items-center gap-0.5">
+                          <span className="font-bold text-emerald-600 text-base">{sess.checkIn}</span>
+                          <span className="text-[10px] text-slate-400">đã check-in</span>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => handleIn(sess.id)}
+                          className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-bold text-sm shadow-sm transition-all"
+                          title="Check-in"
+                        >
+                          IN
+                        </button>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      {sess.checkOut ? (
+                        <div className="flex flex-col items-center gap-0.5">
+                          <span className="font-bold text-rose-600 text-base">{sess.checkOut}</span>
+                          <span className="text-[10px] text-slate-400">đã check-out</span>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => handleOut(sess.id)}
+                          disabled={!sess.checkIn}
+                          className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full font-bold text-sm shadow-sm transition-all ${
+                            sess.checkIn
+                              ? "bg-rose-500 hover:bg-rose-600 active:scale-95 text-white"
+                              : "bg-slate-100 text-slate-400 cursor-not-allowed"
+                          }`}
+                          title="Check-out"
+                        >
+                          OUT
+                        </button>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">{resultNode}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <div className="px-4 py-3 border-t bg-slate-50/50 flex flex-wrap gap-4 text-xs text-slate-500">
+          <span><span className="inline-block w-3 h-3 rounded-full bg-emerald-500 mr-1.5 align-middle" />Đúng giờ</span>
+          <span><span className="inline-block w-3 h-3 rounded-full bg-rose-400 mr-1.5 align-middle" />Đi trễ</span>
+          <span><span className="inline-block w-3 h-3 rounded-full bg-amber-400 mr-1.5 align-middle" />Về sớm</span>
+          <span><span className="inline-block w-3 h-3 rounded-full bg-slate-200 mr-1.5 align-middle" />Chờ chấm công</span>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function buildDemoSessions(teacherId: string): SelfCheckSession[] {
+  const teacher = TEACHERS.find((t) => t.id === teacherId) ?? TEACHERS[0];
+  const shifts = [
+    { start: "08:00", end: "09:30" },
+    { start: "14:00", end: "15:30" },
+    { start: "18:00", end: "19:30" },
+  ];
+  const today = new Date();
+  const dateKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+
+  return teacher.classes.map((classId, idx) => {
+    const cls = CLASSES.find((c) => c.id === classId);
+    const shift = shifts[idx % shifts.length];
+    return {
+      id: `self-${teacherId}-${idx}`,
+      className: cls?.name ?? `Lớp ${idx + 1}`,
+      branch: teacher.branch,
+      room: cls?.room ?? "P.101",
+      scheduledStart: shift.start,
+      scheduledEnd: shift.end,
+      checkIn: null,
+      checkOut: null,
+    };
+  }).concat(
+    // Add extra demo sessions if teacher has no classes
+    teacher.classes.length === 0
+      ? [{
+          id: `self-${teacherId}-demo`,
+          className: "Ca dạy demo",
+          branch: teacher.branch,
+          room: "P.201",
+          scheduledStart: "18:00",
+          scheduledEnd: "19:30",
+          checkIn: null,
+          checkOut: null,
+        }]
+      : [],
+  );
+}
+
 type AttendanceStatus = "present" | "absent" | "scheduled" | "off";
+
 
 type AttendanceRow = {
   id: string;
@@ -4288,41 +4615,450 @@ function FinanceTxnDialog({ open, type, onClose, onSubmit }: {
   );
 }
 
-export function AdminSalaryReport() {
+type SalaryStatus = "Đã duyệt" | "Chờ duyệt" | "Đang tính";
+
+type TeacherSalary = {
+  id: string;
+  name: string;
+  position: string;
+  foreignSessions: number;
+  localSessions: number;
+  supportAllowance: number;
+  parkingAllowance: number;
+  studentCount: number;
+  bonus: number;
+  rateA?: number;
+  rateB?: number;
+  studentRate?: number;
+  status: SalaryStatus;
+};
+
+type RenewalClass = {
+  name: string;
+  renewalRate: number;
+  amount: number;
+  note?: string;
+};
+
+type AcademicSalary = {
+  id: string;
+  name: string;
+  position: string;
+  baseSalary: number;
+  closedStudents: number;
+  salesRevenue: number;
+  renewalRevenue: number;
+  renewalClasses: RenewalClass[];
+  studentsLeft: number;
+  kpiBudget: number;
+  kpiPercent: number;
+  bonus: number;
+  status: SalaryStatus;
+};
+
+type TeacherSalarySettings = {
+  rateA: number;
+  rateB: number;
+  studentRate: number;
+  defaultParking: number;
+};
+
+const INITIAL_TEACHER_SALARY_SETTINGS: TeacherSalarySettings = {
+  rateA: 320000,
+  rateB: 230000,
+  studentRate: 15000,
+  defaultParking: 300000,
+};
+
+const INITIAL_TEACHER_SALARIES: TeacherSalary[] = [
+  { id: "GV01", name: "Cô Mai", position: "Giáo viên chủ nhiệm", foreignSessions: 12, localSessions: 18, supportAllowance: 1200000, parkingAllowance: 300000, studentCount: 48, bonus: 500000, status: "Đã duyệt" },
+  { id: "GV02", name: "Thầy Nam", position: "Giáo viên IELTS", foreignSessions: 16, localSessions: 12, supportAllowance: 800000, parkingAllowance: 300000, studentCount: 42, bonus: 400000, status: "Chờ duyệt" },
+  { id: "GV03", name: "Cô Linh", position: "Giáo viên Kids", foreignSessions: 10, localSessions: 22, supportAllowance: 1000000, parkingAllowance: 250000, studentCount: 55, bonus: 300000, status: "Đã duyệt" },
+  { id: "GV04", name: "Thầy Minh", position: "Giáo viên giao tiếp", foreignSessions: 14, localSessions: 16, supportAllowance: 600000, parkingAllowance: 300000, studentCount: 39, bonus: 250000, status: "Đang tính" },
+  { id: "GV05", name: "Cô Hương", position: "Giáo viên Cambridge", foreignSessions: 18, localSessions: 10, supportAllowance: 1500000, parkingAllowance: 300000, studentCount: 61, bonus: 550000, status: "Đã duyệt" },
+  { id: "GV06", name: "Thầy Long", position: "Giáo viên Teens", foreignSessions: 8, localSessions: 24, supportAllowance: 500000, parkingAllowance: 200000, studentCount: 46, bonus: 200000, status: "Chờ duyệt" },
+  { id: "GV07", name: "Cô Trang", position: "Giáo viên TOEIC", foreignSessions: 15, localSessions: 15, supportAllowance: 900000, parkingAllowance: 300000, studentCount: 44, bonus: 450000, status: "Đang tính" },
+  { id: "GV08", name: "Thầy Quân", position: "Giáo viên Foundation", foreignSessions: 11, localSessions: 19, supportAllowance: 700000, parkingAllowance: 300000, studentCount: 50, bonus: 350000, status: "Chờ duyệt" },
+];
+
+const INITIAL_ACADEMIC_SALARIES: AcademicSalary[] = [
+  { id: "HV01", name: "Nguyễn Thu Hà", position: "Học vụ Đội Cấn", baseSalary: 8500000, closedStudents: 19, salesRevenue: 142000000, renewalRevenue: 96000000, renewalClasses: [
+      { name: "Lớp ESL A", renewalRate: 0.035, amount: 52000000, note: "24/24" },
+      { name: "Lớp IELTS B", renewalRate: 0.025, amount: 44000000, note: "22/22" },
+    ], studentsLeft: 0, kpiBudget: 3000000, kpiPercent: 95, bonus: 1200000, status: "Đã duyệt" },
+  { id: "HV02", name: "Trần Minh Anh", position: "Học vụ Hoàng Hoa Thám", baseSalary: 8200000, closedStudents: 14, salesRevenue: 105000000, renewalRevenue: 78000000, renewalClasses: [
+      { name: "Lớp TOEIC 1", renewalRate: 0.04, amount: 32000000, note: "24/24" },
+      { name: "Lớp Junior", renewalRate: 0.033, amount: 26000000, note: "20/24" },
+      { name: "Lớp Basic", renewalRate: 0.02, amount: 20000000, note: "18/24" },
+    ], studentsLeft: 1, kpiBudget: 2800000, kpiPercent: 88, bonus: 800000, status: "Chờ duyệt" },
+  { id: "HV03", name: "Lê Khánh Vy", position: "Học vụ Ngọc Hà", baseSalary: 8000000, closedStudents: 9, salesRevenue: 68000000, renewalRevenue: 64000000, renewalClasses: [
+      { name: "Lớp Kids", renewalRate: 0.045, amount: 34000000, note: "18/20" },
+      { name: "Lớp Basic", renewalRate: 0.035, amount: 30000000, note: "16/18" },
+    ], studentsLeft: 2, kpiBudget: 2500000, kpiPercent: 76, bonus: 600000, status: "Đang tính" },
+  { id: "HV04", name: "Phạm Đức Anh", position: "Trưởng nhóm học vụ", baseSalary: 11000000, closedStudents: 22, salesRevenue: 178000000, renewalRevenue: 120000000, renewalClasses: [
+      { name: "Lớp IELTS Pro", renewalRate: 0.05, amount: 66000000, note: "24/24" },
+      { name: "Lớp Conversation", renewalRate: 0.04, amount: 54000000, note: "22/22" },
+    ], studentsLeft: 3, kpiBudget: 4500000, kpiPercent: 103, bonus: 1500000, status: "Chờ duyệt" },
+];
+
+function calculateTeacherSalary(person: TeacherSalary, settings: TeacherSalarySettings) {
+  const rateA = person.rateA ?? settings.rateA;
+  const rateB = person.rateB ?? settings.rateB;
+  const studentRate = person.studentRate ?? settings.studentRate;
+  const foreignSalary = person.foreignSessions * rateA;
+  const localSalary = person.localSessions * rateB;
+  const studentSalary = person.studentCount * studentRate;
+  const total = foreignSalary + localSalary + person.supportAllowance + person.parkingAllowance + studentSalary + person.bonus;
+  return { rateA, rateB, studentRate, foreignSalary, localSalary, studentSalary, total };
+}
+
+function getSalesRate(closedStudents: number) {
+  if (closedStudents <= 0) return 0;
+  return closedStudents >= 17 ? 0.05 : 0.03;
+}
+
+function getRenewalRate(studentsLeft: number) {
+  if (studentsLeft <= 0) return 0.01;
+  if (studentsLeft === 1) return 0.008;
+  if (studentsLeft === 2) return 0.005;
+  return 0;
+}
+
+function calculateAcademicSalary(person: AcademicSalary) {
+  const salesRate = getSalesRate(person.closedStudents);
+  const renewalRate = 0.01;
+  const salesSalary = person.salesRevenue * salesRate;
+  const renewalSalary = person.renewalRevenue * renewalRate;
+  const kpiSalary = person.kpiBudget * (person.kpiPercent / 100);
+  const total = person.baseSalary + salesSalary + renewalSalary + kpiSalary + person.bonus;
+  return { salesRate, renewalRate, salesSalary, renewalSalary, kpiSalary, total };
+}
+
+function SalaryStatusBadge({ status }: { status: SalaryStatus }) {
   return (
-    <Card>
-      <CardHeader><CardTitle>Báo cáo lương</CardTitle></CardHeader>
-      <CardContent className="space-y-4">
-        <p className="text-sm text-slate-500">Bảng lương theo tháng dựa trên số buổi dạy và các khoản trừ.</p>
-        <div className="flex gap-2">
-          <Button onClick={() => toast.success("Đã xuất bảng lương (demo)")}>Xuất bảng lương Excel</Button>
-          <Button variant="outline" onClick={() => toast.info("Tính năng demo")}>Lọc theo tháng</Button>
-        </div>
-        <Table>
-          <TableHeader><TableRow>
-            <TableHead>Giáo viên</TableHead><TableHead>Tháng</TableHead>
-            <TableHead className="text-right">Buổi</TableHead>
-            <TableHead className="text-right">Tổng</TableHead>
-            <TableHead className="text-right">Trừ</TableHead>
-            <TableHead className="text-right">Thực nhận</TableHead>
-          </TableRow></TableHeader>
-          <TableBody>
-            {TEACHERS.flatMap((t) =>
-              t.salaryReport.map((s, i) => (
-                <TableRow key={t.id + i}>
-                  <TableCell className="font-medium">{t.name}</TableCell>
-                  <TableCell>{s.month}</TableCell>
-                  <TableCell className="text-right">{s.sessions}</TableCell>
-                  <TableCell className="text-right">{formatVND(s.gross)}</TableCell>
-                  <TableCell className="text-right text-rose-600">-{formatVND(s.deduct)}</TableCell>
-                  <TableCell className="text-right font-semibold">{formatVND(s.net)}</TableCell>
+    <Badge
+      className={cn(
+        "whitespace-nowrap",
+        status === "Đã duyệt" && "bg-emerald-100 text-emerald-700 hover:bg-emerald-100",
+        status === "Chờ duyệt" && "bg-amber-100 text-amber-700 hover:bg-amber-100",
+        status === "Đang tính" && "bg-blue-100 text-blue-700 hover:bg-blue-100",
+      )}
+    >
+      {status}
+    </Badge>
+  );
+}
+
+function SalaryMoneyInput({
+  label,
+  value,
+  onChange,
+  disabled,
+}: {
+  label: string;
+  value: number;
+  onChange: (value: number) => void;
+  disabled?: boolean;
+}) {
+  const formattedValue = value.toLocaleString("vi-VN");
+
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs text-slate-600">{label}</Label>
+      <Input
+        type="text"
+        inputMode="numeric"
+        disabled={disabled}
+        value={formattedValue}
+        onChange={(event) => {
+          const raw = event.target.value.replace(/\D/g, "");
+          onChange(Math.max(0, Number(raw) || 0));
+        }}
+      />
+    </div>
+  );
+}
+
+export function AdminSalaryReport() {
+  const [teacherSettings, setTeacherSettings] = React.useState(INITIAL_TEACHER_SALARY_SETTINGS);
+  const [teachers, setTeachers] = React.useState(INITIAL_TEACHER_SALARIES);
+  const [academicStaff, setAcademicStaff] = React.useState(INITIAL_ACADEMIC_SALARIES);
+  const [selected, setSelected] = React.useState<
+    { kind: "teacher"; id: string } | { kind: "academic"; id: string } | null
+  >(null);
+
+  const selectedTeacher = selected?.kind === "teacher"
+    ? teachers.find((person) => person.id === selected.id)
+    : undefined;
+  const selectedAcademic = selected?.kind === "academic"
+    ? academicStaff.find((person) => person.id === selected.id)
+    : undefined;
+
+  const updateTeacher = (id: string, patch: Partial<TeacherSalary>) => {
+    setTeachers((current) => current.map((person) => person.id === id ? { ...person, ...patch } : person));
+  };
+  const updateAcademic = (id: string, patch: Partial<AcademicSalary>) => {
+    setAcademicStaff((current) => current.map((person) => person.id === id ? { ...person, ...patch } : person));
+  };
+
+  const teacherPayroll = teachers.reduce(
+    (sum, person) => sum + calculateTeacherSalary(person, teacherSettings).total,
+    0,
+  );
+  const academicPayroll = academicStaff.reduce(
+    (sum, person) => sum + calculateAcademicSalary(person).total,
+    0,
+  );
+
+  return (
+    <div className="space-y-4">
+      <Tabs defaultValue="teachers" className="space-y-4">
+        <TabsList className="grid h-auto w-full max-w-md grid-cols-2 p-1">
+          <TabsTrigger value="teachers">Giáo viên ({teachers.length})</TabsTrigger>
+          <TabsTrigger value="academic">Học vụ ({academicStaff.length})</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="teachers" className="space-y-4">
+          <SalaryTable
+            rows={teachers.map((person) => ({
+              id: person.id,
+              name: person.name,
+              position: person.position,
+              total: calculateTeacherSalary(person, teacherSettings).total,
+              status: person.status,
+            }))}
+            onSelect={(id) => setSelected({ kind: "teacher", id })}
+          />
+        </TabsContent>
+
+        <TabsContent value="academic">
+          <SalaryTable
+            rows={academicStaff.map((person) => ({
+              id: person.id,
+              name: person.name,
+              position: person.position,
+              total: calculateAcademicSalary(person).total,
+              status: person.status,
+            }))}
+            onSelect={(id) => setSelected({ kind: "academic", id })}
+          />
+        </TabsContent>
+      </Tabs>
+
+      <Dialog open={selected !== null} onOpenChange={(open) => !open && setSelected(null)}>
+        <DialogContent className="max-h-[90vh] max-w-6xl overflow-y-auto p-0">
+          {selectedTeacher && (
+            <TeacherSalaryDetail
+              person={selectedTeacher}
+              settings={teacherSettings}
+              onChange={(patch) => updateTeacher(selectedTeacher.id, patch)}
+            />
+          )}
+          {selectedAcademic && (
+            <AcademicSalaryDetail
+              person={selectedAcademic}
+              onChange={(patch) => updateAcademic(selectedAcademic.id, patch)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function SalaryTable({
+  rows,
+  onSelect,
+}: {
+  rows: { id: string; name: string; position: string; total: number; status: SalaryStatus }[];
+  onSelect: (id: string) => void;
+}) {
+  return (
+    <Card className="overflow-hidden">
+      <CardContent className="p-0">
+        <div className="overflow-x-auto">
+          <Table className="min-w-[720px]">
+            <TableHeader><TableRow>
+              <TableHead className="w-24">Mã</TableHead>
+              <TableHead>Tên</TableHead>
+              <TableHead>Vị trí</TableHead>
+              <TableHead className="text-right">Tổng lương</TableHead>
+              <TableHead>Trạng thái</TableHead>
+              <TableHead className="w-28"></TableHead>
+            </TableRow></TableHeader>
+            <TableBody>
+              {rows.map((row) => (
+                <TableRow
+                  key={row.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Xem chi tiết lương của ${row.name}`}
+                  className="cursor-pointer hover:bg-indigo-50/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500"
+                  onClick={() => onSelect(row.id)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      onSelect(row.id);
+                    }
+                  }}
+                >
+                  <TableCell className="text-slate-500">{row.id}</TableCell>
+                  <TableCell className="font-semibold text-slate-900">{row.name}</TableCell>
+                  <TableCell>{row.position}</TableCell>
+                  <TableCell className="text-right font-bold text-indigo-600">{formatVND(row.total)}</TableCell>
+                  <TableCell><SalaryStatusBadge status={row.status} /></TableCell>
+                  <TableCell><Button size="sm" variant="outline">Chi tiết</Button></TableCell>
                 </TableRow>
-              )),
-            )}
-          </TableBody>
-        </Table>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </CardContent>
     </Card>
+  );
+}
+
+function SalaryBreakdownRow({ label, formula, value }: { label: string; formula?: string; value: number }) {
+  return (
+    <div className="flex items-start justify-between gap-4 border-b py-3 last:border-0">
+      <div><div className="font-medium text-slate-800">{label}</div>{formula && <div className="mt-0.5 text-xs text-slate-500">{formula}</div>}</div>
+      <div className="shrink-0 font-semibold">{formatVND(value)}</div>
+    </div>
+  );
+}
+
+function TeacherSalaryDetail({
+  person,
+  settings,
+  onChange,
+}: {
+  person: TeacherSalary;
+  settings: TeacherSalarySettings;
+  onChange: (patch: Partial<TeacherSalary>) => void;
+}) {
+  const calculation = calculateTeacherSalary(person, settings);
+  return (
+    <>
+      <DialogHeader className="border-b bg-slate-50 px-6 py-5">
+        <DialogTitle>Chi tiết lương · {person.name}</DialogTitle>
+        <DialogDescription>{person.position} · Chỉnh thông số để tự động tính lại tổng lương.</DialogDescription>
+      </DialogHeader>
+      <div className="grid gap-6 px-6 pb-6 lg:grid-cols-[1.2fr_1fr]">
+        <div className="grid content-start gap-3 grid-cols-1 xl:grid-cols-2">
+          <SalaryMoneyInput label="Số buổi có GV nước ngoài" value={person.foreignSessions} onChange={(foreignSessions) => onChange({ foreignSessions })} />
+          <SalaryMoneyInput label="Đơn giá A" value={calculation.rateA} onChange={(rateA) => onChange({ rateA })} />
+          <SalaryMoneyInput label="Số buổi không có GV nước ngoài" value={person.localSessions} onChange={(localSessions) => onChange({ localSessions })} />
+          <SalaryMoneyInput label="Đơn giá B" value={calculation.rateB} onChange={(rateB) => onChange({ rateB })} />
+          <SalaryMoneyInput label="Phụ cấp hỗ trợ" value={person.supportAllowance} onChange={(supportAllowance) => onChange({ supportAllowance })} />
+          <SalaryMoneyInput label="Tiền gửi xe" value={person.parkingAllowance} onChange={(parkingAllowance) => onChange({ parkingAllowance })} />
+          <SalaryMoneyInput label="Thưởng" value={person.bonus} onChange={(bonus) => onChange({ bonus })} />
+          <SalaryMoneyInput label="Tổng học sinh phụ trách" value={person.studentCount} onChange={(studentCount) => onChange({ studentCount })} />
+          <SalaryMoneyInput label="Đơn giá / học sinh" value={calculation.studentRate} onChange={(studentRate) => onChange({ studentRate })} />
+        </div>
+        <div className="rounded-xl border bg-white p-4 shadow-sm">
+          <div className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">Breakdown</div>
+          <SalaryBreakdownRow label="Buổi có GV nước ngoài" formula={`${person.foreignSessions} × ${formatVND(calculation.rateA)}`} value={calculation.foreignSalary} />
+          <SalaryBreakdownRow label="Buổi không có GV nước ngoài" formula={`${person.localSessions} × ${formatVND(calculation.rateB)}`} value={calculation.localSalary} />
+          <SalaryBreakdownRow label="Phụ cấp hỗ trợ" value={person.supportAllowance} />
+          <SalaryBreakdownRow label="Tiền gửi xe" value={person.parkingAllowance} />
+          <SalaryBreakdownRow label="Thưởng" value={person.bonus} />
+          <SalaryBreakdownRow label="Phụ cấp học sinh" formula={`${person.studentCount} × ${formatVND(calculation.studentRate)}`} value={calculation.studentSalary} />
+          <div className="mt-3 flex items-center justify-between px-4 py-3">
+            <span className="font-semibold">Tổng lương</span>
+            <span className="text-2xl font-extrabold text-indigo-700">{formatVND(calculation.total)}</span>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function AcademicSalaryDetail({
+  person,
+  onChange,
+}: {
+  person: AcademicSalary;
+  onChange: (patch: Partial<AcademicSalary>) => void;
+}) {
+  const calculation = calculateAcademicSalary(person);
+  return (
+    <>
+      <DialogHeader className="border-b bg-slate-50 px-6 py-5">
+        <DialogTitle>Chi tiết lương · {person.name}</DialogTitle>
+        <DialogDescription>{person.position} · Các khoản thưởng được tính lại ngay khi thay đổi.</DialogDescription>
+      </DialogHeader>
+      <div className="grid gap-6 px-6 pb-6 lg:grid-cols-[1.2fr_1fr]">
+        <div className="grid content-start gap-3 grid-cols-1 xl:grid-cols-2">
+          <SalaryMoneyInput label="Lương cứng" value={person.baseSalary} onChange={(baseSalary) => onChange({ baseSalary })} />
+          <SalaryMoneyInput label="Số học sinh chốt được tự động từ CRM (tuyển sinh)" value={person.closedStudents} disabled onChange={() => {}} />
+          <SalaryMoneyInput label="Doanh số chốt mới" value={person.salesRevenue} disabled onChange={() => {}} />
+          <SalaryMoneyInput label="Doanh thu tái tục" value={person.renewalRevenue} disabled onChange={() => {}} />
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label className="text-xs text-slate-600">Danh sách lớp tái tục</Label>
+            <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-700">
+              <div className="grid grid-cols-[1.5fr_1fr_1fr] gap-3 border-b border-slate-200 bg-slate-100 px-3 py-2 text-xs uppercase tracking-[0.15em] text-slate-500">
+                <span>Lớp</span>
+                <span>Tỷ lệ tái tục</span>
+                <span className="text-right">Số tiền</span>
+              </div>
+              {person.renewalClasses.length > 0 ? (
+                <div className="divide-y divide-slate-200">
+                  {person.renewalClasses.map((cls) => {
+                    if (typeof cls === "string") {
+                      return (
+                        <div key={cls} className="grid grid-cols-[1.5fr_1fr_1fr] items-center gap-3 px-3 py-3">
+                          <div>{cls}</div>
+                          <div>—</div>
+                          <div className="text-right font-semibold">—</div>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div key={cls.name} className="grid grid-cols-[1.5fr_1fr_1fr] items-center gap-3 px-3 py-3">
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-medium text-slate-900">{cls.name}</div>
+                          {cls.note ? <div className="text-xs text-slate-500">{cls.note}</div> : null}
+                        </div>
+                        <div>{Number.isFinite(cls.renewalRate) ? `${(cls.renewalRate * 100).toFixed(1)}%` : "—"}</div>
+                        <div className="text-right font-semibold">{Number.isFinite(cls.amount) ? formatVND(cls.amount) : "—"}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="px-3 py-3">Chưa có lớp tái tục</div>
+              )}
+            </div>
+          </div>
+          <SalaryMoneyInput label="Định mức tiền KPI" value={person.kpiBudget} disabled onChange={() => {}} />
+          <SalaryMoneyInput label="Thưởng" value={person.bonus} disabled onChange={() => {}} />
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label className="text-xs text-slate-600">% KPI đạt được tự động từ CRM (giao việc)</Label>
+            <div className="flex items-center gap-3">
+              <Input type="text" inputMode="numeric" value={person.kpiPercent.toString()} disabled className="!bg-slate-100" />
+              <span className="font-semibold text-slate-600">%</span>
+            </div>
+          </div>
+        </div>
+        <div className="rounded-xl border bg-white p-4 shadow-sm">
+          <div className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">Breakdown</div>
+          <SalaryBreakdownRow label="Lương cứng" value={person.baseSalary} />
+          <SalaryBreakdownRow label="Lương doanh số" formula={`${person.closedStudents} học sinh · ${(calculation.salesRate * 100).toFixed(0)}% × ${formatVND(person.salesRevenue)}`} value={calculation.salesSalary} />
+          <SalaryBreakdownRow
+            label="Doanh thu tái tục"
+            formula={`Các lớp: ${person.renewalClasses.map((cls) => cls.name).join(", ")}`}
+            value={calculation.renewalSalary}
+          />
+          <SalaryBreakdownRow label="Thưởng KPI" formula={`${formatVND(person.kpiBudget)} × ${person.kpiPercent}%`} value={calculation.kpiSalary} />
+          <SalaryBreakdownRow label="Thưởng" value={person.bonus} />
+          <div className="mt-3 flex items-center justify-between px-4 py-4">
+            <span className="font-semibold">Tổng lương</span>
+            <span className="text-2xl font-extrabold text-indigo-700">{formatVND(calculation.total)}</span>
+          </div>
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -4389,6 +5125,136 @@ const STAFF: Staff[] = [
   { id: "s6", name: "Vũ Quốc Bảo", facility: "HHT" },
 ];
 const staffName = (id?: string) => STAFF.find((s) => s.id === id)?.name ?? "—";
+
+type WorkTab = "admin" | "teacher" | "academic";
+type WorkTaskStatus = "Mới" | "Đang xử lý" | "Hoàn thành" | "Quá hạn";
+type WorkTask = {
+  id: string;
+  title: string;
+  description: string;
+  team: WorkTab;
+  status: WorkTaskStatus;
+  assignedTo?: string;
+  dueDate: string;
+  priority: "Cao" | "Trung bình" | "Thấp";
+  category: string;
+  requester: string;
+};
+
+type TaskAssignee = { id: string; name: string; team: WorkTab; role: string };
+const TASK_TABS: { id: WorkTab; label: string }[] = [
+  { id: "admin", label: "Admin" },
+  { id: "teacher", label: "Giáo viên" },
+  { id: "academic", label: "Học vụ" },
+];
+const TASK_STATUSES: WorkTaskStatus[] = ["Mới", "Đang xử lý", "Hoàn thành", "Quá hạn"];
+const TASK_STATUS_BADGE: Record<WorkTaskStatus, string> = {
+  "Mới": "bg-slate-100 text-slate-700 border-slate-200",
+  "Đang xử lý": "bg-amber-100 text-amber-700 border-amber-200",
+  "Hoàn thành": "bg-emerald-100 text-emerald-700 border-emerald-200",
+  "Quá hạn": "bg-rose-100 text-rose-700 border-rose-200",
+};
+const TASK_ASSIGNEES: TaskAssignee[] = [
+  { id: "a1", name: "Hà Anh", team: "admin", role: "Quản lý hành chính" },
+  { id: "a2", name: "Minh Nhật", team: "admin", role: "Trợ lý hành chính" },
+  { id: "t1", name: "Thảo Vy", team: "teacher", role: "Giáo viên tiếng Anh" },
+  { id: "t2", name: "Quốc Bảo", team: "teacher", role: "Giáo viên Toán" },
+  { id: "h1", name: "Khánh Linh", team: "academic", role: "Điều phối học vụ" },
+  { id: "h2", name: "Ngọc Mai", team: "academic", role: "Chăm sóc học vụ" },
+];
+const taskAssigneeName = (id?: string) => TASK_ASSIGNEES.find((a) => a.id === id)?.name ?? "—";
+
+const parseTaskDate = (value: string) => {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, month - 1, day);
+};
+const formatTaskDate = (value: string) => parseTaskDate(value).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });
+const taskDueLabel = (value: string, status: WorkTaskStatus) => {
+  if (status === "Hoàn thành") return "Đã hoàn thành";
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const due = parseTaskDate(value);
+  const diff = Math.round((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  if (diff < 0) return `Quá hạn ${Math.abs(diff)} ngày`;
+  if (diff === 0) return "Hạn hôm nay";
+  return `Còn ${diff} ngày`;
+};
+
+const WORK_TASK_TEMPLATES: Omit<WorkTask, "id" | "dueDate" | "status" | "assignedTo">[] = [
+  {
+    title: "Điều phối lịch học bù",
+    description: "Liên hệ phụ huynh và sắp xếp các buổi học bù cho học viên.",
+    team: "admin",
+    priority: "Cao",
+    category: "Hành chính",
+    requester: "Ban Giám đốc",
+  },
+  {
+    title: "Cập nhật hợp đồng gia sư",
+    description: "Hoàn thiện hồ sơ và điều chỉnh phụ cấp cho giáo viên mới.",
+    team: "admin",
+    priority: "Trung bình",
+    category: "Hành chính",
+    requester: "Phòng nhân sự",
+  },
+  {
+    title: "Xác nhận danh sách lớp học thử",
+    description: "Rà soát danh sách học viên và gửi thông báo xác nhận đến PHHS.",
+    team: "teacher",
+    priority: "Cao",
+    category: "Giáo viên",
+    requester: "Phòng tuyển sinh",
+  },
+  {
+    title: "Chuẩn bị bài kiểm tra giữa kỳ",
+    description: "Thiết kế đề kiểm tra và tải lên hệ thống cho các lớp Toán.",
+    team: "teacher",
+    priority: "Trung bình",
+    category: "Giáo viên",
+    requester: "Tổ chuyên môn",
+  },
+  {
+    title: "Rà soát hồ sơ học vụ",
+    description: "Kiểm tra thông tin học sinh mới và xác nhận lịch học.",
+    team: "academic",
+    priority: "Trung bình",
+    category: "Học vụ",
+    requester: "Ban học vụ",
+  },
+  {
+    title: "Gọi chăm sóc học viên sau ghi danh",
+    description: "Thu thập phản hồi phụ huynh và cập nhật nhật ký học vụ.",
+    team: "academic",
+    priority: "Cao",
+    category: "Học vụ",
+    requester: "Phòng dịch vụ",
+  },
+];
+
+const WORK_TASKS: WorkTask[] = Array.from({ length: 30 }, (_, index) => {
+  const template = WORK_TASK_TEMPLATES[index % WORK_TASK_TEMPLATES.length];
+  const status = TASK_STATUSES[index % TASK_STATUSES.length];
+  const assignedMap: Record<WorkTab, string[]> = {
+    admin: ["a1", "a2"],
+    teacher: ["t1", "t2"],
+    academic: ["h1", "h2"],
+  };
+  const dueDay = 10 + (index % 21);
+  const dueMonth = dueDay > 30 ? 7 : 6;
+  const dueDate = dueMonth === 6 ? `2026-06-${String(dueDay).padStart(2, "0")}` : `2026-07-${String(dueDay - 30).padStart(2, "0")}`;
+  return {
+    id: `work-${index + 1}`,
+    title: template.title + ` #${index + 1}`,
+    description: template.description,
+    team: template.team,
+    status,
+    assignedTo: assignedMap[template.team][index % 2],
+    dueDate,
+    priority: template.priority,
+    category: template.category,
+    requester: template.requester,
+  };
+});
 
 const ALL_STATUSES: LeadStatus[] = ["Lead Mới", "Đang Tham Vấn", "Fail", "Đang Học Thử", "Đã Chốt", "Chăm Sóc"];
 const SOURCES = ["Chị Liên", "Vãng lai", "Page", "Zalo OA", "Giới thiệu", "Tiktok"];
@@ -4849,6 +5715,243 @@ export function AdminAdmissions() {
   );
 }
 
+export function AdminWorkManagement() {
+  const [tasks, setTasks] = React.useState<WorkTask[]>(WORK_TASKS);
+  const [search, setSearch] = React.useState("");
+  const [dueFilter, setDueFilter] = React.useState<"all" | "onTime" | "overdue">("all");
+  const [requesterFilter, setRequesterFilter] = React.useState<string>("all");
+  const [assigneeFilter, setAssigneeFilter] = React.useState<string>("all");
+  const [sortOrder, setSortOrder] = React.useState<"nearest" | "furthest">("nearest");
+  const [selectedTask, setSelectedTask] = React.useState<WorkTask | null>(null);
+  const [detailOpen, setDetailOpen] = React.useState(false);
+
+  const taskDueStatus = React.useCallback((task: WorkTask) => {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    return parseTaskDate(task.dueDate).getTime() < now.getTime() ? "overdue" : "onTime";
+  }, []);
+
+  const requesterOptions = React.useMemo(
+    () => Array.from(new Set(tasks.map((task) => task.requester))),
+    [tasks],
+  );
+
+  const filtered = React.useMemo(() => {
+    const query = search.trim().toLowerCase();
+
+    return tasks
+      .filter((task) => {
+        if (dueFilter !== "all" && taskDueStatus(task) !== dueFilter) return false;
+        if (requesterFilter !== "all" && task.requester !== requesterFilter) return false;
+        if (assigneeFilter !== "all" && task.assignedTo !== assigneeFilter) return false;
+        if (!query) return true;
+        return task.title.toLowerCase().includes(query)
+          || task.description.toLowerCase().includes(query)
+          || task.category.toLowerCase().includes(query)
+          || task.requester.toLowerCase().includes(query)
+          || taskAssigneeName(task.assignedTo).toLowerCase().includes(query);
+      })
+      .sort((a, b) => {
+        const diff = parseTaskDate(a.dueDate).getTime() - parseTaskDate(b.dueDate).getTime();
+        return sortOrder === "nearest" ? diff : -diff;
+      });
+  }, [tasks, search, dueFilter, requesterFilter, assigneeFilter, sortOrder, taskDueStatus]);
+
+  const overdueCount = tasks.filter((task) => task.status === "Quá hạn").length;
+  const openCount = tasks.filter((task) => task.status === "Mới" || task.status === "Đang xử lý").length;
+  const doneCount = tasks.filter((task) => task.status === "Hoàn thành").length;
+
+  const updateTaskStatus = (taskId: string, newStatus: WorkTaskStatus) => {
+    setTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, status: newStatus } : t));
+    toast.success("Đã cập nhật trạng thái nhiệm vụ");
+    setDetailOpen(false);
+  };
+
+  const openDetail = (task: WorkTask) => {
+    setSelectedTask(task);
+    setDetailOpen(true);
+  };
+
+  return (
+    <div className="flex flex-1 min-h-0 flex-col space-y-5 animate-fade-in overflow-hidden">
+      <div className="hidden" />
+
+      <div className="grid gap-3 lg:grid-cols-[minmax(0,_1fr)_220px_220px_220px_220px] items-center">
+        <div className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
+          <div className="relative min-w-0">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Input
+              className="pl-9 h-9"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Tìm theo tiêu đề, mô tả, người giao, người phụ trách..."
+            />
+          </div>
+        </div>
+
+        <Select value={dueFilter} onValueChange={(value) => setDueFilter(value as "all" | "onTime" | "overdue")}> 
+          <SelectTrigger className="h-9 w-full">
+            <SelectValue placeholder="Tình trạng" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tất cả</SelectItem>
+            <SelectItem value="onTime">Đúng hạn</SelectItem>
+            <SelectItem value="overdue">Trễ hạn</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={requesterFilter} onValueChange={setRequesterFilter}>
+          <SelectTrigger className="h-9 w-full">
+            <SelectValue placeholder="Người giao" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tất cả người giao</SelectItem>
+            {requesterOptions.map((name) => (
+              <SelectItem key={name} value={name}>{name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
+          <SelectTrigger className="h-9 w-full">
+            <SelectValue placeholder="Người nhận" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tất cả người nhận</SelectItem>
+            {TASK_ASSIGNEES.map((assignee) => (
+              <SelectItem key={assignee.id} value={assignee.id}>{assignee.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={sortOrder} onValueChange={(value) => setSortOrder(value as "nearest" | "furthest")}> 
+          <SelectTrigger className="h-9 w-full">
+            <SelectValue placeholder="Deadline" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="nearest">Deadline gần nhất</SelectItem>
+            <SelectItem value="furthest">Deadline xa nhất</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <Card className="flex-1 flex flex-col overflow-hidden min-h-0">
+        <CardHeader>
+          <CardTitle className="text-sm">Danh sách tất cả nhiệm vụ</CardTitle>
+        </CardHeader>
+        <CardContent className="flex-1 min-h-0 p-0 overflow-hidden">
+          <div className="flex-1 min-h-0 max-h-[calc(100vh-250px)] overflow-y-auto scrollbar-none">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nhiệm vụ</TableHead>
+                  <TableHead>Người giao</TableHead>
+                  <TableHead>Người phụ trách</TableHead>
+                  <TableHead>Độ ưu tiên</TableHead>
+                  <TableHead>Deadline</TableHead>
+                  <TableHead>Trạng thái</TableHead>
+                  <TableHead className="text-right">Hành động</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+              {filtered.map((task) => (
+                <TableRow key={task.id} className="group hover:bg-slate-50 transition-colors">
+                  <TableCell>
+                    <div className="text-sm font-semibold text-slate-900">{task.title}</div>
+                    <div className="text-xs text-slate-500">{task.category} · {task.description}</div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-sm font-medium text-slate-900">{task.requester}</div>
+                  </TableCell>
+                  <TableCell className="text-sm">{taskAssigneeName(task.assignedTo)}</TableCell>
+                  <TableCell className="text-sm">{task.priority}</TableCell>
+                  <TableCell>
+                    <div className="text-sm font-medium">{formatTaskDate(task.dueDate)}</div>
+                    <div className="text-xs text-slate-500">{taskDueLabel(task.dueDate, task.status)}</div>
+                  </TableCell>
+                  <TableCell><Badge variant="outline" className={TASK_STATUS_BADGE[task.status]}>{task.status}</Badge></TableCell>
+                  <TableCell className="text-right">
+                    <Button variant="ghost" size="sm" onClick={() => openDetail(task)}>
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {filtered.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center text-slate-400 py-10">Không có nhiệm vụ phù hợp.</TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Task Detail Dialog */}
+      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{selectedTask?.title}</DialogTitle>
+            <DialogDescription>{selectedTask?.description}</DialogDescription>
+          </DialogHeader>
+          {selectedTask && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <div className="text-xs font-semibold text-slate-500 uppercase">Người giao</div>
+                  <div className="text-sm font-medium text-slate-900">{selectedTask.requester}</div>
+                </div>
+                <div>
+                  <div className="text-xs font-semibold text-slate-500 uppercase">Người phụ trách</div>
+                  <div className="text-sm font-medium text-slate-900">{taskAssigneeName(selectedTask.assignedTo)}</div>
+                </div>
+                <div>
+                  <div className="text-xs font-semibold text-slate-500 uppercase">Độ ưu tiên</div>
+                  <div className="text-sm font-medium text-slate-900">{selectedTask.priority}</div>
+                </div>
+                <div>
+                  <div className="text-xs font-semibold text-slate-500 uppercase">Deadline</div>
+                  <div className="text-sm font-medium text-slate-900">{formatTaskDate(selectedTask.dueDate)}</div>
+                </div>
+              </div>
+              
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <div className="text-xs font-semibold text-slate-500 uppercase mb-2">Cập nhật trạng thái</div>
+                <div className="grid grid-cols-2 gap-2">
+                  {TASK_STATUSES.map((status) => (
+                    <Button
+                      key={status}
+                      size="sm"
+                      variant={selectedTask.status === status ? "default" : "outline"}
+                      className={selectedTask.status === status ? "bg-teal-600 hover:bg-teal-700" : ""}
+                      onClick={() => updateTaskStatus(selectedTask.id, status)}
+                    >
+                      {status}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-slate-200 bg-blue-50 p-3 text-xs text-blue-900">
+                <div className="font-semibold mb-1">Thông báo:</div>
+                {selectedTask.status === "Quá hạn" && "🔴 Nhiệm vụ này đã vượt quá deadline, hãy cập nhật trạng thái sớm"}
+                {selectedTask.status === "Mới" && "📌 Chưa bắt đầu xử lý"}
+                {selectedTask.status === "Đang xử lý" && "⏳ Đang thực hiện, hãy cố gắng hoàn thành đúng deadline"}
+                {selectedTask.status === "Hoàn thành" && "✅ Đã hoàn thành thành công"}
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDetailOpen(false)}>Đóng</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+
 function FilterOptionCount({ label, count }: { label: string; count: number }) {
   return (
     <span className="inline-flex min-w-[165px] items-center justify-between gap-4 pr-3">
@@ -4909,7 +6012,7 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
     }
     if (lead.consultationDecision === "test") {
       if (!lead.testDate || !lead.testCenter || !lead.testFileName) {
-        toast.error("Vui lòng nhập ngày test, trung tâm test và tải đề test");
+        toast.error("Vui lòng nhập ngày test, trung tâm test và tải kết quả test");
         return;
       }
       if (lead.testResult !== "Thành công") {
@@ -5152,10 +6255,10 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
                       </SelectContent>
                     </Select>
                   </Field>
-                  <Field label="Đề test">
+                  <Field label="Kết quả test">
                     <label className="flex h-9 cursor-pointer items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm hover:bg-slate-50">
                       <Upload className="h-4 w-4 text-slate-500" />
-                      <span className="truncate">{lead.testFileName || "Chọn file đề test"}</span>
+                      <span className="truncate">{lead.testFileName || "Chọn file kết quả test"}</span>
                       <input
                         type="file"
                         className="hidden"
@@ -5272,34 +6375,8 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
                 <Badge variant="outline" className="bg-white">{lead.feeStatus ?? "Chưa thu"}</Badge>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Trạng thái">
-                  <Select value={lead.feeStatus ?? "Chưa thu"} onValueChange={(v) => update("feeStatus", v as Lead["feeStatus"])}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Chưa thu">Chưa thu</SelectItem>
-                      <SelectItem value="Thu một phần">Thu một phần</SelectItem>
-                      <SelectItem value="Đã thu đủ">Đã thu đủ</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field label="Số tiền thu (VNĐ)">
-                  <Input
-                    value={lead.tuition ?? ""}
-                    onChange={(e) => {
-                      const raw = e.target.value.replace(/\D/g, "");
-                      update("tuition", raw ? Number(raw).toLocaleString("vi-VN") : "");
-                    }}
-                    placeholder="2.500.000"
-                  />
-                </Field>
-                <Field label="Ghi chú thu tiền" className="col-span-2">
-                  <Textarea rows={2} value={lead.paymentNote ?? ""} onChange={(e) => update("paymentNote", e.target.value)} placeholder="Phương thức thanh toán, số tiền còn lại..." />
-                </Field>
-              </div>
-              <div className="flex justify-end">
-                <Button type="button" onClick={recordPayment} className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5">
-                  <Wallet className="h-4 w-4" /> Ghi nhận thu tiền
-                </Button>
+                <Info2 label="Trạng thái" value={lead.feeStatus ?? "Chưa thu"} />
+                <Info2 label="Số tiền thu (VNĐ)" value={lead.tuition ? formatVND(Number(lead.tuition.replace(/\D/g, ""))) : ""} />
               </div>
             </section>
 
