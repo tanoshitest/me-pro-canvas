@@ -19,7 +19,10 @@ import {
   BRANCHES, CLASSES, PROMOTIONS, TUITION_CONFIG, formatVND,
   CLASS_SHIFTS, ROOMS, SYLLABI, TEACHERS,
   SYLLABUS_STAGES, SYLLABUS_STUDENTS, SYLLABUS_GRADE_COLUMNS,
-  type Syllabus,
+  SYLLABUS_REPORT_ROWS, DEFAULT_BTVN_COLUMNS, DEFAULT_SCORE_COLUMNS, DEFAULT_BTVN_COLUMN_ID,
+  REPORT_ATTENDANCE_OPTIONS, BTVN_STATUS_OPTIONS, LEARNING_SPIRIT_OPTIONS, HOMEWORK_TASK_TYPES, homeworkSubmissionKey, homeworkCorrectionKey,
+  type Syllabus, type SyllabusReportRow, type SyllabusHomeworkItem, type HomeworkTaskType, type BtvnColumn, type ReportAttendance, type BtvnStatus, type LearningSpirit,
+  type ReportSelectOption, type ReportTagTone,
   type Receipt, type Branch, type Student,
 } from "@/lib/mock-data";
 import { toast } from "sonner";
@@ -27,8 +30,8 @@ import {
   Users, GraduationCap, Wallet, AlertTriangle, Receipt as ReceiptIcon, XCircle,
   TrendingUp, Calendar, Info, CheckCircle2, ArrowRight, CalendarOff, Repeat,
   Clock, DoorOpen, BookOpen, Tag, Hash, ArrowLeft,
-  Layers, FileText, ClipboardCheck, BarChart3, ExternalLink, Plus, Pencil, Copy, Trash2, Download, FileSpreadsheet, ListChecks, Target, ChevronRight, ChevronLeft,
-  CalendarIcon, Upload, History,
+  Layers, FileText, ClipboardCheck, BarChart3, ExternalLink, Link2, Plus, Pencil, Copy, Trash2, Download, FileSpreadsheet, ListChecks, Target, ChevronRight, ChevronLeft, ChevronDown,
+  CalendarIcon, Upload, History, FileCheck,
   Search, LayoutGrid, List as ListIcon, Phone, School as SchoolIcon, MapPin,
 } from "lucide-react";
 
@@ -567,187 +570,549 @@ function StudentHistoryTimeline({ stu, receipts }: { stu: Student; receipts: Rec
 }
 
 /* ============== CLASSES ============== */
-function ClassStudentsTabs({
-  cls,
-  students,
-  onTransfer,
-}: {
-  cls: { id: string; totalSessions: number; startDate: string };
-  students: Student[];
-  onTransfer: (id: string) => void;
-}) {
+
+const REPORT_TAG_TONE_CLASS: Record<ReportTagTone, string> = {
+  success: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  info: "bg-sky-50 text-sky-700 border-sky-200",
+  warning: "bg-amber-50 text-amber-800 border-amber-200",
+  danger: "bg-rose-50 text-rose-700 border-rose-200",
+  muted: "bg-muted text-muted-foreground border-border",
+  violet: "bg-violet-50 text-violet-700 border-violet-200",
+  pink: "bg-pink-50 text-pink-700 border-pink-200",
+  slate: "bg-slate-700 text-slate-50 border-slate-600",
+  teal: "bg-teal-50 text-teal-700 border-teal-200",
+  orange: "bg-orange-50 text-orange-800 border-orange-200",
+};
+
+const reportTh = "text-xs font-medium text-muted-foreground whitespace-nowrap";
+const reportCell = "border-r border-border align-middle";
+
+function hashStr(s: string) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return h;
+}
+
+function buildClassSessions(cls: { totalSessions: number; startDate: string }) {
   const total = cls.totalSessions || 24;
-  // Synthesize session dates from cls.startDate (DD/MM/YYYY) every 3 days
   const startParts = cls.startDate?.split("/").map(Number) ?? [1, 1, 2026];
   const startD = new Date(startParts[2], (startParts[1] || 1) - 1, startParts[0] || 1);
   const fmt = (d: Date) => `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
-  const sessions = Array.from({ length: total }).map((_, i) => {
+  return Array.from({ length: total }).map((_, i) => {
     const d = new Date(startD);
     d.setDate(startD.getDate() + i * 3);
     return { idx: i + 1, date: fmt(d) };
   });
+}
 
-  const ATT_STATES = ["Có mặt", "Vắng có phép", "Vắng không phép", "Học bù", "—"] as const;
-  type AttState = (typeof ATT_STATES)[number];
-  const attColor = (s: AttState) =>
-    s === "Có mặt" ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-    : s === "Học bù" ? "bg-blue-50 text-blue-700 border-blue-200"
-    : s === "Vắng có phép" ? "bg-amber-50 text-amber-700 border-amber-200"
-    : s === "Vắng không phép" ? "bg-rose-50 text-rose-700 border-rose-200"
-    : "bg-slate-50 text-slate-400 border-slate-200";
+const syllabusLessonPath = () =>
+  SYLLABUS_STAGES.flatMap((st) =>
+    st.lessons.map((l) => ({ stageName: st.name, index: l.index, unit: l.unit })),
+  );
 
-  // Deterministic mock based on ids
-  const hash = (s: string) => {
-    let h = 0;
-    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
-    return h;
-  };
-  const attendanceOf = (sid: string, idx: number, attended: number): AttState => {
-    if (idx > attended) return "—";
-    const r = hash(`${sid}-${idx}`) % 20;
-    if (r < 15) return "Có mặt";
-    if (r === 15) return "Học bù";
-    if (r < 18) return "Vắng có phép";
-    return "Vắng không phép";
-  };
-  const SKILLS = ["Nghe", "Nói", "Đọc", "BTVN"] as const;
-  const scoreOf = (sid: string, idx: number, skill: string, attended: number) => {
-    if (idx > attended) return null;
-    const r = (hash(`${sid}-${idx}-${skill}`) % 40) / 10; // 0..3.9
-    return +(6.0 + r).toFixed(1);
-  };
+function syllabusSessionIndex(sel: SyllabusSel, stages: typeof SYLLABUS_STAGES = SYLLABUS_STAGES): number {
+  let n = 0;
+  for (const st of stages) {
+    for (const l of st.lessons) {
+      n += 1;
+      if (sel.kind === "lesson" && sel.stageId === st.id && sel.lessonId === l.id) return n;
+    }
+    n += 1;
+    if (sel.kind === "bigtest" && sel.stageId === st.id) return n;
+  }
+  return 1;
+}
 
-  const presentCount = (sid: string, attended: number) =>
-    sessions.filter((s) => attendanceOf(sid, s.idx, attended) === "Có mặt" || attendanceOf(sid, s.idx, attended) === "Học bù").length;
+function mockSessionReport(stu: Student, sessionIdx: number) {
+  const h = hashStr(`${stu.id}-${sessionIdx}`);
+  const pick = <T,>(arr: T[], seed: number) => arr[seed % arr.length];
+  if (sessionIdx > stu.attended) {
+    return {
+      attendance: "Không phép" as ReportAttendance,
+      btvnHw: { [DEFAULT_BTVN_COLUMN_ID]: "X" as BtvnStatus },
+      scores: { "score-1": "" as const, "score-2": "" as const },
+      learningSpirit: "Chưa tập trung" as LearningSpirit,
+      teacherComment: "",
+    };
+  }
+  const attPool: ReportAttendance[] = ["Vắng", "Có phép", "Không phép", "Đi muộn"];
+  const btvnPool: BtvnStatus[] = ["Yes", "X", "Yes làm thiếu"];
+  const spiritPool = LEARNING_SPIRIT_OPTIONS.map((o) => o.value);
+  const comments = [
+    stu.latestComment,
+    "Con tham gia tích cực, cần luyện thêm phần nghe.",
+    "Con tập trung nghe giảng, làm bài đầy đủ.",
+    "Cần hoàn thành BTVN đúng hạn hơn.",
+    "",
+  ].filter(Boolean) as string[];
+  return {
+    attendance: pick(attPool, h),
+    btvnHw: { [DEFAULT_BTVN_COLUMN_ID]: pick(btvnPool, h >> 2) },
+    scores: {
+      "score-1": 55 + (h % 56),
+      "score-2": h % 4 === 0 ? ("" as const) : (h % 31),
+    },
+    learningSpirit: pick(spiritPool, h >> 4),
+    teacherComment: pick(comments.length ? comments : [""], h >> 6),
+  };
+}
+
+function ReportTagView<T extends string>({
+  value,
+  options,
+  compact,
+}: {
+  value: T;
+  options: ReportSelectOption<T>[];
+  compact?: boolean;
+}) {
+  const opt = options.find((o) => o.value === value);
+  const toneClass = opt ? REPORT_TAG_TONE_CLASS[opt.tone] : REPORT_TAG_TONE_CLASS.muted;
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-md border font-medium",
+        compact ? "px-2 py-0.5 text-[11px]" : "px-2.5 py-1 text-xs",
+        toneClass,
+      )}
+    >
+      {value}
+    </span>
+  );
+}
+
+function normalizeSubmissionUrl(url: string) {
+  const trimmed = url.trim();
+  if (!trimmed) return "";
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+}
+
+function SubmissionLinkButton({ url, readOnly }: { url?: string; readOnly?: boolean }) {
+  if (!url) {
+    return (
+      <span
+        className={cn(
+          "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-dashed",
+          readOnly ? "border-muted-foreground/20 bg-muted/20" : "border-muted-foreground/30 bg-muted/40",
+        )}
+        title="Học sinh chưa nộp link"
+      >
+        <Link2 className="h-3.5 w-3.5 text-muted-foreground/45" />
+      </span>
+    );
+  }
+  if (readOnly) {
+    return (
+      <a
+        href={normalizeSubmissionUrl(url)}
+        target="_blank"
+        rel="noopener noreferrer"
+        title="Xem bài nộp"
+        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors"
+      >
+        <ExternalLink className="h-3.5 w-3.5" />
+      </a>
+    );
+  }
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="icon"
+      className="h-8 w-8 shrink-0 border-indigo-200 bg-indigo-50/80 text-indigo-700 hover:bg-indigo-100 hover:text-indigo-800"
+      asChild
+      title="Xem bài nộp của học sinh"
+    >
+      <a href={normalizeSubmissionUrl(url)} target="_blank" rel="noopener noreferrer">
+        <ExternalLink className="h-3.5 w-3.5" />
+      </a>
+    </Button>
+  );
+}
+
+function CorrectionLinkControl({
+  url,
+  onSave,
+  readOnly,
+}: {
+  url?: string;
+  onSave?: (url: string) => void;
+  readOnly?: boolean;
+}) {
+  const [open, setOpen] = React.useState(false);
+  const [draft, setDraft] = React.useState(url ?? "");
+
+  React.useEffect(() => {
+    if (open) setDraft(url ?? "");
+  }, [open, url]);
+
+  if (readOnly) {
+    if (!url) {
+      return (
+        <span
+          className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-dashed border-muted-foreground/20 bg-muted/20"
+          title="Giáo viên chưa up link chữa bài"
+        >
+          <FileCheck className="h-3.5 w-3.5 text-muted-foreground/35" />
+        </span>
+      );
+    }
+    return (
+      <a
+        href={normalizeSubmissionUrl(url)}
+        target="_blank"
+        rel="noopener noreferrer"
+        title="Xem bài chữa của giáo viên"
+        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors"
+      >
+        <FileCheck className="h-3.5 w-3.5" />
+      </a>
+    );
+  }
 
   return (
-    <Tabs defaultValue="list" className="space-y-3">
-      <TabsList>
-        <TabsTrigger value="list">Danh sách học viên</TabsTrigger>
-        <TabsTrigger value="att">Điểm danh</TabsTrigger>
-        <TabsTrigger value="grade">Kết quả học tập</TabsTrigger>
-      </TabsList>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className={cn(
+            "h-8 w-8 shrink-0",
+            url
+              ? "border-emerald-200 bg-emerald-50/80 text-emerald-700 hover:bg-emerald-100"
+              : "border-dashed border-muted-foreground/35 bg-muted/30 text-muted-foreground hover:bg-muted/50",
+          )}
+          title={url ? "Sửa link chữa bài" : "Up link chữa bài cho học sinh xem"}
+        >
+          {url ? <FileCheck className="h-3.5 w-3.5" /> : <Upload className="h-3.5 w-3.5" />}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-80 space-y-3" align="center">
+        <div className="space-y-1">
+          <div className="text-sm font-medium">Link chữa bài</div>
+          <p className="text-xs text-muted-foreground">Dán link Google Docs/Drive bài đã chữa. Học sinh xem trên portal Nộp BTVN.</p>
+        </div>
+        <Input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          placeholder="https://docs.google.com/..."
+          className="h-9"
+        />
+        <div className="flex gap-2 justify-end">
+          {url && (
+            <Button variant="outline" size="sm" asChild>
+              <a href={normalizeSubmissionUrl(url)} target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="h-3.5 w-3.5" /> Xem
+              </a>
+            </Button>
+          )}
+          <Button
+            size="sm"
+            onClick={() => {
+              onSave?.(draft);
+              setOpen(false);
+              toast.success(draft.trim() ? "Đã lưu link chữa bài" : "Đã xóa link chữa bài");
+            }}
+          >
+            Lưu
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
-      <TabsContent value="list">
-        <Table>
-          <TableHeader><TableRow>
-            <TableHead>Tên</TableHead><TableHead>Đã học/Mua</TableHead><TableHead>Công nợ</TableHead><TableHead></TableHead>
-          </TableRow></TableHeader>
+function ClassSessionReportView({
+  cls,
+  students,
+}: {
+  cls: { totalSessions: number; startDate: string; syllabus: string };
+  students: Student[];
+}) {
+  const { homeworkSubmissions, homeworkCorrections } = useApp();
+  const sessions = React.useMemo(() => buildClassSessions(cls), [cls]);
+  const lessons = React.useMemo(() => syllabusLessonPath(), []);
+  const maxAttended = Math.max(0, ...students.map((s) => s.attended));
+  const [sessionIdx, setSessionIdx] = React.useState(() => Math.min(maxAttended || 1, sessions.length));
+  const [q, setQ] = React.useState("");
+
+  const btvnColumns = DEFAULT_BTVN_COLUMNS.map((c) => ({ ...c, label: c.label || "BTVN" }));
+  const scoreColumns = DEFAULT_SCORE_COLUMNS;
+
+  const currentSession = sessions.find((s) => s.idx === sessionIdx)!;
+  const lesson = lessons[sessionIdx - 1];
+
+  const rows = students.map((stu) => ({
+    id: stu.id,
+    name: stu.nickname ? `${stu.name} (${stu.nickname})` : stu.name,
+    ...mockSessionReport(stu, sessionIdx),
+  }));
+  const filtered = rows.filter((r) => r.name.toLowerCase().includes(q.toLowerCase()));
+  const dataColSpan = 3 + btvnColumns.length + scoreColumns.length + 1;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <Label className="text-xs text-muted-foreground">Ngày học</Label>
+            <Select value={String(sessionIdx)} onValueChange={(v) => setSessionIdx(Number(v))}>
+              <SelectTrigger className="h-9 w-72 mt-1"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {sessions.map((s) => {
+                  const les = lessons[s.idx - 1];
+                  return (
+                    <SelectItem key={s.idx} value={String(s.idx)}>
+                      {s.date}{les ? ` · Buổi ${s.idx} · ${les.unit}` : ` · Buổi ${s.idx}`}
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <Input className="h-9 w-56" placeholder="Tìm học viên..." value={q} onChange={(e) => setQ(e.target.value)} />
+      </div>
+
+      <div className="rounded-md border bg-slate-50/60 px-3 py-2 flex items-center gap-2 flex-wrap text-sm">
+        <Calendar className="h-4 w-4 text-indigo-600 shrink-0" />
+        <span className="font-medium">Buổi {currentSession.idx}</span>
+        <span className="text-slate-400">·</span>
+        <span className="text-slate-600">{currentSession.date}</span>
+        {lesson && (
+          <>
+            <span className="text-slate-400">·</span>
+            <Layers className="h-3.5 w-3.5 text-indigo-600" />
+            <span className="text-slate-500">{lesson.stageName}</span>
+            <span className="text-slate-400">·</span>
+            <BookOpen className="h-3.5 w-3.5 text-emerald-600" />
+            <span className="font-medium">{lesson.unit}</span>
+          </>
+        )}
+        <Badge variant="outline" className="ml-auto text-[10px]">Chỉ xem</Badge>
+      </div>
+
+      <div className="border rounded-md overflow-x-auto">
+        <Table className="border-collapse">
+          <TableHeader>
+            <TableRow>
+              <TableHead rowSpan={2} className={cn(reportTh, reportCell, "w-12 text-center")}>STT</TableHead>
+              <TableHead rowSpan={2} className={cn(reportTh, reportCell, "min-w-[160px]")}>Học viên</TableHead>
+              <TableHead rowSpan={2} className={cn(reportTh, reportCell, "w-36 text-center")}>Điểm danh</TableHead>
+              <TableHead colSpan={btvnColumns.length} className={cn(reportTh, reportCell, "text-center")}>BTVN</TableHead>
+              {scoreColumns.map((col) => (
+                <TableHead key={col.id} rowSpan={2} className={cn(reportTh, reportCell, "min-w-[120px] text-center")}>
+                  {col.label}
+                </TableHead>
+              ))}
+              <TableHead rowSpan={2} className={cn(reportTh, reportCell, "min-w-[180px] text-center")}>Tinh thần học tập</TableHead>
+            </TableRow>
+            <TableRow>
+              {btvnColumns.map((col) => (
+                <TableHead key={col.id} className={cn(reportTh, reportCell, "min-w-[120px] text-center text-xs")}>
+                  {col.label}
+                </TableHead>
+              ))}
+            </TableRow>
+          </TableHeader>
           <TableBody>
-            {students.map((s) => (
-              <TableRow key={s.id}>
-                <TableCell>{s.name}{s.nickname ? ` (${s.nickname})` : ""}</TableCell>
-                <TableCell>{s.attended} / {s.bought}</TableCell>
-                <TableCell>{formatVND(s.debt)}</TableCell>
-                <TableCell>
-                  <Button variant="outline" size="sm" onClick={() => onTransfer(s.id)}>
-                    <Repeat className="h-3.5 w-3.5" /> Chuyển lớp
-                  </Button>
+            {filtered.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={dataColSpan} className="text-center text-muted-foreground py-8">
+                  Không có học viên phù hợp
                 </TableCell>
               </TableRow>
-            ))}
+            ) : (
+              filtered.map((r, idx) => (
+                <React.Fragment key={r.id}>
+                  <TableRow>
+                    <TableCell className={cn(reportCell, "text-center text-muted-foreground align-top pt-3")}>{idx + 1}</TableCell>
+                    <TableCell className={cn(reportCell, "font-medium align-top pt-3")}>{r.name}</TableCell>
+                    <TableCell className={cn(reportCell, "text-center align-top pt-2")}>
+                      <ReportTagView value={r.attendance} options={REPORT_ATTENDANCE_OPTIONS} compact />
+                    </TableCell>
+                    {btvnColumns.map((col) => (
+                      <TableCell key={col.id} className={cn(reportCell, "text-center align-top pt-2")}>
+                        <ReportTagView value={r.btvnHw[col.id] ?? "Yes"} options={BTVN_STATUS_OPTIONS} compact />
+                      </TableCell>
+                    ))}
+                    {scoreColumns.map((col) => (
+                      <TableCell key={col.id} className={cn(reportCell, "text-center align-top pt-2")}>
+                        <div className="flex items-center justify-center gap-1">
+                          <span className="text-sm font-medium tabular-nums min-w-[2rem]">
+                            {r.scores[col.id] !== "" && r.scores[col.id] != null ? r.scores[col.id] : "—"}
+                          </span>
+                          <SubmissionLinkButton
+                            readOnly
+                            url={homeworkSubmissions[homeworkSubmissionKey(r.id, sessionIdx, col.id)]}
+                          />
+                          <CorrectionLinkControl
+                            readOnly
+                            url={homeworkCorrections[homeworkCorrectionKey(r.id, sessionIdx, col.id)]}
+                          />
+                        </div>
+                      </TableCell>
+                    ))}
+                    <TableCell className={cn(reportCell, "text-center align-top pt-2")}>
+                      <ReportTagView value={r.learningSpirit} options={LEARNING_SPIRIT_OPTIONS} />
+                    </TableCell>
+                  </TableRow>
+                  <TableRow className="hover:bg-transparent border-b-2 border-border">
+                    <TableCell colSpan={dataColSpan} className="p-2 pb-3 bg-muted/20">
+                      <div className="text-sm text-slate-700 whitespace-pre-wrap min-h-9 px-3 py-2 rounded-md border bg-background">
+                        {r.teacherComment ? (
+                          r.teacherComment
+                        ) : (
+                          <span className="text-muted-foreground italic">Chưa có nhận xét</span>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                </React.Fragment>
+              ))
+            )}
           </TableBody>
         </Table>
+      </div>
+    </div>
+  );
+}
+
+type SyllabusSel = { kind: "lesson"; stageId: string; lessonId: string } | { kind: "bigtest"; stageId: string };
+
+function ClassStudentsList({
+  students,
+  onTransfer,
+}: {
+  students: Student[];
+  onTransfer: (id: string) => void;
+}) {
+  return (
+    <Table>
+      <TableHeader><TableRow>
+        <TableHead>Tên</TableHead><TableHead>Đã học/Mua</TableHead><TableHead>Công nợ</TableHead><TableHead></TableHead>
+      </TableRow></TableHeader>
+      <TableBody>
+        {students.map((s) => (
+          <TableRow key={s.id}>
+            <TableCell>{s.name}{s.nickname ? ` (${s.nickname})` : ""}</TableCell>
+            <TableCell>{s.attended} / {s.bought}</TableCell>
+            <TableCell>{formatVND(s.debt)}</TableCell>
+            <TableCell>
+              <Button variant="outline" size="sm" onClick={() => onTransfer(s.id)}>
+                <Repeat className="h-3.5 w-3.5" /> Chuyển lớp
+              </Button>
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+}
+
+function ClassInfoSection({
+  cls,
+  students,
+  onTransfer,
+}: {
+  cls: { totalSessions: number; startDate: string; syllabus: string; pricePerCourse: number };
+  students: Student[];
+  onTransfer: (id: string) => void;
+}) {
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-3">
+        <Info2
+          label="Tiến độ"
+          value={`${Math.min(
+            cls.totalSessions,
+            Math.max(0, ...students.map((s) => s.attended)),
+          )}/${cls.totalSessions} buổi`}
+        />
+        <Info2 label="Học phí" value={formatVND(cls.pricePerCourse)} />
+      </div>
+
+      <Tabs defaultValue="list" className="space-y-3">
+        <TabsList>
+          <TabsTrigger value="list">Danh sách học viên</TabsTrigger>
+          <TabsTrigger value="report">Báo cáo</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="list">
+          <ClassStudentsList students={students} onTransfer={onTransfer} />
+        </TabsContent>
+
+        <TabsContent value="report">
+          <ClassSessionReportView cls={cls} students={students} />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+function ClassSyllabusSection({
+  cls,
+  students,
+}: {
+  cls: { totalSessions: number; startDate: string };
+  students: Student[];
+}) {
+  const stages = SYLLABUS_STAGES;
+  const [sel, setSel] = React.useState<SyllabusSel>({
+    kind: "lesson",
+    stageId: stages[0].id,
+    lessonId: stages[0].lessons[0].id,
+  });
+  const sessions = React.useMemo(() => buildClassSessions(cls), [cls]);
+  const sessionIdx = syllabusSessionIndex(sel, stages);
+  const sessionDate = sessions[sessionIdx - 1]?.date;
+
+  return (
+    <Tabs defaultValue="syllabus" className="space-y-3">
+      <TabsList>
+        <TabsTrigger value="syllabus">Syllabus</TabsTrigger>
+        <TabsTrigger value="report">Report</TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="syllabus">
+        <SyllabusContentTree stages={stages} sel={sel} setSel={setSel} />
       </TabsContent>
 
-      <TabsContent value="att">
-        <div className="rounded-md border overflow-x-auto">
-          <table className="w-full text-sm border-collapse">
-            <thead className="bg-slate-50">
-              <tr>
-                <th className="sticky left-0 z-10 bg-slate-50 text-left px-3 py-2 border-b min-w-[200px]">Học viên</th>
-                {sessions.map((s) => (
-                  <th key={s.idx} className="px-2 py-2 border-b border-l text-xs font-semibold text-slate-600 whitespace-nowrap">
-                    <div>BUỔI {s.idx}</div>
-                    <div className="text-[10px] font-normal text-slate-400">{s.date}</div>
-                  </th>
-                ))}
-                <th className="px-3 py-2 border-b border-l text-xs font-semibold text-slate-600 bg-slate-100">Có mặt</th>
-              </tr>
-            </thead>
-            <tbody>
-              {students.map((stu) => (
-                <tr key={stu.id} className="hover:bg-slate-50/50">
-                  <td className="sticky left-0 z-10 bg-white px-3 py-2 border-b font-medium">
-                    <div>{stu.name}{stu.nickname ? ` (${stu.nickname})` : ""}</div>
-                    <div className="text-[10px] text-slate-400 font-mono">{stu.id.toUpperCase()}</div>
-                  </td>
-                  {sessions.map((sess) => {
-                    const st = attendanceOf(stu.id, sess.idx, stu.attended);
-                    return (
-                      <td key={sess.idx} className="px-2 py-2 border-b border-l text-center">
-                        <span className={`inline-block text-[11px] px-2 py-0.5 rounded border ${attColor(st)}`}>
-                          {st === "Có mặt" ? "✓" : st === "Học bù" ? "Bù" : st === "Vắng có phép" ? "P" : st === "Vắng không phép" ? "K" : "—"}
-                        </span>
-                      </td>
-                    );
-                  })}
-                  <td className="px-3 py-2 border-b border-l text-center font-semibold bg-slate-50/50">
-                    {presentCount(stu.id, stu.attended)}/{total}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div className="flex gap-3 flex-wrap text-xs text-slate-500 mt-2">
-          <span><span className="inline-block w-3 h-3 rounded bg-emerald-100 border border-emerald-200 mr-1 align-middle" />Có mặt (✓)</span>
-          <span><span className="inline-block w-3 h-3 rounded bg-blue-100 border border-blue-200 mr-1 align-middle" />Học bù (Bù)</span>
-          <span><span className="inline-block w-3 h-3 rounded bg-amber-100 border border-amber-200 mr-1 align-middle" />Vắng có phép (P)</span>
-          <span><span className="inline-block w-3 h-3 rounded bg-rose-100 border border-rose-200 mr-1 align-middle" />Vắng không phép (K)</span>
-        </div>
+      <TabsContent value="report">
+        <SyllabusReportsTab sel={sel} sessionDate={sessionDate} sessionIdx={sessionIdx} students={students} />
+      </TabsContent>
+    </Tabs>
+  );
+}
+
+function ClassDetailTabs({
+  cls,
+  students,
+  onTransfer,
+}: {
+  cls: { id: string; totalSessions: number; startDate: string; syllabus: string; pricePerCourse: number };
+  students: Student[];
+  onTransfer: (id: string) => void;
+}) {
+  return (
+    <Tabs defaultValue="info" className="space-y-4">
+      <TabsList className="flex-wrap h-auto">
+        <TabsTrigger value="info"><Info className="h-4 w-4 mr-1" /> Thông tin lớp</TabsTrigger>
+        <TabsTrigger value="content"><BookOpen className="h-4 w-4 mr-1" /> Nội dung syllabus</TabsTrigger>
+        <TabsTrigger value="report">Báo cáo học vụ</TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="info" className="space-y-4">
+        <ClassInfoSection cls={cls} students={students} onTransfer={onTransfer} />
       </TabsContent>
 
-      <TabsContent value="grade">
-        <div className="rounded-md border overflow-x-auto">
-          <table className="w-full text-sm border-collapse">
-            <thead className="bg-slate-50">
-              <tr>
-                <th rowSpan={2} className="sticky left-0 z-10 bg-slate-50 text-left px-3 py-2 border-b min-w-[200px] align-middle">Học sinh</th>
-                {sessions.map((s) => (
-                  <th key={s.idx} colSpan={SKILLS.length} className="px-2 py-1.5 border-b border-l text-xs font-semibold text-slate-600 text-center whitespace-nowrap">
-                    <div>BUỔI {s.idx}</div>
-                    <div className="text-[10px] font-normal text-slate-400">{s.date} · {s.idx}/{total}</div>
-                  </th>
-                ))}
-              </tr>
-              <tr>
-                {sessions.map((s) =>
-                  SKILLS.map((k, ki) => (
-                    <th key={`${s.idx}-${k}`} className={`px-2 py-1.5 border-b text-[11px] font-medium text-slate-500 ${ki === 0 ? "border-l" : ""}`}>
-                      {k}
-                    </th>
-                  )),
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {students.map((stu) => (
-                <tr key={stu.id} className="hover:bg-slate-50/50">
-                  <td className="sticky left-0 z-10 bg-white px-3 py-2 border-b font-medium">
-                    <div>{stu.name}{stu.nickname ? ` (${stu.nickname})` : ""}</div>
-                    <div className="text-[10px] text-slate-400 font-mono">{stu.id.toUpperCase()}</div>
-                  </td>
-                  {sessions.map((sess) =>
-                    SKILLS.map((k, ki) => {
-                      const v = scoreOf(stu.id, sess.idx, k, stu.attended);
-                      const isHw = k === "BTVN";
-                      return (
-                        <td key={`${sess.idx}-${k}`} className={`px-2 py-2 border-b text-center ${ki === 0 ? "border-l" : ""}`}>
-                          {v === null ? (
-                            <span className="text-[11px] text-slate-300">—</span>
-                          ) : (
-                            <span className={`text-sm font-medium ${isHw ? "text-indigo-600" : "text-slate-700"}`}>{v.toFixed(1)}</span>
-                          )}
-                        </td>
-                      );
-                    }),
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      <TabsContent value="content">
+        <ClassSyllabusSection cls={cls} students={students} />
+      </TabsContent>
+
+      <TabsContent value="report">
+        <SyllabusReportTab />
       </TabsContent>
     </Tabs>
   );
@@ -914,34 +1279,11 @@ export function AdminClasses() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Tabs defaultValue="info">
-              <TabsList>
-                <TabsTrigger value="info"><Info className="h-4 w-4 mr-1" /> Thông tin lớp học</TabsTrigger>
-                <TabsTrigger value="syllabus"><BookOpen className="h-4 w-4 mr-1" /> Syllabus</TabsTrigger>
-              </TabsList>
-              <TabsContent value="info" className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <Info2
-                  label="Tiến độ"
-                  value={`${Math.min(
-                    cls.totalSessions,
-                    Math.max(0, ...students.filter((s) => s.classId === cls.id).map((s) => s.attended)),
-                  )}/${cls.totalSessions} buổi`}
-                />
-                <Info2 label="Học phí" value={formatVND(cls.pricePerCourse)} />
-              </div>
-
-            <div>
-              <ClassStudentsTabs cls={cls} students={students.filter((s) => s.classId === cls.id)} onTransfer={setTransferStudentId} />
-            </div>
-              </TabsContent>
-              <TabsContent value="syllabus">
-                {(() => {
-                  const sy = SYLLABI.find((s) => cls.syllabus.includes(s.name) || cls.syllabus.includes(s.code)) ?? SYLLABI[0];
-                  return <SyllabusDetail syllabus={sy} embedded />;
-                })()}
-              </TabsContent>
-            </Tabs>
+            <ClassDetailTabs
+              cls={cls}
+              students={students.filter((s) => s.classId === cls.id)}
+              onTransfer={setTransferStudentId}
+            />
           </CardContent>
         </Card>
       ) : (
@@ -2173,15 +2515,12 @@ export function AdminSyllabus() {
 }
 
 /* ----- Syllabus detail ----- */
-function SyllabusDetail({ syllabus, onBack, embedded }: { syllabus: Syllabus; onBack?: () => void; embedded?: boolean }) {
+function SyllabusDetail({ syllabus, onBack }: { syllabus: Syllabus; onBack?: () => void }) {
   const stages = SYLLABUS_STAGES;
-
-  type Sel = { kind: "lesson"; stageId: string; lessonId: string } | { kind: "bigtest"; stageId: string };
-  const [sel, setSel] = React.useState<Sel>({ kind: "lesson", stageId: stages[0].id, lessonId: stages[0].lessons[0].id });
+  const [sel, setSel] = React.useState<SyllabusSel>({ kind: "lesson", stageId: stages[0].id, lessonId: stages[0].lessons[0].id });
 
   return (
     <div className="space-y-4">
-      {!embedded && (
       <div className="sticky top-0 z-30 -mx-4 px-4 pt-1 pb-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b">
       <Card>
         <CardContent className="p-3">
@@ -2208,37 +2547,9 @@ function SyllabusDetail({ syllabus, onBack, embedded }: { syllabus: Syllabus; on
         </CardContent>
       </Card>
       </div>
-      )}
 
       <div className="space-y-3">
-        {embedded ? (
-          <Tabs defaultValue="content" className="space-y-3">
-            <TabsList className="flex-wrap h-auto">
-              <TabsTrigger value="content">Nội dung syllabus</TabsTrigger>
-              <TabsTrigger value="attendance">Điểm danh</TabsTrigger>
-              <TabsTrigger value="grades">Nhập điểm trên lớp</TabsTrigger>
-              <TabsTrigger value="homework">Nhập điểm homeworks</TabsTrigger>
-              <TabsTrigger value="report">Báo cáo học vụ</TabsTrigger>
-            </TabsList>
-            <TabsContent value="content">
-              <SyllabusContentTree stages={stages} sel={sel} setSel={setSel} />
-            </TabsContent>
-            <TabsContent value="attendance">
-              <SyllabusAttendanceTab sel={sel} />
-            </TabsContent>
-            <TabsContent value="grades">
-              <SyllabusGradesTab />
-            </TabsContent>
-            <TabsContent value="homework">
-              <SyllabusHomeworkTab sel={sel} />
-            </TabsContent>
-            <TabsContent value="report">
-              <SyllabusReportTab />
-            </TabsContent>
-          </Tabs>
-        ) : (
-          <SyllabusContentTree stages={stages} sel={sel} setSel={setSel} />
-        )}
+        <SyllabusContentTree stages={stages} sel={sel} setSel={setSel} />
       </div>
     </div>
   );
@@ -2257,8 +2568,6 @@ function StatBox({ icon: Icon, label, value, color }: { icon: React.ComponentTyp
     </div>
   );
 }
-
-type SyllabusSel = { kind: "lesson"; stageId: string; lessonId: string } | { kind: "bigtest"; stageId: string };
 
 function SyllabusContentTree({ stages, sel, setSel }: { stages: typeof SYLLABUS_STAGES; sel: SyllabusSel; setSel: React.Dispatch<React.SetStateAction<SyllabusSel>> }) {
   const [stagesState, setStagesState] = React.useState(stages);
@@ -2296,7 +2605,7 @@ function SyllabusContentTree({ stages, sel, setSel }: { stages: typeof SYLLABUS_
           unit: "",
           objective: "",
           content: "",
-          homework: "",
+          homeworks: [],
           material: "",
           note: "",
         };
@@ -2448,12 +2757,13 @@ function SyllabusContentTree({ stages, sel, setSel }: { stages: typeof SYLLABUS_
                   <TabsTrigger value="teaching-material">TEACHING MATERIAL</TabsTrigger>
                 </TabsList>
                 <TabsContent value="in-class" className="space-y-4">
-                  <EditField icon={Target} label="Mục tiêu tổng quan" value={lesson.objective} onChange={(v) => updateLesson(stage.id, lesson.id, { objective: v })} />
-                  <EditField icon={FileText} label="Nội dung chi tiết" value={lesson.content} onChange={(v) => updateLesson(stage.id, lesson.id, { content: v })} multiline />
-                  <EditField icon={Info} label="Lưu ý" value={lesson.note} onChange={(v) => updateLesson(stage.id, lesson.id, { note: v })} />
+                  <EditField icon={FileText} label="In class" value={lesson.content} onChange={(v) => updateLesson(stage.id, lesson.id, { content: v })} multiline />
                 </TabsContent>
                 <TabsContent value="after-class" className="space-y-4">
-                  <EditField icon={ListChecks} label="Homeworks" value={lesson.homework} onChange={(v) => updateLesson(stage.id, lesson.id, { homework: v })} multiline />
+                  <HomeworkListEditor
+                    items={lesson.homeworks}
+                    onChange={(homeworks) => updateLesson(stage.id, lesson.id, { homeworks })}
+                  />
                 </TabsContent>
                 <TabsContent value="teaching-material" className="space-y-4">
                   <MaterialLinks
@@ -2507,6 +2817,85 @@ function DetailField({ icon: Icon, label, value, link }: { icon: React.Component
   );
 }
 
+function HomeworkListEditor({
+  items,
+  onChange,
+}: {
+  items: SyllabusHomeworkItem[];
+  onChange: (items: SyllabusHomeworkItem[]) => void;
+}) {
+  const homeworkTypeTone: Record<HomeworkTaskType, string> = {
+    "Phiếu bài tập": "bg-blue-50 text-blue-700 border-blue-200",
+    "Quay video": "bg-violet-50 text-violet-700 border-violet-200",
+    None: "bg-slate-50 text-slate-600 border-slate-200",
+  };
+
+  const updateAt = (id: string, patch: Partial<SyllabusHomeworkItem>) =>
+    onChange(items.map((h) => (h.id === id ? { ...h, ...patch } : h)));
+  const removeAt = (id: string) => onChange(items.filter((h) => h.id !== id));
+  const addOne = () =>
+    onChange([...items, { id: `hw-${Date.now()}`, content: "", type: "Phiếu bài tập" }]);
+
+  return (
+    <div className="rounded-md border bg-slate-50/50 p-3 space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="text-xs text-slate-500 flex items-center gap-1">
+          <ListChecks className="h-3 w-3" /> Homeworks
+        </div>
+        <Button size="sm" variant="outline" className="h-7 gap-1" onClick={addOne}>
+          <Plus className="h-3.5 w-3.5" /> Thêm bài
+        </Button>
+      </div>
+      {items.length === 0 ? (
+        <div className="text-xs text-slate-400 italic py-2">Chưa có bài tập. Bấm &quot;Thêm bài&quot; để tạo HM1, HM2...</div>
+      ) : (
+        items.map((hw, idx) => (
+          <div key={hw.id} className="rounded-md border bg-background p-3 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-semibold text-indigo-700">HM{idx + 1}</span>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7 text-rose-500 hover:text-rose-600 hover:bg-rose-50"
+                onClick={() => removeAt(hw.id)}
+                title="Xoá bài tập"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-[1fr_180px]">
+              <div>
+                <Label className="text-[11px] text-muted-foreground">Nội dung</Label>
+                <Textarea
+                  value={hw.content}
+                  onChange={(e) => updateAt(hw.id, { content: e.target.value })}
+                  placeholder="Mô tả bài tập về nhà..."
+                  rows={2}
+                  className="mt-1 min-h-[60px] resize-y bg-white text-sm"
+                />
+              </div>
+              <div>
+                <Label className="text-[11px] text-muted-foreground">Loại bài tập</Label>
+                <Select value={hw.type} onValueChange={(v) => updateAt(hw.id, { type: v as HomeworkTaskType })}>
+                  <SelectTrigger className="h-9 mt-1 bg-white"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {HOMEWORK_TASK_TYPES.map((t) => (
+                      <SelectItem key={t} value={t}>{t}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Badge variant="outline" className={cn("mt-2 text-[10px]", homeworkTypeTone[hw.type])}>
+                  {hw.type}
+                </Badge>
+              </div>
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
 function MaterialLinks({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const links = value === "" ? [] : value.split("\n");
   const setLinks = (next: string[]) => onChange(next.join("\n"));
@@ -2525,7 +2914,7 @@ function MaterialLinks({ value, onChange }: { value: string; onChange: (v: strin
         </Button>
       </div>
       {links.length === 0 ? (
-        <div className="text-xs text-slate-400 italic py-2">Chưa có tài liệu nào. Bấm "Thêm link" để thêm.</div>
+        <div className="text-xs text-slate-400 italic py-2">Chưa có tài liệu nào. Bấm &quot;Thêm link&quot; để thêm.</div>
       ) : (
         <div className="space-y-2">
           {links.map((link, i) => (
@@ -2567,26 +2956,196 @@ function EditField({ icon: Icon, label, value, onChange, multiline, placeholder 
   );
 }
 
-function SyllabusAttendanceTab({ sel }: { sel: SyllabusSel }) {
+function ColoredPillSelect<T extends string>({
+  value,
+  options,
+  onChange,
+  compact,
+}: {
+  value: T;
+  options: ReportSelectOption<T>[];
+  onChange: (v: T) => void;
+  compact?: boolean;
+}) {
+  const [open, setOpen] = React.useState(false);
+  const selected = options.find((o) => o.value === value);
+  const toneClass = selected ? REPORT_TAG_TONE_CLASS[selected.tone] : REPORT_TAG_TONE_CLASS.muted;
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className={cn(
+            "inline-flex items-center gap-1 rounded-md border font-medium justify-between shadow-sm hover:opacity-90 transition-opacity",
+            compact ? "px-2 py-0.5 text-[11px] min-w-[72px]" : "px-2.5 py-1 text-xs min-w-[130px]",
+            toneClass,
+          )}
+        >
+          <span className="truncate">{value}</span>
+          <ChevronDown className="h-3 w-3 shrink-0 opacity-70" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-72 p-1.5" align="start">
+        <div className="max-h-72 overflow-y-auto space-y-1">
+          {options.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              className={cn(
+                "w-full text-left rounded-md px-2.5 py-1.5 text-xs font-medium border",
+                REPORT_TAG_TONE_CLASS[opt.tone],
+                value === opt.value && "ring-2 ring-ring ring-offset-1",
+              )}
+              onClick={() => { onChange(opt.value); setOpen(false); }}
+            >
+              {opt.value}
+            </button>
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function AutoResizeTextarea({
+  value,
+  onChange,
+  placeholder,
+  className,
+}: {
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+  placeholder?: string;
+  className?: string;
+}) {
+  const ref = React.useRef<HTMLTextAreaElement>(null);
+
+  const resize = React.useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, []);
+
+  React.useLayoutEffect(() => {
+    resize();
+  }, [value, resize]);
+
+  return (
+    <Textarea
+      ref={ref}
+      value={value}
+      onChange={(e) => {
+        onChange(e);
+        resize();
+      }}
+      placeholder={placeholder}
+      rows={1}
+      className={cn(
+        "min-h-9 max-h-40 resize-none overflow-hidden py-1.5 leading-normal",
+        className,
+      )}
+    />
+  );
+}
+
+function SyllabusReportsTab({
+  sel,
+  sessionDate,
+  sessionIdx,
+  students,
+}: {
+  sel: SyllabusSel;
+  sessionDate?: string;
+  sessionIdx?: number;
+  students?: Student[];
+}) {
+  const { homeworkSubmissions, homeworkCorrections, setHomeworkCorrection } = useApp();
   const stages = SYLLABUS_STAGES;
   const stage = stages.find((s) => s.id === sel.stageId)!;
   const lesson = sel.kind === "lesson" ? stage.lessons.find((l) => l.id === sel.lessonId) ?? null : null;
   const [q, setQ] = React.useState("");
-  const [rows, setRows] = React.useState(SYLLABUS_STUDENTS);
+  const [btvnColumns, setBtvnColumns] = React.useState<BtvnColumn[]>(() => DEFAULT_BTVN_COLUMNS.map((c) => ({ ...c })));
+  const [scoreColumns, setScoreColumns] = React.useState<BtvnColumn[]>(() => DEFAULT_SCORE_COLUMNS.map((c) => ({ ...c })));
+  const activeSessionIdx = sessionIdx ?? 1;
+  const [rows, setRows] = React.useState<SyllabusReportRow[]>(() =>
+    SYLLABUS_REPORT_ROWS.map((r) => ({ ...r, btvnHw: { ...r.btvnHw }, scores: { ...r.scores } })),
+  );
 
-  const filtered = rows.filter((r) => `${r.code} ${r.name}`.toLowerCase().includes(q.toLowerCase()));
+  React.useEffect(() => {
+    if (!students?.length) return;
+    setRows(
+      students.map((stu) => ({
+        id: stu.id,
+        code: stu.id.toUpperCase(),
+        name: stu.nickname ? `${stu.name} (${stu.nickname})` : stu.name,
+        ...mockSessionReport(stu, activeSessionIdx),
+      })),
+    );
+  }, [students, activeSessionIdx]);
 
-  const update = (id: string, patch: Partial<typeof rows[number]>) =>
+  const filtered = rows.filter((r) => r.name.toLowerCase().includes(q.toLowerCase()));
+
+  const update = (id: string, patch: Partial<SyllabusReportRow>) =>
     setRows((rs) => rs.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+
+  const updateBtvnHw = (id: string, colId: string, val: BtvnStatus) =>
+    setRows((rs) => rs.map((r) => (r.id === id ? { ...r, btvnHw: { ...r.btvnHw, [colId]: val } } : r)));
+
+  const updateScore = (id: string, colId: string, val: string) => {
+    const n = val === "" ? "" : Number(val);
+    setRows((rs) =>
+      rs.map((r) =>
+        r.id === id ? { ...r, scores: { ...r.scores, [colId]: n === "" || Number.isFinite(n) ? n : r.scores[colId] } } : r,
+      ),
+    );
+  };
+
+  const updateBtvnColumnLabel = (colId: string, label: string) =>
+    setBtvnColumns((cols) => cols.map((c) => (c.id === colId ? { ...c, label } : c)));
+
+  const updateScoreColumnLabel = (colId: string, label: string) =>
+    setScoreColumns((cols) => cols.map((c) => (c.id === colId ? { ...c, label } : c)));
+
+  const addBtvnColumn = () => {
+    const newId = `btvn-${Date.now()}`;
+    setBtvnColumns((cols) => [...cols, { id: newId, label: "" }]);
+    setRows((rs) => rs.map((r) => ({ ...r, btvnHw: { ...r.btvnHw, [newId]: "Yes" } })));
+  };
+
+  const removeBtvnColumn = (colId: string) => {
+    if (btvnColumns.length <= 1) return;
+    setBtvnColumns((cols) => cols.filter((c) => c.id !== colId));
+    setRows((rs) =>
+      rs.map((r) => {
+        const { [colId]: _, ...rest } = r.btvnHw;
+        return { ...r, btvnHw: rest };
+      }),
+    );
+  };
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2"><ClipboardCheck className="h-5 w-5" /> Điểm danh học viên</CardTitle>
+        <CardTitle className="flex items-center gap-2"><FileSpreadsheet className="h-5 w-5" /> Reports</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="rounded-md border bg-slate-50/60 px-3 py-2 flex items-center justify-between gap-3 flex-wrap text-sm">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {sessionDate && (
+              <>
+                <Calendar className="h-4 w-4 text-indigo-600 shrink-0" />
+                <span className="font-medium">{sessionDate}</span>
+                {sessionIdx != null && (
+                  <>
+                    <span className="text-slate-400">·</span>
+                    <span className="text-slate-600">Buổi {sessionIdx}</span>
+                  </>
+                )}
+                <span className="text-slate-400">·</span>
+              </>
+            )}
             <Layers className="h-4 w-4 text-indigo-600" />
             <span className="text-slate-500">{stage.name}</span>
             <span className="text-slate-400">·</span>
@@ -2605,119 +3164,148 @@ function SyllabusAttendanceTab({ sel }: { sel: SyllabusSel }) {
           <Input className="h-8 w-56" placeholder="Tìm học viên..." value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
 
-        <div className="flex gap-2">
-          <Button size="sm" onClick={() => toast.success("Đã lưu điểm danh")}><CheckCircle2 className="h-4 w-4" /> Lưu điểm danh</Button>
+        <div className="flex gap-2 flex-wrap">
+          <Button size="sm" onClick={() => toast.success("Đã lưu báo cáo buổi học")}>
+            <CheckCircle2 className="h-4 w-4" /> Lưu báo cáo
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => toast.info("Đã xuất bảng báo cáo")}>
+            <FileSpreadsheet className="h-4 w-4" /> Xuất bảng
+          </Button>
+          <span className="text-xs text-muted-foreground self-center ml-1">
+            <ExternalLink className="inline h-3 w-3 text-indigo-600" /> bài nộp HS ·{" "}
+            <Upload className="inline h-3 w-3 text-emerald-600" /> up link chữa bài
+          </span>
         </div>
 
         <div className="border rounded-md overflow-x-auto">
-          <Table>
+          <Table className="border-collapse">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-24">Mã HV</TableHead>
-                <TableHead>Tên học viên</TableHead>
-                <TableHead className="w-48">Trạng thái</TableHead>
-                <TableHead>Ghi chú</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell className="font-mono text-xs">{r.code}</TableCell>
-                  <TableCell className="font-medium">{r.name}</TableCell>
-                  <TableCell>
-                    <Select value={r.attendance} onValueChange={(v) => update(r.id, { attendance: v as typeof r.attendance })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Có mặt">Có mặt</SelectItem>
-                        <SelectItem value="Vắng có phép">Vắng có phép</SelectItem>
-                        <SelectItem value="Vắng không phép">Vắng không phép</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
-                  <TableCell>
-                    <Input value={r.attendanceNote} onChange={(e) => update(r.id, { attendanceNote: e.target.value })} placeholder="Ghi chú..." />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function SyllabusGradesTab() {
-  const [cols, setCols] = React.useState<string[]>(SYLLABUS_GRADE_COLUMNS);
-  const [rows, setRows] = React.useState(SYLLABUS_STUDENTS);
-  const [newCol, setNewCol] = React.useState("");
-
-  const addCol = () => {
-    const name = newCol.trim();
-    if (!name) return;
-    if (cols.includes(name)) { toast.error("Cột điểm đã tồn tại"); return; }
-    setCols((c) => [...c, name]);
-    setRows((rs) => rs.map((r) => ({ ...r, grades: { ...r.grades, [name]: 0 } })));
-    setNewCol("");
-    toast.success(`Đã thêm cột "${name}"`);
-  };
-
-  const updateGrade = (id: string, col: string, val: string) => {
-    const n = Number(val);
-    setRows((rs) => rs.map((r) => (r.id === id ? { ...r, grades: { ...r.grades, [col]: Number.isFinite(n) ? n : 0 } } : r)));
-  };
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2"><ListChecks className="h-5 w-5" /> Nhập điểm trên lớp</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex items-end gap-2 flex-wrap">
-          <div>
-            <Label className="text-xs">Tên cột điểm mới</Label>
-            <Input value={newCol} onChange={(e) => setNewCol(e.target.value)} placeholder="Ví dụ: Dictation, Speaking Test..." className="w-64" />
-          </div>
-          <Button size="sm" onClick={addCol}><Plus className="h-4 w-4" /> Thêm cột điểm</Button>
-          <div className="flex-1" />
-          <Button size="sm" onClick={() => toast.success("Đã lưu điểm")}><CheckCircle2 className="h-4 w-4" /> Lưu điểm</Button>
-          <Button size="sm" variant="outline" onClick={() => toast.info("Đã xuất bảng điểm")}><FileSpreadsheet className="h-4 w-4" /> Xuất bảng điểm</Button>
-        </div>
-
-        <div className="border rounded-md overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-24">Mã HV</TableHead>
-                <TableHead>Tên học viên</TableHead>
-                {cols.map((c) => <TableHead key={c} className="text-center w-28">{c}</TableHead>)}
-                <TableHead>Ghi chú</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell className="font-mono text-xs">{r.code}</TableCell>
-                  <TableCell className="font-medium">{r.name}</TableCell>
-                  {cols.map((c) => (
-                    <TableCell key={c} className="text-center">
-                      <Input
-                        type="number" step="0.5" min={0} max={10}
-                        value={r.grades[c] ?? 0}
-                        onChange={(e) => updateGrade(r.id, c, e.target.value)}
-                        className="h-8 text-center"
-                      />
-                    </TableCell>
-                  ))}
-                  <TableCell>
+                <TableHead rowSpan={2} className={cn(reportTh, reportCell, "w-12 text-center")}>STT</TableHead>
+                <TableHead rowSpan={2} className={cn(reportTh, reportCell, "min-w-[160px]")}>Học viên</TableHead>
+                <TableHead rowSpan={2} className={cn(reportTh, reportCell, "w-36 text-center")}>Điểm danh</TableHead>
+                <TableHead colSpan={btvnColumns.length} className={cn(reportTh, reportCell, "text-center")}>
+                  <div className="flex items-center justify-center gap-1.5">
+                    <span>BTVN</span>
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      className="h-6 w-6"
+                      title="Thêm cột BTVN"
+                      onClick={addBtvnColumn}
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </TableHead>
+                {scoreColumns.map((col) => (
+                  <TableHead key={col.id} rowSpan={2} className={cn(reportTh, reportCell, "min-w-[196px] p-1.5 text-center")}>
                     <Input
-                      value={r.gradeNote}
-                      onChange={(e) => setRows((rs) => rs.map((x) => x.id === r.id ? { ...x, gradeNote: e.target.value } : x))}
-                      placeholder="Ghi chú..."
+                      value={col.label}
+                      onChange={(e) => updateScoreColumnLabel(col.id, e.target.value)}
+                      placeholder="Tên cột điểm..."
+                      className="h-8 text-xs text-center"
                     />
-                  </TableCell>
-                </TableRow>
-              ))}
+                  </TableHead>
+                ))}
+                <TableHead rowSpan={2} className={cn(reportTh, reportCell, "min-w-[180px] text-center")}>Tinh thần học tập</TableHead>
+              </TableRow>
+              <TableRow>
+                {btvnColumns.map((col) => (
+                  <TableHead key={col.id} className={cn(reportTh, reportCell, "min-w-[120px] p-1.5")}>
+                    <div className="flex items-center gap-1">
+                      <Input
+                        value={col.label}
+                        onChange={(e) => updateBtvnColumnLabel(col.id, e.target.value)}
+                        placeholder="Tên BTVN..."
+                        className="h-8 text-xs"
+                      />
+                      {btvnColumns.length > 1 && (
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                          title="Xóa cột"
+                          onClick={() => removeBtvnColumn(col.id)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                  </TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtered.map((r, idx) => {
+                const dataColSpan = 3 + btvnColumns.length + scoreColumns.length + 1;
+                return (
+                  <React.Fragment key={r.id}>
+                    <TableRow>
+                      <TableCell className={cn(reportCell, "text-center text-muted-foreground align-top pt-3")}>{idx + 1}</TableCell>
+                      <TableCell className={cn(reportCell, "font-medium align-top pt-3")}>{r.name}</TableCell>
+                      <TableCell className={cn(reportCell, "text-center align-top pt-2")}>
+                        <ColoredPillSelect
+                          value={r.attendance}
+                          options={REPORT_ATTENDANCE_OPTIONS}
+                          onChange={(v) => update(r.id, { attendance: v as ReportAttendance })}
+                          compact
+                        />
+                      </TableCell>
+                      {btvnColumns.map((col) => (
+                        <TableCell key={col.id} className={cn(reportCell, "text-center align-top pt-2")}>
+                          <ColoredPillSelect
+                            value={r.btvnHw[col.id] ?? "Yes"}
+                            options={BTVN_STATUS_OPTIONS}
+                            onChange={(v) => updateBtvnHw(r.id, col.id, v as BtvnStatus)}
+                            compact
+                          />
+                        </TableCell>
+                      ))}
+                      {scoreColumns.map((col) => (
+                        <TableCell key={col.id} className={cn(reportCell, "text-center p-1 align-top pt-2")}>
+                          <div className="flex items-center justify-center gap-1">
+                            <Input
+                              type="number"
+                              min={0}
+                              value={r.scores[col.id] ?? ""}
+                              onChange={(e) => updateScore(r.id, col.id, e.target.value)}
+                              className="h-8 w-16 text-center"
+                              placeholder="—"
+                            />
+                            <SubmissionLinkButton
+                              url={homeworkSubmissions[homeworkSubmissionKey(r.id, activeSessionIdx, col.id)]}
+                            />
+                            <CorrectionLinkControl
+                              url={homeworkCorrections[homeworkCorrectionKey(r.id, activeSessionIdx, col.id)]}
+                              onSave={(url) => setHomeworkCorrection(r.id, activeSessionIdx, col.id, url)}
+                            />
+                          </div>
+                        </TableCell>
+                      ))}
+                      <TableCell className={cn(reportCell, "text-center align-top pt-2")}>
+                        <ColoredPillSelect
+                          value={r.learningSpirit}
+                          options={LEARNING_SPIRIT_OPTIONS}
+                          onChange={(v) => update(r.id, { learningSpirit: v as LearningSpirit })}
+                        />
+                      </TableCell>
+                    </TableRow>
+                    <TableRow className="hover:bg-transparent border-b-2 border-border">
+                      <TableCell colSpan={dataColSpan} className="p-2 pb-3 bg-muted/20">
+                        <AutoResizeTextarea
+                          value={r.teacherComment}
+                          onChange={(e) => update(r.id, { teacherComment: e.target.value })}
+                          placeholder="Nhận xét của giáo viên..."
+                          className="text-sm bg-background"
+                        />
+                      </TableCell>
+                    </TableRow>
+                  </React.Fragment>
+                );
+              })}
             </TableBody>
           </Table>
         </div>
@@ -2728,99 +3316,6 @@ function SyllabusGradesTab() {
 
 function SyllabusReportTab() {
   return <SyllabusReportTabImpl />;
-}
-
-function SyllabusHomeworkTab({ sel }: { sel: SyllabusSel }) {
-  const stages = SYLLABUS_STAGES;
-  const lessons = stages.flatMap((st) => st.lessons.map((l) => ({ ...l, stageName: st.name })));
-  const stage = stages.find((s) => s.id === sel.stageId)!;
-  const currentLesson = sel.kind === "lesson" ? stage.lessons.find((l) => l.id === sel.lessonId) ?? null : null;
-  const [rows, setRows] = React.useState(() =>
-    SYLLABUS_STUDENTS.map((s) => ({
-      id: s.id, code: s.code, name: s.name,
-      scores: Object.fromEntries(lessons.map((l) => [l.id, 8 + ((s.id.charCodeAt(2) + l.index) % 3)])) as Record<string, number>,
-      note: "",
-    })),
-  );
-
-  const update = (id: string, lessonId: string, val: string) => {
-    const n = Number(val);
-    setRows((rs) => rs.map((r) => (r.id === id ? { ...r, scores: { ...r.scores, [lessonId]: Number.isFinite(n) ? n : 0 } } : r)));
-  };
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2"><FileText className="h-5 w-5" /> Nhập điểm homeworks</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="rounded-md border bg-slate-50/60 px-3 py-2 flex items-center justify-between gap-3 flex-wrap text-sm">
-          <div className="flex items-center gap-2">
-            <Layers className="h-4 w-4 text-indigo-600" />
-            <span className="text-slate-500">{stage.name}</span>
-            <span className="text-slate-400">·</span>
-            {currentLesson ? (
-              <>
-                <BookOpen className="h-4 w-4 text-emerald-600" />
-                <span className="font-medium">Buổi {currentLesson.index}: {currentLesson.unit}</span>
-              </>
-            ) : (
-              <>
-                <ClipboardCheck className="h-4 w-4 text-amber-600" />
-                <span className="font-medium">{stage.bigTest.name}</span>
-              </>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            <Button size="sm" onClick={() => toast.success("Đã lưu điểm homeworks")}><CheckCircle2 className="h-4 w-4" /> Lưu điểm</Button>
-            <Button size="sm" variant="outline" onClick={() => toast.info("Đã xuất bảng điểm homeworks")}><FileSpreadsheet className="h-4 w-4" /> Xuất bảng</Button>
-          </div>
-        </div>
-
-        {!currentLesson ? (
-          <div className="text-sm text-slate-500 italic p-4 border rounded-md">
-            Big Test không có điểm homeworks. Chọn một buổi học ở "Nội dung syllabus" để nhập điểm.
-          </div>
-        ) : (
-        <div className="border rounded-md overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-24">Mã HV</TableHead>
-                <TableHead>Tên học viên</TableHead>
-                <TableHead className="text-center w-32">Điểm homeworks</TableHead>
-                <TableHead>Ghi chú</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell className="font-mono text-xs">{r.code}</TableCell>
-                  <TableCell className="font-medium">{r.name}</TableCell>
-                  <TableCell className="text-center">
-                    <Input
-                      type="number" step="0.5" min={0} max={10}
-                      value={r.scores[currentLesson.id] ?? 0}
-                      onChange={(e) => update(r.id, currentLesson.id, e.target.value)}
-                      className="h-8 text-center px-1"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Input
-                      value={r.note}
-                      onChange={(e) => setRows((rs) => rs.map((x) => x.id === r.id ? { ...x, note: e.target.value } : x))}
-                      placeholder="Ghi chú..."
-                    />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-        )}
-      </CardContent>
-    </Card>
-  );
 }
 
 function SyllabusReportTabImpl() {

@@ -3,8 +3,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useApp } from "@/lib/app-store";
-import { formatVND, SYLLABUS_LESSONS } from "@/lib/mock-data";
+import { formatVND, SYLLABUS_LESSONS, DEFAULT_SCORE_COLUMNS, homeworkSubmissionKey, homeworkCorrectionKey } from "@/lib/mock-data";
+import { toast } from "sonner";
+import { ExternalLink, Link2, Save, FileCheck } from "lucide-react";
 
 const ME_ID = "s1"; // demo: student logs in as Hồng Diệp
 
@@ -132,6 +138,125 @@ export function StudentResults() {
               ))}
             </TableBody>
           </Table>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+export function StudentHomework() {
+  const { me, myClass } = useMe();
+  const { homeworkSubmissions, homeworkCorrections, setHomeworkSubmission } = useApp();
+  const [sessionIdx, setSessionIdx] = React.useState(Math.max(1, me.attended));
+  const [drafts, setDrafts] = React.useState<Record<string, string>>({});
+
+  React.useEffect(() => {
+    setDrafts(
+      Object.fromEntries(
+        DEFAULT_SCORE_COLUMNS.map((col) => [
+          col.id,
+          homeworkSubmissions[homeworkSubmissionKey(me.id, sessionIdx, col.id)] ?? "",
+        ]),
+      ),
+    );
+  }, [homeworkSubmissions, me.id, sessionIdx]);
+
+  const saveAll = () => {
+    DEFAULT_SCORE_COLUMNS.forEach((col) => {
+      setHomeworkSubmission(me.id, sessionIdx, col.id, drafts[col.id] ?? "");
+    });
+    toast.success("Đã gửi link bài nộp cho giáo viên");
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Link2 className="h-5 w-5 text-indigo-600" />
+            Nộp BTVN
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Dán link Google Docs / Google Drive bài làm của bạn. Giáo viên sẽ xem bài nộp bên cạnh ô chấm điểm trên báo cáo buổi học.
+          </p>
+          <div className="max-w-xs">
+            <Label className="text-xs text-muted-foreground">Buổi học</Label>
+            <Select value={String(sessionIdx)} onValueChange={(v) => setSessionIdx(Number(v))}>
+              <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {Array.from({ length: Math.max(me.attended, 1) }).map((_, i) => (
+                  <SelectItem key={i + 1} value={String(i + 1)}>Buổi {i + 1}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle>Bài nộp · Buổi {sessionIdx} · {myClass.name}</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          {DEFAULT_SCORE_COLUMNS.map((col) => {
+            const submitKey = homeworkSubmissionKey(me.id, sessionIdx, col.id);
+            const corrKey = homeworkCorrectionKey(me.id, sessionIdx, col.id);
+            const saved = homeworkSubmissions[submitKey];
+            const corrected = homeworkCorrections[corrKey];
+            return (
+              <div key={col.id} className="rounded-lg border p-4 space-y-3">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <Label className="font-medium">{col.label || "Bài tập"}</Label>
+                  <div className="flex gap-1.5">
+                    {saved ? (
+                      <Badge variant="secondary" className="text-[10px]">Đã nộp</Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-[10px]">Chưa nộp</Badge>
+                    )}
+                    {corrected && (
+                      <Badge className="text-[10px] bg-emerald-600 hover:bg-emerald-600">Đã chữa bài</Badge>
+                    )}
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Bài nộp của bạn</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={drafts[col.id] ?? ""}
+                      onChange={(e) => setDrafts((d) => ({ ...d, [col.id]: e.target.value }))}
+                      placeholder="https://docs.google.com/..."
+                      className="h-9"
+                    />
+                    {saved && (
+                      <Button variant="outline" size="icon" className="h-9 w-9 shrink-0" asChild title="Mở bài nộp">
+                        <a href={saved.startsWith("http") ? saved : `https://${saved}`} target="_blank" rel="noopener noreferrer">
+                          <ExternalLink className="h-4 w-4" />
+                        </a>
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                {corrected ? (
+                  <div className="rounded-md border border-emerald-200 bg-emerald-50/60 p-3 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 text-sm text-emerald-800">
+                      <FileCheck className="h-4 w-4 shrink-0" />
+                      <span>Giáo viên đã up bài chữa</span>
+                    </div>
+                    <Button size="sm" variant="outline" className="border-emerald-300 bg-white hover:bg-emerald-50" asChild>
+                      <a href={corrected.startsWith("http") ? corrected : `https://${corrected}`} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="h-3.5 w-3.5" /> Xem bài chữa
+                      </a>
+                    </Button>
+                  </div>
+                ) : saved ? (
+                  <p className="text-xs text-muted-foreground italic">Giáo viên chưa up link chữa bài.</p>
+                ) : null}
+              </div>
+            );
+          })}
+          <Button onClick={saveAll}>
+            <Save className="h-4 w-4" /> Lưu & gửi bài nộp
+          </Button>
         </CardContent>
       </Card>
     </div>

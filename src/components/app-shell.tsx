@@ -2,7 +2,7 @@ import * as React from "react";
 import {
   Users, GraduationCap, BookOpen, Wallet, ClipboardCheck, UserCog, CalendarRange,
   CalendarDays, ClipboardList, User, Building2, BadgeInfo, PanelLeftClose, PanelLeftOpen,
-  UserPlus,
+  UserPlus, Link2,
   Briefcase,
   CheckCircle2,
   BarChart3,
@@ -37,6 +37,7 @@ const NAV: Record<string, NavItem[]> = {
   student: [
     { id: "info", label: "Thông tin học tập", icon: User },
     { id: "schedule", label: "Lịch học", icon: CalendarDays },
+    { id: "homework", label: "Nộp BTVN", icon: Link2 },
     { id: "tuition-history", label: "Học phí", icon: Wallet },
     { id: "results", label: "Kết quả học tập", icon: BookOpen },
   ],

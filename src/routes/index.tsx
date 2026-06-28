@@ -8,7 +8,7 @@ import {
 } from "@/components/pages/admin-pages";
 import { TeacherToday, TeacherSyllabus } from "@/components/pages/teacher-pages";
 import {
-  StudentInfo, StudentSchedule, StudentTuition, StudentResults,
+  StudentInfo, StudentSchedule, StudentTuition, StudentResults, StudentHomework,
 } from "@/components/pages/student-pages";
 import { Toaster } from "@/components/ui/sonner";
 
@@ -44,6 +44,7 @@ function PageRouter() {
     switch (page) {
       case "info": return <StudentInfo />;
       case "schedule": return <StudentSchedule />;
+      case "homework": return <StudentHomework />;
       case "tuition-history": return <StudentTuition />;
       case "results": return <StudentResults />;
     }

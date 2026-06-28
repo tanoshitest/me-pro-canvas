@@ -366,13 +366,23 @@ export const SYLLABI: Syllabus[] = [
 ];
 
 /* ===== Syllabus chi tiết (demo dùng chung cho mọi syllabus khi mở chi tiết) ===== */
+export type HomeworkTaskType = "Phiếu bài tập" | "Quay video" | "None";
+
+export const HOMEWORK_TASK_TYPES: HomeworkTaskType[] = ["Phiếu bài tập", "Quay video", "None"];
+
+export interface SyllabusHomeworkItem {
+  id: string;
+  content: string;
+  type: HomeworkTaskType;
+}
+
 export interface SyllabusLesson {
   id: string;
   index: number;
   unit: string;
   objective: string;
   content: string;
-  homework: string;
+  homeworks: SyllabusHomeworkItem[];
   material: string;
   note: string;
 }
@@ -390,16 +400,35 @@ export interface SyllabusStage {
   bigTest: SyllabusBigTest;
 }
 
-const mkLessons = (prefix: string, units: { unit: string; objective: string; content: string; homework: string; note: string }[]): SyllabusLesson[] =>
+const inferHomeworkType = (text: string): HomeworkTaskType => {
+  if (/quay video|video/i.test(text)) return "Quay video";
+  return "Phiếu bài tập";
+};
+
+const mkLessons = (
+  prefix: string,
+  units: {
+    unit: string;
+    objective: string;
+    content: string;
+    homework?: string;
+    note: string;
+    homeworks?: SyllabusHomeworkItem[];
+  }[],
+): SyllabusLesson[] =>
   units.map((u, i) => ({
     id: `${prefix}-l${i + 1}`,
     index: i + 1,
     unit: u.unit,
-    objective: u.objective,
-    content: u.content,
-    homework: u.homework,
+    objective: "",
+    content: [u.objective, u.content, u.note].filter(Boolean).join("\n\n"),
+    homeworks:
+      u.homeworks ??
+      (u.homework
+        ? [{ id: `${prefix}-l${i + 1}-h1`, content: u.homework, type: inferHomeworkType(u.homework) }]
+        : []),
     material: `https://drive.google.com/mock/${prefix}-unit-${String(i + 1).padStart(2, "0")}`,
-    note: u.note,
+    note: "",
   }));
 
 export const SYLLABUS_STAGES: SyllabusStage[] = [
@@ -407,7 +436,17 @@ export const SYLLABUS_STAGES: SyllabusStage[] = [
     id: "st1", name: "Chặng 1: Làm quen tiếng Nhật cơ bản",
     goal: "Học viên nhận diện bảng chữ, phát âm chuẩn, viết được Hiragana và Katakana cơ bản.",
     lessons: mkLessons("s1", [
-      { unit: "Hiragana cơ bản", objective: "Học viên nhận diện và viết được nhóm chữ Hiragana đầu tiên", content: "Giới thiệu bảng chữ cái, luyện phát âm, luyện viết từng hàng chữ", homework: "Viết mỗi chữ 5 dòng, học thuộc hàng あ・か・さ", note: "Giáo viên kiểm tra phát âm từng học viên" },
+      {
+        unit: "Hiragana cơ bản",
+        objective: "Học viên nhận diện và viết được nhóm chữ Hiragana đầu tiên",
+        content: "Giới thiệu bảng chữ cái, luyện phát âm, luyện viết từng hàng chữ",
+        note: "Giáo viên kiểm tra phát âm từng học viên",
+        homeworks: [
+          { id: "s1-l1-h1", content: "Viết mỗi chữ 5 dòng, học thuộc hàng あ・か・さ", type: "Phiếu bài tập" },
+          { id: "s1-l1-h2", content: "Quay video đọc to 10 từ Hiragana đã học trong ngày", type: "Quay video" },
+          { id: "s1-l1-h3", content: "Ôn lại bảng chữ đã học trên sách giáo khoa", type: "None" },
+        ],
+      },
       { unit: "Hiragana mở rộng", objective: "Hoàn thiện toàn bộ bảng Hiragana", content: "Luyện hàng た・な・は・ま・や・ら・わ, ghép từ đơn giản", homework: "Viết 20 từ vựng cơ bản bằng Hiragana", note: "Chú ý nét viết đúng thứ tự" },
       { unit: "Katakana cơ bản", objective: "Nhận diện Katakana và từ ngoại lai", content: "Giới thiệu Katakana, so sánh với Hiragana, từ ngoại lai thường gặp", homework: "Viết tên mình và 10 từ ngoại lai bằng Katakana", note: "Lưu ý phân biệt シ/ツ, ソ/ン" },
       { unit: "Chào hỏi & tự giới thiệu", objective: "Sử dụng được mẫu câu chào hỏi và tự giới thiệu", content: "はじめまして, わたしは～です, よろしくおねがいします", homework: "Quay video tự giới thiệu 30 giây", note: "Khuyến khích học viên nói trước lớp" },
@@ -471,6 +510,133 @@ export interface SyllabusStudentRow {
   gradeNote: string;
 }
 export const SYLLABUS_GRADE_COLUMNS: string[] = ["Quiz 1", "Homework", "Speaking", "Mini Test"];
+
+export type ReportAttendance = "Vắng" | "Có phép" | "Không phép" | "Đi muộn";
+export type BtvnStatus = "Yes" | "X" | "Yes làm thiếu";
+export type LearningSpirit =
+  | "Nói chuyện riêng"
+  | "Chưa tập trung"
+  | "Hăng hái nhưng còn mất tập trung"
+  | "Ít hăng hái"
+  | "Hăng hái tích cực"
+  | "Ngoan, tập trung"
+  | "Tốt, tập trung"
+  | "Mất kết nối"
+  | "Đôi lúc chưa tập trung"
+  | "Có tiến bộ"
+  | "Cần luyện tập thêm";
+
+export interface BtvnColumn {
+  id: string;
+  label: string;
+}
+
+export const DEFAULT_BTVN_COLUMN_ID = "btvn-default";
+
+export const DEFAULT_BTVN_COLUMNS: BtvnColumn[] = [
+  { id: DEFAULT_BTVN_COLUMN_ID, label: "" },
+];
+
+export const DEFAULT_SCORE_COLUMNS: BtvnColumn[] = [
+  { id: "score-1", label: "BTVN /110" },
+  { id: "score-2", label: "Thực hành ngữ pháp /30" },
+];
+
+export function homeworkSubmissionKey(studentId: string, sessionIdx: number, columnId: string) {
+  return `${studentId}|${sessionIdx}|${columnId}`;
+}
+
+export function homeworkCorrectionKey(studentId: string, sessionIdx: number, columnId: string) {
+  return `corr|${studentId}|${sessionIdx}|${columnId}`;
+}
+
+export const SEED_HOMEWORK_SUBMISSIONS: Record<string, string> = {
+  [homeworkSubmissionKey("ss1", 1, "score-1")]: "https://docs.google.com/document/d/demo-hong-diep-btvn",
+  [homeworkSubmissionKey("ss2", 1, "score-1")]: "https://docs.google.com/document/d/demo-minh-khang-btvn",
+  [homeworkSubmissionKey("ss3", 1, "score-1")]: "https://drive.google.com/file/d/demo-thanh-ha-btvn",
+  [homeworkSubmissionKey("ss5", 1, "score-1")]: "https://docs.google.com/document/d/demo-khanh-linh-btvn",
+  [homeworkSubmissionKey("ss1", 1, "score-2")]: "https://docs.google.com/document/d/demo-hong-diep-nguphap",
+  [homeworkSubmissionKey("s1", 1, "score-1")]: "https://docs.google.com/document/d/demo-kirito-btvn",
+  [homeworkSubmissionKey("s1", 1, "score-2")]: "https://docs.google.com/document/d/demo-kirito-nguphap",
+};
+
+export const SEED_HOMEWORK_CORRECTIONS: Record<string, string> = {
+  [homeworkCorrectionKey("s1", 1, "score-1")]: "https://docs.google.com/document/d/demo-kirito-btvn-corrected",
+  [homeworkCorrectionKey("ss1", 1, "score-1")]: "https://docs.google.com/document/d/demo-hong-diep-btvn-corrected",
+  [homeworkCorrectionKey("ss2", 1, "score-1")]: "https://docs.google.com/document/d/demo-minh-khang-btvn-corrected",
+  [homeworkCorrectionKey("ss5", 1, "score-1")]: "https://docs.google.com/document/d/demo-khanh-linh-btvn-corrected",
+};
+
+export type ReportTagTone =
+  | "success"
+  | "info"
+  | "warning"
+  | "danger"
+  | "muted"
+  | "violet"
+  | "pink"
+  | "slate"
+  | "teal"
+  | "orange";
+
+export interface ReportSelectOption<T extends string = string> {
+  value: T;
+  tone: ReportTagTone;
+}
+
+export const REPORT_ATTENDANCE_OPTIONS: ReportSelectOption<ReportAttendance>[] = [
+  { value: "Vắng", tone: "success" },
+  { value: "Có phép", tone: "info" },
+  { value: "Không phép", tone: "danger" },
+  { value: "Đi muộn", tone: "warning" },
+];
+
+export const BTVN_STATUS_OPTIONS: ReportSelectOption<BtvnStatus>[] = [
+  { value: "Yes", tone: "success" },
+  { value: "X", tone: "danger" },
+  { value: "Yes làm thiếu", tone: "warning" },
+];
+
+export const LEARNING_SPIRIT_OPTIONS: ReportSelectOption<LearningSpirit>[] = [
+  { value: "Nói chuyện riêng", tone: "orange" },
+  { value: "Chưa tập trung", tone: "warning" },
+  { value: "Hăng hái nhưng còn mất tập trung", tone: "info" },
+  { value: "Ít hăng hái", tone: "violet" },
+  { value: "Hăng hái tích cực", tone: "pink" },
+  { value: "Ngoan, tập trung", tone: "teal" },
+  { value: "Tốt, tập trung", tone: "pink" },
+  { value: "Mất kết nối", tone: "slate" },
+  { value: "Đôi lúc chưa tập trung", tone: "teal" },
+  { value: "Có tiến bộ", tone: "orange" },
+  { value: "Cần luyện tập thêm", tone: "warning" },
+];
+
+export interface SyllabusReportRow {
+  id: string;
+  code: string;
+  name: string;
+  attendance: ReportAttendance;
+  btvnHw: Record<string, BtvnStatus>;
+  scores: Record<string, number | "">;
+  learningSpirit: LearningSpirit;
+  teacherComment: string;
+}
+
+const defaultBtvnHw = (columnIds: string[] = [DEFAULT_BTVN_COLUMN_ID]): Record<string, BtvnStatus> =>
+  Object.fromEntries(columnIds.map((id) => [id, "Yes" as BtvnStatus]));
+
+export const SYLLABUS_REPORT_ROWS: SyllabusReportRow[] = [
+  { id: "ss1", code: "HV001", name: "Nguyễn Hồng Diệp", attendance: "Vắng", btvnHw: { [DEFAULT_BTVN_COLUMN_ID]: "Yes" }, scores: { "score-1": 105, "score-2": "" }, learningSpirit: "Hăng hái tích cực", teacherComment: "Con hăng hái tham gia, trả lời câu hỏi tốt. Cần luyện thêm phần nghe." },
+  { id: "ss2", code: "HV002", name: "Trần Minh Khang", attendance: "Vắng", btvnHw: { [DEFAULT_BTVN_COLUMN_ID]: "Yes làm thiếu" }, scores: { "score-1": 86, "score-2": "" }, learningSpirit: "Ngoan, tập trung", teacherComment: "Con tập trung nghe giảng, làm bài đầy đủ nhưng cần nhanh hơn." },
+  { id: "ss3", code: "HV003", name: "Lê Thanh Hà", attendance: "Có phép", btvnHw: { [DEFAULT_BTVN_COLUMN_ID]: "Yes" }, scores: { "score-1": 101, "score-2": "" }, learningSpirit: "Tốt, tập trung", teacherComment: "Vắng có phép. BTVN hoàn thành khá tốt." },
+  { id: "ss4", code: "HV004", name: "Phạm Quang Huy", attendance: "Không phép", btvnHw: { [DEFAULT_BTVN_COLUMN_ID]: "X" }, scores: { "score-1": 62, "score-2": "" }, learningSpirit: "Chưa tập trung", teacherComment: "Con cần cải thiện thái độ học tập và hoàn thành BTVN đầy đủ hơn." },
+  { id: "ss5", code: "HV005", name: "Đỗ Khánh Linh", attendance: "Vắng", btvnHw: { [DEFAULT_BTVN_COLUMN_ID]: "Yes" }, scores: { "score-1": 110, "score-2": "" }, learningSpirit: "Hăng hái tích cực", teacherComment: "Học sinh xuất sắc, chủ động phát biểu và hỗ trợ bạn cùng lớp." },
+  { id: "ss6", code: "HV006", name: "Hoàng Đức Anh", attendance: "Đi muộn", btvnHw: { [DEFAULT_BTVN_COLUMN_ID]: "Yes làm thiếu" }, scores: { "score-1": 78, "score-2": "" }, learningSpirit: "Đôi lúc chưa tập trung", teacherComment: "Con vào muộn, cần đến lớp đúng giờ hơn." },
+  { id: "ss7", code: "HV007", name: "Vũ Thu Trang", attendance: "Có phép", btvnHw: { [DEFAULT_BTVN_COLUMN_ID]: "Yes làm thiếu" }, scores: { "score-1": 92, "score-2": "" }, learningSpirit: "Có tiến bộ", teacherComment: "Con có tiến bộ rõ rệt so với tuần trước." },
+  { id: "ss8", code: "HV008", name: "Bùi Gia Bảo", attendance: "Vắng", btvnHw: { [DEFAULT_BTVN_COLUMN_ID]: "Yes làm thiếu" }, scores: { "score-1": 74, "score-2": "" }, learningSpirit: "Cần luyện tập thêm", teacherComment: "Con cần bổ sung từ vựng và luyện tập thêm ở nhà." },
+  { id: "ss9", code: "HV009", name: "Ngô Mai Phương", attendance: "Vắng", btvnHw: { [DEFAULT_BTVN_COLUMN_ID]: "Yes" }, scores: { "score-1": 98, "score-2": "" }, learningSpirit: "Hăng hái tích cực", teacherComment: "Rất chủ động phát biểu, thái độ học tập tốt." },
+  { id: "ss10", code: "HV010", name: "Đặng Hải Nam", attendance: "Không phép", btvnHw: { [DEFAULT_BTVN_COLUMN_ID]: "X" }, scores: { "score-1": 55, "score-2": "" }, learningSpirit: "Ít hăng hái", teacherComment: "Cần gọi phụ huynh trao đổi về việc nghỉ học và không làm BTVN." },
+].map((r) => ({ ...r, btvnHw: r.btvnHw ?? defaultBtvnHw() }));
 
 export const SYLLABUS_STUDENTS: SyllabusStudentRow[] = [
   { id: "ss1",  code: "HV001", name: "Nguyễn Hồng Diệp",   attendance: "Có mặt",          attendanceNote: "Tham gia tích cực",        grades: { "Quiz 1": 9,  Homework: 10, Speaking: 8.5, "Mini Test": 9   }, gradeNote: "Học đều, phát âm tốt" },
