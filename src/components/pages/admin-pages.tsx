@@ -35,7 +35,7 @@ import {
   TrendingUp, Calendar, Info, CheckCircle2, ArrowRight, CalendarOff, Repeat,
   Clock, DoorOpen, BookOpen, Tag, Hash, ArrowLeft,
   Layers, FileText, ClipboardCheck, BarChart3, ExternalLink, Link2, Plus, Pencil, Copy, Trash2, Download, FileSpreadsheet, ListChecks, Target, ChevronRight, ChevronLeft, ChevronDown,
-  CalendarIcon, Upload, History, FileCheck,
+  CalendarIcon, Upload, History, FileCheck, Lock,
   Search, LayoutGrid, List as ListIcon, Phone, School as SchoolIcon, MapPin,
 } from "lucide-react";
 
@@ -610,6 +610,9 @@ const fmtDM = (d: Date) => `${String(d.getDate()).padStart(2, "0")}/${String(d.g
 // Mỗi khóa gồm KHOA_SIZE buổi học; đánh số Buổi 1..24 rồi khóa sau lặp lại từ 1.
 const KHOA_SIZE = 24;
 
+// Chặng hiện tại giáo viên đang dạy (demo). Chặng cũ/sau bị khoá khi xem ở chế độ lớp/giáo viên.
+const TEACHER_CURRENT_STAGE = 1; // index 1 = Chặng 2
+
 // Đổi số buổi toàn cục (1..total) sang số theo khóa: Buổi {within}/{size}, khóa số {khoa}.
 function khoaOf(no: number | undefined | null, total: number) {
   if (!no || no < 1) return { khoa: 1, within: no ?? 0, size: Math.min(KHOA_SIZE, total || KHOA_SIZE) };
@@ -1102,7 +1105,7 @@ function ClassSessionReportView({
 type SyllabusSel = { kind: "lesson"; stageId: string; lessonId: string } | { kind: "bigtest"; stageId: string; sessionId?: string };
 
 function mkEmptyLesson(id: string, unit: string): SyllabusLesson {
-  return { id, index: 0, unit, objective: "", content: "", lessonPlan: "", homeworks: [], material: "", note: "" };
+  return { id, index: 0, unit, objective: "", content: "", lessonPlan: "", foreignTeacherContent: "", suggestedActivities: "", homeworks: [], material: "", note: "" };
 }
 
 function findSelectedSession(stages: SyllabusStageData[], sel: SyllabusSel): { stage: SyllabusStageData; session: SyllabusSessionData } | null {
@@ -1201,7 +1204,8 @@ function ClassSyllabusSection({
   const syllabusId = resolveSyllabusId(cls.syllabus);
   const stages = getSyllabusStages(syllabusId);
   const [sel, setSel] = React.useState<SyllabusSel>(() => {
-    const st = stages[0];
+    // Mặc định mở chặng hiện tại (không khoá) cho đúng demo giao diện giáo viên
+    const st = stages[TEACHER_CURRENT_STAGE] ?? stages[0];
     const first = st?.sessions[0];
     if (!st || !first) return { kind: "lesson", stageId: st?.id ?? "st1", lessonId: "s1-l1" };
     if (first.kind === "lesson") return { kind: "lesson", stageId: st.id, lessonId: first.lesson.id };
@@ -2856,7 +2860,7 @@ function SyllabusContentTree({
   offDates?: string[];
   readOnly?: boolean;
 }) {
-  const { getSyllabusStages, setSyllabusStages, ensureSyllabusStages } = useApp();
+  const { getSyllabusStages, setSyllabusStages, ensureSyllabusStages, role } = useApp();
   React.useEffect(() => {
     ensureSyllabusStages(syllabusId);
   }, [syllabusId, ensureSyllabusStages]);
@@ -3091,20 +3095,27 @@ function SyllabusContentTree({
         </CardHeader>
         <CardContent className="pt-0">
           <div className="space-y-1 text-sm">
-            {stagesState.map((st) => {
-              const open = !!openStages[st.id];
+            {stagesState.map((st, stageIndex) => {
+              const locked = (readOnly || role === "teacher") && stageIndex !== TEACHER_CURRENT_STAGE;
+              const open = !!openStages[st.id] && !locked;
               return (
                 <div key={st.id}>
-                  <div className="group/stage flex items-center rounded hover:bg-accent">
+                  <div className={`group/stage flex items-center rounded ${locked ? "opacity-60" : "hover:bg-accent"}`}>
                     <button
-                      onClick={() => toggle(st.id)}
+                      onClick={() => { if (locked) { toast.info("Chặng này đang khoá với giáo viên."); return; } toggle(st.id); }}
                       className="flex-1 min-w-0 flex items-center gap-2 px-2 py-1.5 text-left"
+                      title={locked ? "Chặng đang khoá" : undefined}
                     >
-                      <ChevronRight className={`h-3.5 w-3.5 shrink-0 transition-transform ${open ? "rotate-90" : ""}`} />
-                      <Layers className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
-                      <span className="font-medium truncate">{st.name}</span>
+                      {locked ? (
+                        <Lock className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                      ) : (
+                        <ChevronRight className={`h-3.5 w-3.5 shrink-0 transition-transform ${open ? "rotate-90" : ""}`} />
+                      )}
+                      <Layers className={`h-3.5 w-3.5 shrink-0 ${locked ? "text-slate-400" : "text-indigo-600"}`} />
+                      <span className={`font-medium truncate ${locked ? "text-slate-400" : ""}`}>{st.name}</span>
+                      {locked && <span className="ml-auto text-[10px] text-slate-400 shrink-0">Khoá</span>}
                     </button>
-                    {!readOnly && (
+                    {!readOnly && !locked && (
                       <button
                         type="button"
                         title="Xoá chặng"
@@ -3222,6 +3233,8 @@ function SyllabusContentTree({
                 <TabsContent value="in-class" className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
                   <EditField icon={Target} label="Outcome" value={session.lesson.content} onChange={(v) => updateLesson(stage.id, session.id, { content: v })} multiline readOnly={readOnly} placeholder="Nội dung / mục tiêu đạt được của buổi (cột Content)..." />
                   <EditField icon={ListChecks} label="Lesson plan" value={session.lesson.lessonPlan ?? ""} onChange={(v) => updateLesson(stage.id, session.id, { lessonPlan: v })} multiline readOnly={readOnly} placeholder="Các bước tiến trình dạy trên lớp (cột Process)..." />
+                  <EditField icon={GraduationCap} label="Nội dung cho giáo viên nước ngoài" value={session.lesson.foreignTeacherContent ?? ""} onChange={(v) => updateLesson(stage.id, session.id, { foreignTeacherContent: v })} multiline readOnly={readOnly} placeholder="Nội dung dành cho giáo viên nước ngoài..." />
+                  <EditField icon={Info} label="Hoạt động gợi ý" value={session.lesson.suggestedActivities ?? ""} onChange={(v) => updateLesson(stage.id, session.id, { suggestedActivities: v })} multiline readOnly={readOnly} placeholder="Hoạt động gợi ý cho buổi học..." />
                 </TabsContent>
                 <TabsContent value="after-class" className="space-y-4">
                   <HomeworkListEditor

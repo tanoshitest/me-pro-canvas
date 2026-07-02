@@ -322,6 +322,8 @@ export interface SyllabusLesson {
   objective: string;
   content: string;
   lessonPlan?: string;
+  foreignTeacherContent?: string;   // Nội dung cho giáo viên nước ngoài
+  suggestedActivities?: string;     // Hoạt động gợi ý
   homeworks: SyllabusHomeworkItem[];
   material: string;
   note: string;
@@ -480,6 +482,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- Review : Numbers + Days of week + Colours\n- Introduce characters\n- Say Hello / Goodbye\n- Reading dialogue",
         "lessonPlan": "",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s1-l1-h1",
@@ -512,6 +518,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- New words : School's things ( pen, rubber, pencil, ruler, book)\n- Structure : What's this ? It's a ....\n- Reading : Dialogue",
         "lessonPlan": "- Warm up\n- Teach vocab about School's things\n- Practice vocabulary ( Game)\n- Teach grammar : What's this ? It's a ....\n- Practice Grammar\n- Game Grammar\n- Read dilogue\n- Practice extra\n- Wrap up",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s1-l2-h1",
@@ -549,6 +559,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- Review words : School's things ( Unit 1)\n- Review grammar : WHat's this ? It's a .....\n- New words : bag, folder, door, window, bookcase\n- Song : Open the book\n- Phonics : Review phonics A - B - C - D",
         "lessonPlan": "- Warm up\n- Review words\n- Teach new word : School's things\n- Practice Vocabulary ( lesson 1+3)\n- Sing the song\n- Review Grammar : What's this ? It's a ......\n- Practice Grammar\n- Check homework\n- Review phonics\n- Wrap up",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s1-l3-h1",
@@ -586,6 +600,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- Review words : School's things ( L1+3 )\n- Review grammar : WHat's this ? It's a .....\n- Reading Skill : School bag\n- Listening Skill : Listen and number\n- Writing Skill : Number of words\n- Speaking Skill : Talk about your school bag",
         "lessonPlan": "- Warm up\n- Check homework + Check test vocab\n- Practice Grammar\n- Reading + Reading comprehension\n- Listening + Asking questions about pic\n- Writing : Count the number of words\n- Guide Student to speak about school bag: Speaking Skill : Talk about your school bag",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s1-l4-h1",
@@ -613,6 +631,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- Review words + Grammar\n- Practice speaking : Talk about your school bag\n- Listening extra : (Starters Listening )",
         "lessonPlan": "- Warm up\n- Homework check\n- Review words + Grammar\n- Practice Game\n- Speaking : Talk about school bag\n- Listening extra : Starters Listening ( L4_Bổ trợ)",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s1-l5-h1",
@@ -640,6 +662,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- Mini test Unit 1 -15p\n- New words : Toys\n- ( doll, ball, teddy, puzzle, car)\n- Structure : This is my doll. This is your car ( my / your)\n- Reading : Dialogue",
         "lessonPlan": "- Mini test Unit 1 -15p\n- Warm up\n- Check homework\n- Teach vocab about Toys\n- Practice vocabulary ( Game)\n- Teaching Grammar : My / your\n- Practice Grammar\n- Game Grammar\n- Read dialogue\n- Practice + Wrap up",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s1-l6-h1",
@@ -677,6 +703,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- Review words : Toys ( Lesson 1)\n- Review grammar : my / your\n- New words : kite, bike, train, game, scooter\n- Grammar : Is this your kite ? Yes, it is / No, it isn't.\n- Song : Toys, toys, toys\n- Phonics : E - F - G - H",
         "lessonPlan": "- Warm up\n- Review words\n- Teach new word : Toys\n- Practice Vocabulary ( lesson 1+3)\n- Sing the song\n- Review Grammar : my / your\n- Teach grammar : Is this your kite ? Yes, it is. / No, it isn't.\n- Check homework\n- Phonics : E - F - G - H\n- Practice + Wrap up",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s1-l7-h1",
@@ -714,6 +744,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- Review words :  Toys ( L1+3 )\n- Review grammar : Is this your .... ? Yes, it is. / No, it isn't\n- Reading Skill : My favourite\n- Listening Skill : Listen and number\n- Writing Skill : Identify the words\n- Speaking : My favourite",
         "lessonPlan": "- Warm up\n- Check homework + Check test vocab\n- Practice Grammar\n- Reading + Reading comprehension\n- Listening + making Q and A\n- Writing : Identify the words",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s1-l8-h1",
@@ -751,6 +785,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- Review words + Grammar\n- Speaking : My favourite\n- Listening extra : (Starters Listening )\n- Mini test Unit 2",
         "lessonPlan": "- Warm up\n- Homework check\n- Review words + Grammar\n- Practice Game\n- Speaking : My favourite\n- Listening extra : Starters Listening ( L4_Bổ trợ)",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s1-l9-h1",
@@ -773,6 +811,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- New words : Body parts\n- (arms, nose, face, legs, ears )\n- Structure : This is my nose. / These are my arms\n- ( This is / These are)\n- Reading : Dialogue",
         "lessonPlan": "- Mini test Unit 2\n- Warm up\n- Check homework\n- Teach vocab about Body parts\n- Practice vocabulary ( Game)\n- Teach grammar : This is / These are\n- Practice Grammar\n- Game Grammar\n- Read dialogue\n- Practice + Wrap up",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s1-l10-h1",
@@ -810,6 +852,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- Review words : Body parts ( Lesson 1)\n- Review grammar : This is / These are\n- New words : fingers / hands / eyes/ eye brows/ shoulders\n- Song : Ten fingers on my hands\n- Phonics : I - J - K - L",
         "lessonPlan": "- Warm up\n- Review words + Practice words\n- Teach new word : Body parts ( cont)\n- Sing the song\n- Review Grammar : This is / These are\n- Practice Grammar\n- Check homework\n- Phonics : i, j, k, l\n- Practice + Wrap up",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s1-l11-h1",
@@ -842,6 +888,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- Review words :  Body parts  ( L1+3 )\n- Review grammar : This is / These are\n- Reading Skill : Making craft\n- Listening Skill : Listen and number\n- Writing Skill : Identify the sentences\n- Speaking : Describe the monster",
         "lessonPlan": "- Warm up\n- Check homework + Check test vocab\n- Practice Grammar\n- Reading + Reading comprehension\n- Listening and numbers\n- Writing : Count the numbers\n- Speaking : Describe the monster",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s1-l12-h1",
@@ -874,6 +924,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- Review words + Grammar\n- Speaking : Describe the monster\n- Listening extra : (Starters Listening )\n- Mini test Unit 3",
         "lessonPlan": "- Warm up\n- Homework check\n- Review words + Grammar\n- Practice Game\n- Speaking : Describe the monster ( Carf)\n- Listening extra : Starters Listening ( L4_Bổ trợ)",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s1-l13-h1",
@@ -901,6 +955,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- Review Unit 1 ,2 ,3",
         "lessonPlan": "- Mini test Unit 3",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s1-l14-h1",
@@ -946,6 +1004,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- New words : Jobs  (teacher, pupil, housewife, fireman, pilot )\n- Structure : He/ She is a ....\n- Is he / she a .... ? Yes, he is. / No , he isn't\n- Reading : Dialogue",
         "lessonPlan": "- Warm up\n- Teach vocab about Jobs\n- Practice vocabulary ( Game)\n- Grammar : He / She is a ....  + Practice Grammar\n- Grammar : Is he / she a ..... ? Yes, he is / No, he isn't\n- Practice Grammar\n- Game Grammar\n- Read dialogue\n- Practice extra\n- Practice + Wrap up",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s2-l1-h1",
@@ -983,6 +1045,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- Review words :  Jobs  ( Lesson 1)\n- Review grammar : He / She is a ... .\n- Is he / she  a .... ? Yes, he/ she is . /\n- No, he/she isn't\n- New words : doctor, policeman, farmer, postman, zookeeper\n- Song : Two kinds doctor\n- Phonics : M,N,O,P",
         "lessonPlan": "- Warm up\n- Review words : Jobs\n- Teach new word : Jobs (L3)\n- Game vocabulary\n- Review Grammar : Is he / she a ... ? Yes, he is / No, he isn't\n- Practice Grammar ( Game)\n- Sing the song\n- Check homework\n- Teach phonics\n- Wrap up",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s2-l2-h1",
@@ -1020,6 +1086,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- Review words : Jobs  ( L1+3 )\n- Review grammar : tobe is\n- Reading Skill : Family members\n- Listening Skill : Listen and number\n- Writing Skill : capital letter / Full stop\n- Speaking Skill : Talk about your family",
         "lessonPlan": "- Warm up\n- Review vocab + Check vocab\n- Review Gammar + practice grammar\n- Check homework\n- Reading + Reading comprehension\n- Listening and numbering the picture\n- Writing : Capital letter and full stop\n- Speaking : talk about your family",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s2-l3-h1",
@@ -1052,6 +1122,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- Review words + Grammar\n- Practice speaking : Talk about your family\n- Listening extra : (Starters Listening )\n- Mini test Unit 4",
         "lessonPlan": "- Warm up\n- Homework check\n- Review words + Grammar\n- Practice Game\n- Speaking : Talk about your family\n- Listening extra : Starters Listening ( L4_Bổ trợ)",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s2-l4-h1",
@@ -1079,6 +1153,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- New words : Things at the park\n- ( seesaw, slide,net, swing, tree)\n- Structure : in , on, under\n- Where is the ball ? It's in the net\n- Reading : Dialogue",
         "lessonPlan": "- Mini test Unit 4\n- Warm up\n- Check homework\n- Teach vocab about Things at the park\n- Practice vocabulary ( Game)\n- Teach grammar : Where is the ball ? It's in the net\n- Practice Grammar\n- Game Grammar\n- Read dialogue\n- Practice extra\n- Practice + Wrap up",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s2-l5-h1",
@@ -1116,6 +1194,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- Review words : Things at the park\n- Review grammar : Where is the ball ? It's in the net\n- New words : pool, armbands, ice cream, frisbee, climbing frame\n- Song : At the park\n- Phonics : Q, R, S, T , U",
         "lessonPlan": "- Warm up\n- Check homework\n- Review words : Things at the park\n- Teach new word : Things at the park ( l3)\n- Practice Vocabulary ( lesson 1+3)\n- Sing the song\n- Review Grammar : Where is the ball ? It's in the net.\n- Practice Grammar\n- Phonics : Q, R, S, T , U\n- Practice + Wrap up",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s2-l6-h1",
@@ -1153,6 +1235,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- Review words :  Things at the park   ( L1+3 )\n- Review grammar : Where is the ball ? It's in the net\n- Reading Skill : things at the park\n- Listening Skill : Listen and number\n- Writing Skill : Capital letter for names",
         "lessonPlan": "- Warm up\n- Check homework\n- Review vocabulary + Check test vocab\n- Review Grammar + Practice Grammar\n- Reading + Reading comprehension\n- Listening + making Q and A\n- Writing : Capital letters for Days of the week\n- Guide S to talk about describe sth in the park",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s2-l7-h1",
@@ -1180,6 +1266,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- Review words + Grammar\n- Speaking : Describe the things in the park\n- Listening extra : (Starters Listening )",
         "lessonPlan": "- Warm up\n- Homework check\n- Review words + Grammar\n- Practice Game\n- Speaking : Things at the park\n- Listening extra : Starters Listening ( L4_Bổ trợ)",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s2-l8-h1",
@@ -1207,6 +1297,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- New words : Family (mom, dad, brother, sister, grandma, grandpa)\n- Structure : Possessive case . This is Mum's hat.\n- Reading : Dialogue",
         "lessonPlan": "- Mini test Unit 5\n- Warm up\n- Check homework\n- Teach vocab about Family\n- Practice vocabulary ( Game)\n- Teach grammar : This is Mum's hat\n- Practice Grammar\n- Game Grammar\n- Read dialogue\n- Practice extra\n- Practice + Wrap up",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s2-l9-h1",
@@ -1244,6 +1338,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- Review words : Family ( Lesson 1)\n- Review grammar : Possessive case\n- New words : aunt, uncle, cousin\n- Song : In my family\n- Phonics : V, W, X, Y, Z",
         "lessonPlan": "- Warm up\n- Check homework\n- Review words + Practice words\n- Teach new word : Family ( aunt, uncle, cousin)\n- Practice : all words\n- Sing the song\n- Review Grammar : Possessive's case\n- Practice Grammar\n- Phonics : V, W, X, Y, Z\n- Practice + Wrap up",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s2-l10-h1",
@@ -1281,6 +1379,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- Review words :  Family  ( L1+3 )\n- Review grammar :Possessive case\n- Reading Skill : Story about Grandpa's hat\n- Listening Skill : Listen and number\n- Writing Skill : Idenfity the question and answer\n- Speaking : Introduce about your family",
         "lessonPlan": "- Warm up\n- Check homework\n- Review vocabulary + Check test vocab\n- Review Grammar + Practice Grammar\n- Reading + Reading comprehension\n- Listening + retell\n- Writing : Identify tthe question and answer\n- Speaking : introduce about your family\n- Practice + Wrap up",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s2-l11-h1",
@@ -1318,6 +1420,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- Review words + Grammar\n- Speaking : Introduce about your family\n- Listening extra : (Starters Listening )",
         "lessonPlan": "- Warm up\n- Homework check\n- Review words + Grammar\n- Practice Game\n- Speaking : Introduce about your family\n- Listening extra : Starters Listening ( L4_Bổ trợ)",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s2-l12-h1",
@@ -1345,6 +1451,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- Review Unit  4,5,6",
         "lessonPlan": "- Mini test Unit 6",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s2-l13-h1",
@@ -1390,6 +1500,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- New words : Clothes\n- (dress, shorts, T shirt, trousers, socks )\n- Structure : his  / her .\n- Review : This is / These are\n- Reading : Dialogue",
         "lessonPlan": "- Warm up\n- Teach vocab about Clothes\n- Practice vocabulary ( Game)\n- Review grammar :  This is / These are\n- Teach grammar : his / her\n- Practice Grammar\n- Game Grammar\n- Read dialogue\n- Practice extra\n- Practice + Wrap up",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s3-l1-h1",
@@ -1427,6 +1541,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- Review words : Clothes  ( Lesson 1)\n- Grammar : Are these ... ? Is this .... ?\n- New words : shoes, coat, hat, cardigan, tracksuit\n- Song : Everyday\n- Phonics : alphabet review",
         "lessonPlan": "- Warm up\n- Check homework\n- Review words : Clothes\n- Teach new word : Clothes ( Lesson 3)\n- Practice Vocabulary\n- Sing the song\n- Grammar : Is this ... ? Are these .... ?\n- Practice Grammar\n- Review phonics\n- Practice + Wrap up",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s3-l2-h1",
@@ -1464,6 +1582,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- Review words : Clothes ( L1+3 )\n- Review grammar : his / her - Are these / Is this ... ?\n- Reading Skill : dialouge at the shop\n- Writing Skill : short form of WHat is / Where is\n- Speaking Skill : Describe the people ( clothes)",
         "lessonPlan": "- Warm up\n- Check homework\n- Review vocab + Check test vocab\n- Practice Grammar\n- Reading + Reading comprehension\n- Listening + retell\n- Writing : Short form tobe is\n- Speaking : Describe the people ( clothes)",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s3-l3-h1",
@@ -1501,6 +1623,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- Review words + Grammar\n- Practice speaking : Describe the people ( clothes)\n- Listening extra : (Starters Listening)",
         "lessonPlan": "- Warm up\n- Homework check\n- Review words + Grammar\n- Practice Game\n- Speaking : Describe the people ( clothes)\n- Listening extra : Starters Listening ( L4_Bổ trợ)",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s3-l4-h1",
@@ -1528,6 +1654,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- New words : Rooms  ( kitchen, living room, dining room, bedroom, bathroom, garden)\n- Structure : Where's Grandma ? She's in the kitchen .\n- Reading : Dialogue",
         "lessonPlan": "- Mini test Unit 7\n- Warm up\n- Check homework\n- Teach vocab about rooms in the house\n- Practice vocabulary ( Game)\n- Teach grammar : Where's Grandma ? Where are mom and dad ?\n- Practice Grammar\n- Game Grammar\n- Read dialogue\n- Practice extra\n- Practice + Wrap up",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s3-l5-h1",
@@ -1565,6 +1695,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- Review words : rooms  ( Lesson 1)\n- Review grammar : Where's ... ? Where are ... ?\n- Grammar : Is she in the ... ? Are they in the ....?\n- New words : upstairs, downstairs, house, flat, front door\n- Song : Come into my house\n- Phonics : sh ( shoe, sheep, fish)",
         "lessonPlan": "- Warm up\n- Check homework\n- Review words : rooms\n- Teach new word : parts of house\n- Practice Vocabulary ( lesson 1+3)\n- Sing the song\n- Review Grammar : Where is ... ? Where are ... ?\n- New Grammar : Is she in the ... ? Are they in the ... ?\n- Practice Grammar\n- Phonics : sh\n- Practice + Wrap up",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s3-l6-h1",
@@ -1602,6 +1736,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- Review words :  rooms + house    ( L1+3 )\n- Review grammar : Where is / Where are ?\n- Is she ... ? Are they ... ?\n- Reading Skill : Describing the house\n- Listening Skill : Listen the number\n- Writing Skill : vowels\n- Speaking : Describe the house",
         "lessonPlan": "- Warm up\n- Check homework\n- Review vocabulary + Check test vocab\n- Practice Grammar\n- Reading + Reading comprehension\n- Listening + making Q and A\n- Writing : identify the question words\n- Guide S to describe the house",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s3-l7-h1",
@@ -1634,6 +1772,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- Review words + Grammar\n- Speaking :Describe the house\n- Listening extra : (Starters Listening)",
         "lessonPlan": "- Warm up\n- Homework check\n- Review words + Grammar\n- Practice Game\n- Speaking : Describe the house\n- Listening extra : Starters Listening ( L4_Bổ trợ)",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s3-l8-h1",
@@ -1661,6 +1803,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- New words : Food and drinks\n- (lunchbox, sandwich, drinks, apple, banana, biscuit)\n- Structure : have got / haven't got\n- Reading : Dialogue",
         "lessonPlan": "- Mini test Unit 8\n- Warm up\n- Check homework\n- Teach vocab about Food\n- Practice vocabulary ( Game)\n- Teach grammar : have got / haven't got\n- Practice Grammar\n- Game Grammar\n- Read dialogue\n- Practice extra\n- Practice + Wrap up",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s3-l9-h1",
@@ -1698,6 +1844,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- Review words : Food  ( Lesson 1)\n- Review grammar : have got / haven't got\n- New words : tomato, pear, grapes, pineapple, cherries )\n- Song : Open my lunch box\n- Phonics : ch ( chair, teacher, chick)",
         "lessonPlan": "- Warm up\n- Check homework\n- Review words + Practice words\n- Teach new word : Food\n- Practice : all words\n- Sing the song\n- Review Grammar : have got / haven't got\n- Practice Grammar\n- Phonics : ch ( chair, teacher, chick)\n- Practice + Wrap up",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s3-l10-h1",
@@ -1735,6 +1885,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- Review words : Jobs  ( L1+3 )\n- Review grammar : tobe is\n- Reading Skill : Family members\n- Listening Skill : Listen and number\n- Writing Skill : capital letter / Full stop\n- Speaking Skill : Talk about your family",
         "lessonPlan": "- Warm up\n- Review vocab + Check vocab\n- Review Gammar + practice grammar\n- Check homework\n- Reading + Reading comprehension\n- Listening and numbering the picture\n- Writing : Capital letter and full stop\n- Speaking : talk about your family",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s3-l11-h1",
@@ -1762,6 +1916,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- Review words + Grammar\n- Speaking : Describe your lunchbox\n- Listening extra : (Starters Listening )",
         "lessonPlan": "- Warm up\n- Homework check\n- Review words + Grammar\n- Practice Game\n- Speaking : Describe the lunchbox\n- Listening extra : Starters Listening ( L4_Bổ trợ)",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s3-l12-h1",
@@ -1789,6 +1947,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- Review Unit  7,8,9",
         "lessonPlan": "- Mini test Unit 9",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s3-l13-h1",
@@ -1834,6 +1996,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- New words : Hair style\n- (long, short, blond, brown, curly, straight )\n- Structure : has got / hasn't got\n- Reading : Dialogue",
         "lessonPlan": "- Warm up\n- Teach vocab about Hair style\n- Practice vocabulary ( Game)\n- Teach grammar : has got / hasn't got\n- Practice Grammar\n- Game Grammar\n- Read dilogue\n- Practice extra\n- Practice + Wrap up",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s4-l1-h1",
@@ -1871,6 +2037,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- Review words : Hair style   ( Lesson 1)\n- Review grammar : Put on / Don't put on ....\n- New words : Shapes (circle, triangle, square, rectangle, diamond)\n- Song : It's a square\n- Phonics : th ( three, bath, teeth)",
         "lessonPlan": "- Warm up\n- Check homework\n- Review words : Hair style\n- Teach new word : Shapes\n- Practice Vocabulary\n- Sing the song\n- Review Grammar : has got / hasn't got\n- Practice Grammar\n- Teach phonics\n- Wrap up",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s4-l2-h1",
@@ -1903,6 +2073,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- Review words : Hair style + shape  ( L1+3 )\n- Review grammar : has got / hasn't got\n- Reading Skill : letter from pen friend\n- Listening skill : Listen and number\n- Writing Skill : short form of have got / has got\n- Speaking Skill : Describe your best friend",
         "lessonPlan": "- Warm up\n- Check homework\n- Review vocabulary + Check test vocab\n- Practice Grammar\n- Reading + Reading comprehension\n- Listening + retell\n- Writing : short form of have got / has got\n- Speaking : Describe your best friend",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s4-l3-h1",
@@ -1940,6 +2114,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- Review words + Grammar\n- Practice speaking : Describe your best friend\n- Listening extra : (Starters Listening )",
         "lessonPlan": "- Warm up\n- Homework check\n- Review words + Grammar\n- Practice Game\n- Speaking : Describe your best friend\n- Listening extra : Starters Listening ( L4_Bổ trợ)",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s4-l4-h1",
@@ -1967,6 +2145,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- New words : Animal  ( elephant, giraffe, monkey, big, tall, little )\n- Structure : I like ... / I don't like ....\n- I'm little . The elephant is big.\n- Reading : Dialogue",
         "lessonPlan": "- Mini test Unit 10\n- Warm up\n- Check homework\n- Teach vocab about Animal\n- Practice vocabulary ( Game)\n- Teach grammar : like / don't like - be ( am is are)\n- Practice Grammar\n- Game Grammar\n- Read dialogue\n- Practice extra\n- Practice + Wrap up",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s4-l5-h1",
@@ -1999,6 +2181,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- Review words : Animal ( Lesson 1)\n- Review grammar : like / don't like - be ( am is are)\n- New words : tiger, snake, parrot, polar bear, seal\n- Song : Let's go to the zoo\n- Phonics : CVC words (_a_)",
         "lessonPlan": "- Warm up\n- Check homework\n- Review words : animals\n- Teach new word : animals\n- Practice Vocabulary ( lesson 1+3)\n- Sing the song\n- Review Grammar : like / don't like - be ( am is are)\n- Practice Grammar\n- Phonics : CVC words (_a_)\n- Practice + Wrap up",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s4-l6-h1",
@@ -2036,6 +2222,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- Review words :  Animals\n- Review grammar : like / don't like - be ( am is are)\n- Reading Skill : Describing the animals\n- Listening Skill : Listen and number\n- Writing Skill : Find the adjectives\n- Speaking : Describe the animals",
         "lessonPlan": "- Warm up\n- Check homework\n- Review words + Check test vocab\n- Practice Grammar\n- Reading + Reading comprehension\n- Listening + making Q and A\n- Writing : Find the adjectives\n- Guide S to describe the the animal",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s4-l7-h1",
@@ -2073,6 +2263,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- Review words + Grammar\n- Speaking : Describe the animals\n- Listening extra : (Starters Listening )",
         "lessonPlan": "- Warm up\n- Homework check\n- Review words + Grammar\n- Practice Game\n- Speaking : Describe the picture\n- Listening extra : Starters Listening ( L4_Bổ trợ)\n- Mini test Unit 11",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s4-l8-h1",
@@ -2095,6 +2289,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- New words : Food ( rice, meat, carrots, yogurt, fish, bread)\n- Structure : Do you like ... ? What do you like ?\n- Reading : Dialogue",
         "lessonPlan": "- Mini test Unit 11\n- Warm up\n- Check homework\n- Teach vocab about food\n- Practice vocabulary ( Game)\n- Teach grammar :  Do you like ... ? What do you like ?\n- Practice Grammar\n- Game Grammar\n- Read dialogue\n- Practice extra\n- Practice + Wrap up",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s4-l9-h1",
@@ -2132,6 +2330,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- Review words : Food ( Lesson 1)\n- Review grammar :  Do you like ... ? What do you like ?\n- New words : drinks  ( milk, juice, water, hot chocolate, tea)\n- Song : Drink your milk\n- Phonics : CVC (_e_)",
         "lessonPlan": "- Warm up\n- Review words + Practice words\n- Teach new word : Drinks\n- Practice : all words\n- Sing the song\n- Review Grammar :  Do you like ... ? What do you like ?\n- Practice Grammar\n- Check homework\n- Phonics : CVC (_e_)\n- Practice + Wrap up",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s4-l10-h1",
@@ -2164,6 +2366,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- Review words : Food and drinks  ( L1+3 )\n- Review grammar :  Do you like ... ? What do you like ?\n- Reading Skill : Choosing the dish from the menu\n- Listening Skill : Listen and draw\n- Writing Skill : short form of do not, is not, are not\n- Speaking : WHat do you have for each meal ?",
         "lessonPlan": "- Warm up\n- Check homework + Check test vocab\n- Practice Grammar\n- Reading + Reading comprehension\n- Listening + retell\n- Writing : isn't , don't , aren't\n- Speaking : What do you have for each meal ?",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s4-l11-h1",
@@ -2196,6 +2402,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- Review words + Grammar\n- Speaking : WHat do you have for each meal ?\n- Listening extra : (Staters Listening)",
         "lessonPlan": "- Warm up\n- Homework check\n- Review words + Grammar\n- Practice Game\n- Speaking : WHat do you have for each meal ?\n- Listening extra : Starters Listening ( L4_Bổ trợ)\n- Mini test Unit 12",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s4-l12-h1",
@@ -2223,6 +2433,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- Review Unit  10,11,12",
         "lessonPlan": "- Mini test Unit 12",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s4-l13-h1",
@@ -2268,6 +2482,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- New words : Things at home\n- (rug, bed, cupboard, shelf, pillow, blanket)\n- Structure : There's .... / There are ...\n- Reading : Dialogue",
         "lessonPlan": "- Warm up\n- Teach vocab about Things at home\n- Practice vocabulary ( Game)\n- Teach grammar : There is / There are\n- Practice Grammar\n- Game Grammar\n- Read dilogue\n- Practice extra\n- Practice + Wrap up",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s5-l1-h1",
@@ -2305,6 +2523,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- Review words :Things at home  ( Lesson 1)\n- Review grammar : There is / There are\n- New words :Number 11 - 20\n- Song : There are ten in the bed\n- Phonics : CVC (i)",
         "lessonPlan": "- Warm up\n- Check homework\n- Review words : Things at home\n- Teach new word : Number 1 - 20\n- Practice Vocabulary\n- Sing the song\n- Review Grammar : There is / There are\n- Practice Grammar\n- Teach phonics\n- Wrap up",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s5-l2-h1",
@@ -2342,6 +2564,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- Review words : Things at home + Number\n- Review grammar : There is / There are\n- Reading Skill : Read the letter\n- Listening skill : Listen and identify picture\n- Writing Skill : ? or .\n- Speaking Skill : Describe your bedroom",
         "lessonPlan": "- Warm up\n- Check homework + Check test vocab\n- Practice Grammar\n- Reading + Reading comprehension\n- Listening + retell\n- Writing : ? or .\n- Speaking : Describe your bedroom",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s5-l3-h1",
@@ -2379,6 +2605,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- Review words + Grammar\n- Practice speaking : Describe your bedroom\n- Listening extra : (Starters Listening)\n- Mini test Unit 13",
         "lessonPlan": "- Warm up\n- Homework check\n- Review words + Grammar\n- Practice Game\n- Speaking : Describe your bedroom\n- Listening extra : Starters Listening ( L4_Bổ trợ)",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s5-l4-h1",
@@ -2406,6 +2636,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- Mini test Unit 13\n- New words : Action ( run, fly, walk, fly, swim, climb, talk)\n- Structure :can / can't\n- Reading : Dialogue",
         "lessonPlan": "- Warm up\n- Check homework\n- Teach vocab about actions\n- Practice vocabulary ( Game)\n- Teach grammar : Can / can't\n- Practice Grammar\n- Game Grammar\n- Read dialogue\n- Practice extra\n- Practice + Wrap up",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s5-l5-h1",
@@ -2443,6 +2677,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- Review words : Actions  ( Lesson 1)\n- Review grammar : can/ can't\n- New words : write, draw, sing, dance , cook\n- Song : I can do anything\n- Phonics : CVC (o)",
         "lessonPlan": "- Warm up\n- Review words : Actions\n- Teach new word : actions ( Lesson 3)\n- Practice Vocabulary ( lesson 1+3)\n- Sing the song\n- Review Grammar :can / can't\n- Practice Grammar\n- Check homework\n- Phonics : CVC (o)\n- Practice + Wrap up",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s5-l6-h1",
@@ -2480,6 +2718,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- Review words :  Actions\n- Review grammar : can / can't\n- Reading Skill : Animal's ability\n- Listening Skill : Listen and number\n- Writing Skill : Short form of can not\n- Speaking : Describe favourite animal ( ability)",
         "lessonPlan": "- Warm up\n- Check homework + Check test vocab\n- Practice Grammar\n- Reading + Reading comprehension\n- Listening + describe a pic\n- Writing : and / or\n- Describe favourite animal ( ability)",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s5-l7-h1",
@@ -2512,6 +2754,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- Review words + Grammar\n- Speaking : Describe favourite animal ( ability)\n- Listening extra : (Movers Listening )",
         "lessonPlan": "- Warm up\n- Homework check\n- Review words + Grammar\n- Practice Game\n- Speaking : Describe the differences\n- Listening extra : Starters Listening ( L4_Bổ trợ)\n- Mini test Unit 14",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s5-l8-h1",
@@ -2534,6 +2780,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- New words : The beach ( sandcastle, beach, the sea, crab, boat, shell)\n- Structure : Let's V\n- Reading : Dialogue\n- Mini test Unit 14",
         "lessonPlan": "- Warm up\n- Check homework\n- Teach vocab about the beach\n- Practice vocabulary ( Game)\n- Teach grammar : Let's V\n- Practice Grammar\n- Game Grammar\n- Read dialogue\n- Practice extra\n- Practice + Wrap up",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s5-l9-h1",
@@ -2571,6 +2821,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- Review words : the beach\n- Review grammar : Let's V\n- New words : sun cream, bat, ice lolly, bucket, spade\n- Song : It's wonderful day\n- Phonics : CVC (u)",
         "lessonPlan": "- Warm up\n- Review words + Practice words\n- Teach new word : the beach (cont)\n- Practice : all words\n- Sing the song\n- Review Grammar : Let's V\n- Practice Grammar\n- Check homework\n- Phonics : CVC\n- Practice + Wrap up",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s5-l10-h1",
@@ -2608,6 +2862,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- Review words : the beach\n- Review grammar : Let's V\n- Reading Skill : Reading a letter\n- Listening Skill : Listen and identify picture\n- Writing Skill : Find the verb\n- Speaking : Find the differences",
         "lessonPlan": "- Warm up\n- Check homework + Check test vocab\n- Practice Grammar\n- Reading + Reading comprehension\n- Listening\n- Writing :  Find the verb\n- Speaking : Find the differences",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s5-l11-h1",
@@ -2640,6 +2898,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- Review words + Grammar\n- Speaking : Find the differences\n- Listening extra : (Movers Listening )",
         "lessonPlan": "- Warm up\n- Homework check\n- Review words + Grammar\n- Practice Game\n- Speaking : Describe the differences\n- Listening extra : Starters Listening ( L4_Bổ trợ)\n- Mini test Unit 15",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s5-l12-h1",
@@ -2662,6 +2924,10 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
         "objective": "",
         "content": "- Review Unit  13,14,15",
         "lessonPlan": "- Mini test Unit 15",
+        "foreignTeacherContent": "Foreign teacher: Warm-up greeting & free talk theo chủ đề buổi; luyện phát âm (minimal pairs), đọc mẫu và sửa lỗi trực tiếp; hỏi-đáp mở rộng để tăng phản xạ giao tiếp.",
+
+        "suggestedActivities": "Hoạt động gợi ý: Flashcard game / TPR khởi động; role-play theo mẫu câu; chant/song củng cố từ vựng; hoạt động nhóm (matching, board race) và mini-game thưởng cuối buổi.",
+
         "homeworks": [
           {
             "id": "fam-s5-l13-h1",
