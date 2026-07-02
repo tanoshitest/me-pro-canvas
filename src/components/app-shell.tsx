@@ -2,7 +2,7 @@ import * as React from "react";
 import {
   Users, GraduationCap, BookOpen, Wallet, ClipboardCheck, UserCog, CalendarRange,
   CalendarDays, ClipboardList, User, Building2, BadgeInfo, PanelLeftClose, PanelLeftOpen,
-  UserPlus,
+  UserPlus, Link2,
   Briefcase,
   CheckCircle2,
   BarChart3,
@@ -28,7 +28,7 @@ const NAV: Record<string, NavItem[]> = {
     { id: "attendance-report", label: "Báo cáo chấm công", icon: ClipboardList, done: true },
     { id: "salary-report", label: "Báo cáo lương", icon: Wallet, done: true },
     { id: "tuition", label: "Cấu hình", icon: BookOpen, done: true },
-    { id: "work-management", label: "Quản lý công việc", icon: Briefcase, disabled: true },
+    { id: "work-management", label: "Quản lý công việc", icon: Briefcase, done: true },
   ],
   teacher: [
     { id: "today", label: "Lịch dạy hôm nay", icon: CalendarDays },
@@ -37,6 +37,7 @@ const NAV: Record<string, NavItem[]> = {
   student: [
     { id: "info", label: "Thông tin học tập", icon: User },
     { id: "schedule", label: "Lịch học", icon: CalendarDays },
+    { id: "homework", label: "Nộp BTVN", icon: Link2 },
     { id: "tuition-history", label: "Học phí", icon: Wallet },
     { id: "results", label: "Kết quả học tập", icon: BookOpen },
   ],
@@ -58,7 +59,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="h-9 w-9 rounded-lg bg-indigo-600 text-white grid place-content-center font-bold">ME</div>
           {!collapsed && (
             <div>
-              <div className="font-bold text-base leading-tight">ME PROTOTYPE</div>
+              <div className="font-bold text-base leading-tight">ME</div>
               <div className="text-xs text-slate-500">Trung tâm ngoại ngữ</div>
             </div>
           )}
@@ -131,7 +132,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </Select>
           </div>
         </header>
-        <main className="flex-1 p-6 overflow-auto">{children}</main>
+        <main className="flex-1 min-h-0 p-6 overflow-auto">{children}</main>
       </div>
     </div>
   );

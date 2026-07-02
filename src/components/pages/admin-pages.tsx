@@ -11,14 +11,22 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Calendar as CalendarUI } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
+import { callZaiChat } from "@/lib/zai";
 import { useApp } from "@/lib/app-store";
 import {
   BRANCHES, CLASSES, PROMOTIONS, TUITION_CONFIG, formatVND,
   CLASS_SHIFTS, ROOMS, SYLLABI, TEACHERS,
   SYLLABUS_STAGES, SYLLABUS_STUDENTS, SYLLABUS_GRADE_COLUMNS,
-  type Syllabus,
+  SYLLABUS_REPORT_ROWS, DEFAULT_BTVN_COLUMNS, DEFAULT_SCORE_COLUMNS, DEFAULT_BTVN_COLUMN_ID,
+  REPORT_ATTENDANCE_OPTIONS, BTVN_STATUS_OPTIONS, LEARNING_SPIRIT_OPTIONS, HOMEWORK_TASK_TYPES, homeworkSubmissionKey, homeworkCorrectionKey,
+  resolveSyllabusId, normalizeSyllabusStage,
+  type Syllabus, type SyllabusReportRow, type SyllabusHomeworkItem, type SyllabusLesson,
+  type SyllabusStageData, type SyllabusSessionData,
+  type HomeworkTaskType, type BtvnColumn, type ReportAttendance, type BtvnStatus, type LearningSpirit,
+  type ReportSelectOption, type ReportTagTone,
   type Receipt, type Branch, type Student,
 } from "@/lib/mock-data";
 import { toast } from "sonner";
@@ -26,8 +34,8 @@ import {
   Users, GraduationCap, Wallet, AlertTriangle, Receipt as ReceiptIcon, XCircle,
   TrendingUp, Calendar, Info, CheckCircle2, ArrowRight, CalendarOff, Repeat,
   Clock, DoorOpen, BookOpen, Tag, Hash, ArrowLeft,
-  Layers, FileText, ClipboardCheck, BarChart3, ExternalLink, Plus, Pencil, Copy, Trash2, Download, FileSpreadsheet, ListChecks, Target, ChevronRight, ChevronLeft,
-  CalendarIcon, Upload, History,
+  Layers, FileText, ClipboardCheck, BarChart3, ExternalLink, Link2, Plus, Pencil, Copy, Trash2, Download, FileSpreadsheet, ListChecks, Target, ChevronRight, ChevronLeft, ChevronDown,
+  CalendarIcon, Upload, History, FileCheck,
   Search, LayoutGrid, List as ListIcon, Phone, School as SchoolIcon, MapPin,
 } from "lucide-react";
 
@@ -41,6 +49,28 @@ export function AdminDashboard() {
   const created = receipts.length;
   const cancelled = receipts.filter((r) => r.status === "Đã hủy").length;
   const lowSessions = students.filter((s) => s.bought - s.attended <= 3);
+
+  const [aiPrompt, setAiPrompt] = React.useState("Tóm tắt tình hình học viên sắp hết buổi.");
+  const [aiResponse, setAiResponse] = React.useState<string | null>(null);
+  const [aiLoading, setAiLoading] = React.useState(false);
+
+  const askZai = async () => {
+    setAiLoading(true);
+    setAiResponse(null);
+
+    try {
+      const result = await callZaiChat([
+        { role: "system", content: "Bạn là trợ lý quản lý trung tâm ngoại ngữ." },
+        { role: "user", content: aiPrompt },
+      ]);
+      setAiResponse(result.choices[0]?.message.content ?? "Không có phản hồi.");
+    } catch (error) {
+      console.error(error);
+      setAiResponse(error instanceof Error ? error.message : "Lỗi khi gọi ZAI");
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   const cards = [
     { label: "Tổng học viên", value: totalStudents, icon: Users, color: "bg-indigo-500" },
@@ -68,6 +98,27 @@ export function AdminDashboard() {
           </Card>
         ))}
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BookOpen className="h-5 w-5" /> Trợ lý ZAI
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+            <Input value={aiPrompt} onChange={(event) => setAiPrompt(event.target.value)} />
+            <Button onClick={askZai} disabled={aiLoading}>
+              {aiLoading ? "Đang gửi..." : "Gửi ZAI"}
+            </Button>
+          </div>
+          {aiResponse ? (
+            <div className="rounded-lg border border-border bg-muted p-4 text-sm whitespace-pre-wrap">
+              {aiResponse}
+            </div>
+          ) : null}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
@@ -523,187 +574,708 @@ function StudentHistoryTimeline({ stu, receipts }: { stu: Student; receipts: Rec
 }
 
 /* ============== CLASSES ============== */
-function ClassStudentsTabs({
+
+const REPORT_TAG_TONE_CLASS: Record<ReportTagTone, string> = {
+  success: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  info: "bg-sky-50 text-sky-700 border-sky-200",
+  warning: "bg-amber-50 text-amber-800 border-amber-200",
+  danger: "bg-rose-50 text-rose-700 border-rose-200",
+  muted: "bg-muted text-muted-foreground border-border",
+  violet: "bg-violet-50 text-violet-700 border-violet-200",
+  pink: "bg-pink-50 text-pink-700 border-pink-200",
+  slate: "bg-slate-700 text-slate-50 border-slate-600",
+  teal: "bg-teal-50 text-teal-700 border-teal-200",
+  orange: "bg-orange-50 text-orange-800 border-orange-200",
+};
+
+const reportTh = "text-xs font-medium text-muted-foreground whitespace-nowrap";
+const reportCell = "border-r border-border align-middle";
+
+function hashStr(s: string) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return h;
+}
+
+const VN_WEEKDAY: Record<string, number> = {
+  "Chủ nhật": 0, "Chủ Nhật": 0, CN: 0,
+  "Thứ 2": 1, "Thứ 3": 2, "Thứ 4": 3, "Thứ 5": 4, "Thứ 6": 5, "Thứ 7": 6,
+};
+
+const VN_DAY_LABEL = ["Chủ nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"];
+const fmtDMY = (d: Date) =>
+  `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+const fmtDM = (d: Date) => `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+
+// Mỗi khóa gồm KHOA_SIZE buổi học; đánh số Buổi 1..24 rồi khóa sau lặp lại từ 1.
+const KHOA_SIZE = 24;
+
+// Đổi số buổi toàn cục (1..total) sang số theo khóa: Buổi {within}/{size}, khóa số {khoa}.
+function khoaOf(no: number | undefined | null, total: number) {
+  if (!no || no < 1) return { khoa: 1, within: no ?? 0, size: Math.min(KHOA_SIZE, total || KHOA_SIZE) };
+  const khoa = Math.floor((no - 1) / KHOA_SIZE) + 1;
+  const within = ((no - 1) % KHOA_SIZE) + 1;
+  const size = Math.min(KHOA_SIZE, Math.max(1, total - (khoa - 1) * KHOA_SIZE));
+  return { khoa, within, size };
+}
+
+export type ClassCalendarEntry = {
+  key: string;        // "dd/mm/yyyy"
+  date: Date;
+  dayLabel: string;
+  isOff: boolean;
+  khoa: number;              // buổi thuộc khóa số mấy
+  lessonNo: number | null;   // số buổi học toàn cục (1..total)
+  withinNo: number | null;   // số buổi trong khóa (1..KHOA_SIZE)
+  offNo: number | null;      // số buổi nghỉ trong khóa
+};
+
+// Sinh lịch đầy đủ của lớp theo đúng các thứ trong tuần, đánh dấu ngày nghỉ.
+// Buổi nghỉ không tính vào số buổi học → các buổi sau tự dời +1 số thứ tự & sang buổi học kế tiếp.
+function classCalendar(cls: {
+  totalSessions: number;
+  startDate: string;
+  sessions?: { day: string }[];
+  offDates?: string[];
+}): ClassCalendarEntry[] {
+  const total = cls.totalSessions || 24;
+  const p = cls.startDate?.split("/").map(Number) ?? [1, 1, 2026];
+  const startD = new Date(p[2] || 2026, (p[1] || 1) - 1, p[0] || 1);
+  const dayNums = Array.from(
+    new Set((cls.sessions ?? []).map((s) => VN_WEEKDAY[s.day?.trim()]).filter((n): n is number => n !== undefined)),
+  );
+  if (dayNums.length === 0) return [];
+  const offSet = new Set(cls.offDates ?? []);
+  const entries: ClassCalendarEntry[] = [];
+  const offByKhoa: Record<number, number> = {};
+  const d = new Date(startD);
+  let lessonNo = 0;
+  let guard = 0;
+  while (lessonNo < total && guard < total * 6 + offSet.size + 800) {
+    if (dayNums.includes(d.getDay())) {
+      const key = fmtDMY(d);
+      if (offSet.has(key)) {
+        const khoa = Math.floor(lessonNo / KHOA_SIZE) + 1; // khóa của buổi học kế tiếp
+        offByKhoa[khoa] = (offByKhoa[khoa] ?? 0) + 1;
+        entries.push({ key, date: new Date(d), dayLabel: VN_DAY_LABEL[d.getDay()], isOff: true, khoa, lessonNo: null, withinNo: null, offNo: offByKhoa[khoa] });
+      } else {
+        lessonNo += 1;
+        const khoa = Math.floor((lessonNo - 1) / KHOA_SIZE) + 1;
+        const withinNo = ((lessonNo - 1) % KHOA_SIZE) + 1;
+        entries.push({ key, date: new Date(d), dayLabel: VN_DAY_LABEL[d.getDay()], isOff: false, khoa, lessonNo, withinNo, offNo: null });
+      }
+    }
+    d.setDate(d.getDate() + 1);
+    guard += 1;
+  }
+  return entries;
+}
+
+function buildClassSessions(cls: {
+  totalSessions: number;
+  startDate: string;
+  sessions?: { day: string }[];
+  offDates?: string[];
+}) {
+  const cal = classCalendar(cls);
+  if (cal.length > 0) {
+    return cal.filter((e) => !e.isOff).map((e, i) => ({ idx: i + 1, date: fmtDM(e.date) }));
+  }
+  // Không có lịch thứ (vd syllabus mẫu) → giãn đều mỗi 3 ngày (giữ hành vi cũ)
+  const total = cls.totalSessions || 24;
+  const p = cls.startDate?.split("/").map(Number) ?? [1, 1, 2026];
+  const startD = new Date(p[2] || 2026, (p[1] || 1) - 1, p[0] || 1);
+  return Array.from({ length: total }).map((_, i) => {
+    const d = new Date(startD);
+    d.setDate(startD.getDate() + i * 3);
+    return { idx: i + 1, date: fmtDM(d) };
+  });
+}
+
+const syllabusLessonPath = () =>
+  SYLLABUS_STAGES.flatMap((st) =>
+    st.lessons.map((l) => ({ stageName: st.name, index: l.index, unit: l.unit })),
+  );
+
+function syllabusSessionIndex(sel: SyllabusSel, stages: SyllabusStageData[] = getSyllabusStagesFallback()): number {
+  let n = 0;
+  for (const st of stages) {
+    for (const s of st.sessions) {
+      n += 1;
+      if (s.kind === "lesson" && sel.kind === "lesson" && sel.stageId === st.id && sel.lessonId === s.lesson.id) return n;
+      if (s.kind === "bigtest" && sel.kind === "bigtest" && sel.stageId === st.id) {
+        if (!sel.sessionId || sel.sessionId === s.id) return n;
+      }
+    }
+  }
+  return 1;
+}
+
+function getSyllabusStagesFallback(): SyllabusStageData[] {
+  return SYLLABUS_STAGES.map(normalizeSyllabusStage);
+}
+
+function mockSessionReport(stu: Student, sessionIdx: number) {
+  const h = hashStr(`${stu.id}-${sessionIdx}`);
+  const pick = <T,>(arr: T[], seed: number) => arr[seed % arr.length];
+  if (sessionIdx > stu.attended) {
+    return {
+      attendance: "Không phép" as ReportAttendance,
+      btvnHw: { [DEFAULT_BTVN_COLUMN_ID]: "X" as BtvnStatus },
+      scores: { "score-1": "" as const, "score-2": "" as const },
+      learningSpirit: "Chưa tập trung" as LearningSpirit,
+      teacherComment: "",
+    };
+  }
+  const attPool: ReportAttendance[] = ["Vắng", "Có phép", "Không phép", "Đi muộn"];
+  const btvnPool: BtvnStatus[] = ["Yes", "X", "Yes làm thiếu"];
+  const spiritPool = LEARNING_SPIRIT_OPTIONS.map((o) => o.value);
+  const comments = [
+    stu.latestComment,
+    "Con tham gia tích cực, cần luyện thêm phần nghe.",
+    "Con tập trung nghe giảng, làm bài đầy đủ.",
+    "Cần hoàn thành BTVN đúng hạn hơn.",
+    "",
+  ].filter(Boolean) as string[];
+  return {
+    attendance: pick(attPool, h),
+    btvnHw: { [DEFAULT_BTVN_COLUMN_ID]: pick(btvnPool, h >> 2) },
+    scores: {
+      "score-1": 55 + (h % 56),
+      "score-2": h % 4 === 0 ? ("" as const) : (h % 31),
+    },
+    learningSpirit: pick(spiritPool, h >> 4),
+    teacherComment: pick(comments.length ? comments : [""], h >> 6),
+  };
+}
+
+function ReportTagView<T extends string>({
+  value,
+  options,
+  compact,
+}: {
+  value: T;
+  options: ReportSelectOption<T>[];
+  compact?: boolean;
+}) {
+  const opt = options.find((o) => o.value === value);
+  const toneClass = opt ? REPORT_TAG_TONE_CLASS[opt.tone] : REPORT_TAG_TONE_CLASS.muted;
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-md border font-medium",
+        compact ? "px-2 py-0.5 text-[11px]" : "px-2.5 py-1 text-xs",
+        toneClass,
+      )}
+    >
+      {value}
+    </span>
+  );
+}
+
+function normalizeSubmissionUrl(url: string) {
+  const trimmed = url.trim();
+  if (!trimmed) return "";
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+}
+
+function SubmissionLinkButton({ url, readOnly }: { url?: string; readOnly?: boolean }) {
+  if (!url) {
+    return (
+      <span
+        className={cn(
+          "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-dashed",
+          readOnly ? "border-muted-foreground/20 bg-muted/20" : "border-muted-foreground/30 bg-muted/40",
+        )}
+        title="Học sinh chưa nộp link"
+      >
+        <Link2 className="h-3.5 w-3.5 text-muted-foreground/45" />
+      </span>
+    );
+  }
+  if (readOnly) {
+    return (
+      <a
+        href={normalizeSubmissionUrl(url)}
+        target="_blank"
+        rel="noopener noreferrer"
+        title="Xem bài nộp"
+        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors"
+      >
+        <ExternalLink className="h-3.5 w-3.5" />
+      </a>
+    );
+  }
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="icon"
+      className="h-8 w-8 shrink-0 border-indigo-200 bg-indigo-50/80 text-indigo-700 hover:bg-indigo-100 hover:text-indigo-800"
+      asChild
+      title="Xem bài nộp của học sinh"
+    >
+      <a href={normalizeSubmissionUrl(url)} target="_blank" rel="noopener noreferrer">
+        <ExternalLink className="h-3.5 w-3.5" />
+      </a>
+    </Button>
+  );
+}
+
+function CorrectionLinkControl({
+  url,
+  onSave,
+  readOnly,
+}: {
+  url?: string;
+  onSave?: (url: string) => void;
+  readOnly?: boolean;
+}) {
+  const [open, setOpen] = React.useState(false);
+  const [draft, setDraft] = React.useState(url ?? "");
+
+  React.useEffect(() => {
+    if (open) setDraft(url ?? "");
+  }, [open, url]);
+
+  if (readOnly) {
+    if (!url) {
+      return (
+        <span
+          className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-dashed border-muted-foreground/20 bg-muted/20"
+          title="Giáo viên chưa up link chữa bài"
+        >
+          <FileCheck className="h-3.5 w-3.5 text-muted-foreground/35" />
+        </span>
+      );
+    }
+    return (
+      <a
+        href={normalizeSubmissionUrl(url)}
+        target="_blank"
+        rel="noopener noreferrer"
+        title="Xem bài chữa của giáo viên"
+        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors"
+      >
+        <FileCheck className="h-3.5 w-3.5" />
+      </a>
+    );
+  }
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className={cn(
+            "h-8 w-8 shrink-0",
+            url
+              ? "border-emerald-200 bg-emerald-50/80 text-emerald-700 hover:bg-emerald-100"
+              : "border-dashed border-muted-foreground/35 bg-muted/30 text-muted-foreground hover:bg-muted/50",
+          )}
+          title={url ? "Sửa link chữa bài" : "Up link chữa bài cho học sinh xem"}
+        >
+          {url ? <FileCheck className="h-3.5 w-3.5" /> : <Upload className="h-3.5 w-3.5" />}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-80 space-y-3" align="center">
+        <div className="space-y-1">
+          <div className="text-sm font-medium">Link chữa bài</div>
+          <p className="text-xs text-muted-foreground">Dán link Google Docs/Drive bài đã chữa. Học sinh xem trên portal Nộp BTVN.</p>
+        </div>
+        <Input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          placeholder="https://docs.google.com/..."
+          className="h-9"
+        />
+        <div className="flex gap-2 justify-end">
+          {url && (
+            <Button variant="outline" size="sm" asChild>
+              <a href={normalizeSubmissionUrl(url)} target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="h-3.5 w-3.5" /> Xem
+              </a>
+            </Button>
+          )}
+          <Button
+            size="sm"
+            onClick={() => {
+              onSave?.(draft);
+              setOpen(false);
+              toast.success(draft.trim() ? "Đã lưu link chữa bài" : "Đã xóa link chữa bài");
+            }}
+          >
+            Lưu
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function ClassSessionReportView({
+  cls,
+  students,
+}: {
+  cls: { totalSessions: number; startDate: string; syllabus: string };
+  students: Student[];
+}) {
+  const { homeworkSubmissions, homeworkCorrections, getSyllabusStages } = useApp();
+  const sessions = React.useMemo(() => buildClassSessions(cls), [cls]);
+  // Lấy giáo trình thật của lớp (71 buổi FAM), không dùng syllabus mẫu JLPT
+  const sylStages = getSyllabusStages(resolveSyllabusId(cls.syllabus));
+  const flatSyl = React.useMemo(() => sylStages.flatMap((st) => st.sessions), [sylStages]);
+  const lessons = React.useMemo(
+    () => sylStages.flatMap((st) => st.sessions.map((s) => ({ stageName: st.name, unit: s.kind === "lesson" ? s.lesson.unit : s.name }))),
+    [sylStages],
+  );
+  const maxAttended = Math.max(0, ...students.map((s) => s.attended));
+  const [sessionIdx, setSessionIdx] = React.useState(() => Math.min(maxAttended || 1, sessions.length));
+  const [q, setQ] = React.useState("");
+
+  const btvnColumns = DEFAULT_BTVN_COLUMNS.map((c) => ({ ...c, label: c.label || "BTVN" }));
+
+  // Cột điểm "After class" = các bài tập HM của buổi này trong syllabus của lớp
+  const curSyl = flatSyl[sessionIdx - 1];
+  const homeworks = curSyl && curSyl.kind === "lesson" ? curSyl.lesson.homeworks : [];
+  const scoreColumns = homeworks.length > 0
+    ? homeworks.map((hw, i) => ({ id: hw.id, label: `HM${i + 1}`, content: hw.content }))
+    : [{ id: "hm-none", label: "—", content: "" }];
+
+  const currentSession = sessions.find((s) => s.idx === sessionIdx)!;
+  const lesson = lessons[sessionIdx - 1];
+
+  const rows = students.map((stu) => ({
+    id: stu.id,
+    name: stu.nickname ? `${stu.name} (${stu.nickname})` : stu.name,
+    ...mockSessionReport(stu, sessionIdx),
+  }));
+  const filtered = rows.filter((r) => r.name.toLowerCase().includes(q.toLowerCase()));
+  const dataColSpan = 3 + btvnColumns.length + scoreColumns.length + 1;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <Label className="text-xs text-muted-foreground">Ngày học</Label>
+            <Select value={String(sessionIdx)} onValueChange={(v) => setSessionIdx(Number(v))}>
+              <SelectTrigger className="h-9 w-80 mt-1"><SelectValue /></SelectTrigger>
+              <SelectContent className="max-h-[60vh]">
+                {sessions.map((s) => {
+                  const les = lessons[s.idx - 1];
+                  return (
+                    <SelectItem key={s.idx} value={String(s.idx)}>
+                      Buổi {s.idx}/{cls.totalSessions} · {s.date}{les ? ` · ${les.unit}` : ""}
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <Input className="h-9 w-56" placeholder="Tìm học viên..." value={q} onChange={(e) => setQ(e.target.value)} />
+      </div>
+
+      <div className="rounded-md border bg-slate-50/60 px-3 py-2 flex items-center gap-2 flex-wrap text-sm">
+        <Calendar className="h-4 w-4 text-indigo-600 shrink-0" />
+        <span className="font-medium">Buổi {currentSession.idx}</span>
+        <span className="text-slate-400">·</span>
+        <span className="text-slate-600">{currentSession.date}</span>
+        {lesson && (
+          <>
+            <span className="text-slate-400">·</span>
+            <Layers className="h-3.5 w-3.5 text-indigo-600" />
+            <span className="text-slate-500">{lesson.stageName}</span>
+            <span className="text-slate-400">·</span>
+            <BookOpen className="h-3.5 w-3.5 text-emerald-600" />
+            <span className="font-medium">{lesson.unit}</span>
+          </>
+        )}
+        <Badge variant="outline" className="ml-auto text-[10px]">Chỉ xem</Badge>
+      </div>
+
+      <div className="border rounded-md overflow-x-auto">
+        <Table className="border-collapse">
+          <TableHeader>
+            <TableRow>
+              <TableHead rowSpan={2} className={cn(reportTh, reportCell, "w-12 text-center")}>STT</TableHead>
+              <TableHead rowSpan={2} className={cn(reportTh, reportCell, "min-w-[160px]")}>Học viên</TableHead>
+              <TableHead rowSpan={2} className={cn(reportTh, reportCell, "w-36 text-center")}>Điểm danh</TableHead>
+              <TableHead colSpan={btvnColumns.length} className={cn(reportTh, reportCell, "text-center text-emerald-700")}>In class</TableHead>
+              <TableHead colSpan={scoreColumns.length} className={cn(reportTh, reportCell, "text-center text-emerald-700")}>After class</TableHead>
+              <TableHead rowSpan={2} className={cn(reportTh, reportCell, "min-w-[180px] text-center")}>Tinh thần học tập</TableHead>
+            </TableRow>
+            <TableRow>
+              {btvnColumns.map((col) => (
+                <TableHead key={col.id} className={cn(reportTh, reportCell, "min-w-[120px] text-center text-xs")}>
+                  {col.label}
+                </TableHead>
+              ))}
+              {scoreColumns.map((col) => (
+                <TableHead
+                  key={col.id}
+                  title={col.content || undefined}
+                  className={cn(reportTh, reportCell, "min-w-[110px] text-center text-xs font-semibold text-emerald-700", col.content && "cursor-help")}
+                >
+                  {col.label}
+                </TableHead>
+              ))}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filtered.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={dataColSpan} className="text-center text-muted-foreground py-8">
+                  Không có học viên phù hợp
+                </TableCell>
+              </TableRow>
+            ) : (
+              filtered.map((r, idx) => (
+                <React.Fragment key={r.id}>
+                  <TableRow>
+                    <TableCell className={cn(reportCell, "text-center text-muted-foreground align-top pt-3")}>{idx + 1}</TableCell>
+                    <TableCell className={cn(reportCell, "font-medium align-top pt-3")}>{r.name}</TableCell>
+                    <TableCell className={cn(reportCell, "text-center align-top pt-2")}>
+                      <ReportTagView value={r.attendance} options={REPORT_ATTENDANCE_OPTIONS} compact />
+                    </TableCell>
+                    {btvnColumns.map((col) => (
+                      <TableCell key={col.id} className={cn(reportCell, "text-center align-top pt-2")}>
+                        <ReportTagView value={r.btvnHw[col.id] ?? "Yes"} options={BTVN_STATUS_OPTIONS} compact />
+                      </TableCell>
+                    ))}
+                    {scoreColumns.map((col, colIdx) => {
+                      const absent = r.scores["score-1"] === "";
+                      const hh = hashStr(`${r.id}-${sessionIdx}-${colIdx}`);
+                      const val = absent
+                        ? ""
+                        : colIdx === 0
+                          ? r.scores["score-1"]
+                          : colIdx === 1
+                            ? r.scores["score-2"]
+                            : hh % 3 === 0 ? "" : hh % 101;
+                      return (
+                      <TableCell key={col.id} className={cn(reportCell, "text-center align-top pt-2")}>
+                        <div className="flex items-center justify-center gap-1">
+                          <span className="text-sm font-medium tabular-nums min-w-[2rem]">
+                            {val !== "" && val != null ? val : "—"}
+                          </span>
+                          <SubmissionLinkButton
+                            readOnly
+                            url={homeworkSubmissions[homeworkSubmissionKey(r.id, sessionIdx, col.id)]}
+                          />
+                          <CorrectionLinkControl
+                            readOnly
+                            url={homeworkCorrections[homeworkCorrectionKey(r.id, sessionIdx, col.id)]}
+                          />
+                        </div>
+                      </TableCell>
+                      );
+                    })}
+                    <TableCell className={cn(reportCell, "text-center align-top pt-2")}>
+                      <ReportTagView value={r.learningSpirit} options={LEARNING_SPIRIT_OPTIONS} />
+                    </TableCell>
+                  </TableRow>
+                  <TableRow className="hover:bg-transparent border-b-2 border-border">
+                    <TableCell colSpan={dataColSpan} className="p-2 pb-3 bg-muted/20">
+                      <div className="text-sm text-slate-700 whitespace-pre-wrap min-h-9 px-3 py-2 rounded-md border bg-background">
+                        {r.teacherComment ? (
+                          r.teacherComment
+                        ) : (
+                          <span className="text-muted-foreground italic">Chưa có nhận xét</span>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                </React.Fragment>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+}
+
+type SyllabusSel = { kind: "lesson"; stageId: string; lessonId: string } | { kind: "bigtest"; stageId: string; sessionId?: string };
+
+function mkEmptyLesson(id: string, unit: string): SyllabusLesson {
+  return { id, index: 0, unit, objective: "", content: "", lessonPlan: "", homeworks: [], material: "", note: "" };
+}
+
+function findSelectedSession(stages: SyllabusStageData[], sel: SyllabusSel): { stage: SyllabusStageData; session: SyllabusSessionData } | null {
+  const stage = stages.find((s) => s.id === sel.stageId);
+  if (!stage) return null;
+  if (sel.kind === "lesson") {
+    const session = stage.sessions.find((s) => s.kind === "lesson" && s.lesson.id === sel.lessonId);
+    return session ? { stage, session } : null;
+  }
+  if (sel.sessionId) {
+    const session = stage.sessions.find((s) => s.id === sel.sessionId);
+    return session ? { stage, session } : null;
+  }
+  const session = stage.sessions.slice().reverse().find((s) => s.kind === "bigtest");
+  return session ? { stage, session } : null;
+}
+
+function ClassStudentsList({
+  students,
+  onTransfer,
+}: {
+  students: Student[];
+  onTransfer: (id: string) => void;
+}) {
+  return (
+    <Table>
+      <TableHeader><TableRow>
+        <TableHead>Tên</TableHead><TableHead>Đã học/Mua</TableHead><TableHead>Công nợ</TableHead><TableHead></TableHead>
+      </TableRow></TableHeader>
+      <TableBody>
+        {students.map((s) => (
+          <TableRow key={s.id}>
+            <TableCell>{s.name}{s.nickname ? ` (${s.nickname})` : ""}</TableCell>
+            <TableCell>{s.attended} / {s.bought}</TableCell>
+            <TableCell>{formatVND(s.debt)}</TableCell>
+            <TableCell>
+              <Button variant="outline" size="sm" onClick={() => onTransfer(s.id)}>
+                <Repeat className="h-3.5 w-3.5" /> Chuyển lớp
+              </Button>
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+}
+
+function ClassInfoSection({
   cls,
   students,
   onTransfer,
 }: {
-  cls: { id: string; totalSessions: number; startDate: string };
+  cls: { totalSessions: number; startDate: string; syllabus: string; pricePerCourse: number };
   students: Student[];
   onTransfer: (id: string) => void;
 }) {
-  const total = cls.totalSessions || 24;
-  // Synthesize session dates from cls.startDate (DD/MM/YYYY) every 3 days
-  const startParts = cls.startDate?.split("/").map(Number) ?? [1, 1, 2026];
-  const startD = new Date(startParts[2], (startParts[1] || 1) - 1, startParts[0] || 1);
-  const fmt = (d: Date) => `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
-  const sessions = Array.from({ length: total }).map((_, i) => {
-    const d = new Date(startD);
-    d.setDate(startD.getDate() + i * 3);
-    return { idx: i + 1, date: fmt(d) };
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-3">
+        <Info2
+          label="Tiến độ"
+          value={`${Math.min(
+            cls.totalSessions,
+            Math.max(0, ...students.map((s) => s.attended)),
+          )}/${cls.totalSessions} buổi`}
+        />
+        <Info2 label="Học phí" value={formatVND(cls.pricePerCourse)} />
+      </div>
+
+      <Tabs defaultValue="list" className="space-y-3">
+        <TabsList>
+          <TabsTrigger value="list">Danh sách học viên</TabsTrigger>
+          <TabsTrigger value="report">Báo cáo</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="list">
+          <ClassStudentsList students={students} onTransfer={onTransfer} />
+        </TabsContent>
+
+        <TabsContent value="report">
+          <ClassSessionReportView cls={cls} students={students} />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+function ClassSyllabusSection({
+  cls,
+  students,
+}: {
+  cls: { totalSessions: number; startDate: string; syllabus: string; sessions?: { day: string }[]; offDates?: string[] };
+  students: Student[];
+}) {
+  const { getSyllabusStages } = useApp();
+  const syllabusId = resolveSyllabusId(cls.syllabus);
+  const stages = getSyllabusStages(syllabusId);
+  const [sel, setSel] = React.useState<SyllabusSel>(() => {
+    const st = stages[0];
+    const first = st?.sessions[0];
+    if (!st || !first) return { kind: "lesson", stageId: st?.id ?? "st1", lessonId: "s1-l1" };
+    if (first.kind === "lesson") return { kind: "lesson", stageId: st.id, lessonId: first.lesson.id };
+    return { kind: "bigtest", stageId: st.id, sessionId: first.id };
   });
+  const sessions = React.useMemo(() => buildClassSessions(cls), [cls]);
+  const sessionIdx = syllabusSessionIndex(sel, stages);
+  const sessionDate = sessions[sessionIdx - 1]?.date;
 
-  const ATT_STATES = ["Có mặt", "Vắng có phép", "Vắng không phép", "Học bù", "—"] as const;
-  type AttState = (typeof ATT_STATES)[number];
-  const attColor = (s: AttState) =>
-    s === "Có mặt" ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-    : s === "Học bù" ? "bg-blue-50 text-blue-700 border-blue-200"
-    : s === "Vắng có phép" ? "bg-amber-50 text-amber-700 border-amber-200"
-    : s === "Vắng không phép" ? "bg-rose-50 text-rose-700 border-rose-200"
-    : "bg-slate-50 text-slate-400 border-slate-200";
-
-  // Deterministic mock based on ids
-  const hash = (s: string) => {
-    let h = 0;
-    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
-    return h;
-  };
-  const attendanceOf = (sid: string, idx: number, attended: number): AttState => {
-    if (idx > attended) return "—";
-    const r = hash(`${sid}-${idx}`) % 20;
-    if (r < 15) return "Có mặt";
-    if (r === 15) return "Học bù";
-    if (r < 18) return "Vắng có phép";
-    return "Vắng không phép";
-  };
-  const SKILLS = ["Nghe", "Nói", "Đọc", "BTVN"] as const;
-  const scoreOf = (sid: string, idx: number, skill: string, attended: number) => {
-    if (idx > attended) return null;
-    const r = (hash(`${sid}-${idx}-${skill}`) % 40) / 10; // 0..3.9
-    return +(6.0 + r).toFixed(1);
-  };
-
-  const presentCount = (sid: string, attended: number) =>
-    sessions.filter((s) => attendanceOf(sid, s.idx, attended) === "Có mặt" || attendanceOf(sid, s.idx, attended) === "Học bù").length;
+  // Danh sách tất cả buổi để chọn trong tab Report (giống dropdown bên xem báo cáo)
+  const sessionOptions = React.useMemo(() => {
+    let n = 0;
+    const opts: { idx: number; date?: string; label: string; sel: SyllabusSel }[] = [];
+    for (const st of stages) {
+      for (const s of st.sessions) {
+        n += 1;
+        opts.push({
+          idx: n,
+          date: sessions[n - 1]?.date,
+          label: s.kind === "lesson" ? s.lesson.unit : s.name,
+          sel: s.kind === "lesson"
+            ? { kind: "lesson", stageId: st.id, lessonId: s.lesson.id }
+            : { kind: "bigtest", stageId: st.id, sessionId: s.id },
+        });
+      }
+    }
+    return opts;
+  }, [stages, sessions]);
 
   return (
-    <Tabs defaultValue="list" className="space-y-3">
+    <Tabs defaultValue="syllabus" className="space-y-3">
       <TabsList>
-        <TabsTrigger value="list">Danh sách học viên</TabsTrigger>
-        <TabsTrigger value="att">Điểm danh</TabsTrigger>
-        <TabsTrigger value="grade">Kết quả học tập</TabsTrigger>
+        <TabsTrigger value="syllabus">Syllabus</TabsTrigger>
+        <TabsTrigger value="report">Report</TabsTrigger>
       </TabsList>
 
-      <TabsContent value="list">
-        <Table>
-          <TableHeader><TableRow>
-            <TableHead>Tên</TableHead><TableHead>Đã học/Mua</TableHead><TableHead>Công nợ</TableHead><TableHead></TableHead>
-          </TableRow></TableHeader>
-          <TableBody>
-            {students.map((s) => (
-              <TableRow key={s.id}>
-                <TableCell>{s.name}{s.nickname ? ` (${s.nickname})` : ""}</TableCell>
-                <TableCell>{s.attended} / {s.bought}</TableCell>
-                <TableCell>{formatVND(s.debt)}</TableCell>
-                <TableCell>
-                  <Button variant="outline" size="sm" onClick={() => onTransfer(s.id)}>
-                    <Repeat className="h-3.5 w-3.5" /> Chuyển lớp
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+      <TabsContent value="syllabus">
+        <SyllabusContentTree syllabusId={syllabusId} sel={sel} setSel={setSel} startDate={cls.startDate} title={cls.syllabus} scheduleDays={cls.sessions} offDates={cls.offDates} readOnly />
       </TabsContent>
 
-      <TabsContent value="att">
-        <div className="rounded-md border overflow-x-auto">
-          <table className="w-full text-sm border-collapse">
-            <thead className="bg-slate-50">
-              <tr>
-                <th className="sticky left-0 z-10 bg-slate-50 text-left px-3 py-2 border-b min-w-[200px]">Học viên</th>
-                {sessions.map((s) => (
-                  <th key={s.idx} className="px-2 py-2 border-b border-l text-xs font-semibold text-slate-600 whitespace-nowrap">
-                    <div>BUỔI {s.idx}</div>
-                    <div className="text-[10px] font-normal text-slate-400">{s.date}</div>
-                  </th>
-                ))}
-                <th className="px-3 py-2 border-b border-l text-xs font-semibold text-slate-600 bg-slate-100">Có mặt</th>
-              </tr>
-            </thead>
-            <tbody>
-              {students.map((stu) => (
-                <tr key={stu.id} className="hover:bg-slate-50/50">
-                  <td className="sticky left-0 z-10 bg-white px-3 py-2 border-b font-medium">
-                    <div>{stu.name}{stu.nickname ? ` (${stu.nickname})` : ""}</div>
-                    <div className="text-[10px] text-slate-400 font-mono">{stu.id.toUpperCase()}</div>
-                  </td>
-                  {sessions.map((sess) => {
-                    const st = attendanceOf(stu.id, sess.idx, stu.attended);
-                    return (
-                      <td key={sess.idx} className="px-2 py-2 border-b border-l text-center">
-                        <span className={`inline-block text-[11px] px-2 py-0.5 rounded border ${attColor(st)}`}>
-                          {st === "Có mặt" ? "✓" : st === "Học bù" ? "Bù" : st === "Vắng có phép" ? "P" : st === "Vắng không phép" ? "K" : "—"}
-                        </span>
-                      </td>
-                    );
-                  })}
-                  <td className="px-3 py-2 border-b border-l text-center font-semibold bg-slate-50/50">
-                    {presentCount(stu.id, stu.attended)}/{total}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div className="flex gap-3 flex-wrap text-xs text-slate-500 mt-2">
-          <span><span className="inline-block w-3 h-3 rounded bg-emerald-100 border border-emerald-200 mr-1 align-middle" />Có mặt (✓)</span>
-          <span><span className="inline-block w-3 h-3 rounded bg-blue-100 border border-blue-200 mr-1 align-middle" />Học bù (Bù)</span>
-          <span><span className="inline-block w-3 h-3 rounded bg-amber-100 border border-amber-200 mr-1 align-middle" />Vắng có phép (P)</span>
-          <span><span className="inline-block w-3 h-3 rounded bg-rose-100 border border-rose-200 mr-1 align-middle" />Vắng không phép (K)</span>
-        </div>
+      <TabsContent value="report">
+        <SyllabusReportsTab sel={sel} setSel={setSel} sessionDate={sessionDate} sessionIdx={sessionIdx} students={students} stages={stages} sessionOptions={sessionOptions} totalSessions={cls.totalSessions} />
+      </TabsContent>
+    </Tabs>
+  );
+}
+
+function ClassDetailTabs({
+  cls,
+  students,
+  onTransfer,
+}: {
+  cls: { id: string; totalSessions: number; startDate: string; syllabus: string; pricePerCourse: number };
+  students: Student[];
+  onTransfer: (id: string) => void;
+}) {
+  return (
+    <Tabs defaultValue="info" className="space-y-4">
+      <TabsList className="flex-wrap h-auto">
+        <TabsTrigger value="info"><Info className="h-4 w-4 mr-1" /> Thông tin lớp</TabsTrigger>
+        <TabsTrigger value="content"><BookOpen className="h-4 w-4 mr-1" /> Nội dung syllabus</TabsTrigger>
+        <TabsTrigger value="report">Báo cáo học vụ</TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="info" className="space-y-4">
+        <ClassInfoSection cls={cls} students={students} onTransfer={onTransfer} />
       </TabsContent>
 
-      <TabsContent value="grade">
-        <div className="rounded-md border overflow-x-auto">
-          <table className="w-full text-sm border-collapse">
-            <thead className="bg-slate-50">
-              <tr>
-                <th rowSpan={2} className="sticky left-0 z-10 bg-slate-50 text-left px-3 py-2 border-b min-w-[200px] align-middle">Học sinh</th>
-                {sessions.map((s) => (
-                  <th key={s.idx} colSpan={SKILLS.length} className="px-2 py-1.5 border-b border-l text-xs font-semibold text-slate-600 text-center whitespace-nowrap">
-                    <div>BUỔI {s.idx}</div>
-                    <div className="text-[10px] font-normal text-slate-400">{s.date} · {s.idx}/{total}</div>
-                  </th>
-                ))}
-              </tr>
-              <tr>
-                {sessions.map((s) =>
-                  SKILLS.map((k, ki) => (
-                    <th key={`${s.idx}-${k}`} className={`px-2 py-1.5 border-b text-[11px] font-medium text-slate-500 ${ki === 0 ? "border-l" : ""}`}>
-                      {k}
-                    </th>
-                  )),
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {students.map((stu) => (
-                <tr key={stu.id} className="hover:bg-slate-50/50">
-                  <td className="sticky left-0 z-10 bg-white px-3 py-2 border-b font-medium">
-                    <div>{stu.name}{stu.nickname ? ` (${stu.nickname})` : ""}</div>
-                    <div className="text-[10px] text-slate-400 font-mono">{stu.id.toUpperCase()}</div>
-                  </td>
-                  {sessions.map((sess) =>
-                    SKILLS.map((k, ki) => {
-                      const v = scoreOf(stu.id, sess.idx, k, stu.attended);
-                      const isHw = k === "BTVN";
-                      return (
-                        <td key={`${sess.idx}-${k}`} className={`px-2 py-2 border-b text-center ${ki === 0 ? "border-l" : ""}`}>
-                          {v === null ? (
-                            <span className="text-[11px] text-slate-300">—</span>
-                          ) : (
-                            <span className={`text-sm font-medium ${isHw ? "text-indigo-600" : "text-slate-700"}`}>{v.toFixed(1)}</span>
-                          )}
-                        </td>
-                      );
-                    }),
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      <TabsContent value="content">
+        <ClassSyllabusSection cls={cls} students={students} />
+      </TabsContent>
+
+      <TabsContent value="report">
+        <SyllabusReportTab />
       </TabsContent>
     </Tabs>
   );
@@ -714,7 +1286,7 @@ export function AdminClasses() {
   const [selected, setSelected] = React.useState<string | null>(null);
   const cls = classes.find((c) => c.id === selected);
   const [openHoliday, setOpenHoliday] = React.useState(false);
-  const [holidayDate, setHolidayDate] = React.useState("");
+  const [openKhoa, setOpenKhoa] = React.useState<Record<number, boolean>>({ 1: true });
   const [transferStudentId, setTransferStudentId] = React.useState<string | null>(null);
   const [filterBranch, setFilterBranch] = React.useState<string>("all");
   const [filterClassId, setFilterClassId] = React.useState<string>("all");
@@ -820,17 +1392,42 @@ export function AdminClasses() {
   );
   const classOptions = classes.filter((c) => filterBranch === "all" || c.branch === filterBranch);
 
-  const confirmHoliday = () => {
-    if (!cls || !holidayDate) return;
+  const toggleOffDate = (key: string) => {
+    if (!cls) return;
+    const adding = !(cls.offDates ?? []).includes(key);
     setClasses((prev) =>
-      prev.map((c) => c.id === cls.id ? { ...c, endDate: shiftDate(c.endDate, 7) } : c),
+      prev.map((c) => {
+        if (c.id !== cls.id) return c;
+        const cur = c.offDates ?? [];
+        const nextOff = cur.includes(key) ? cur.filter((x) => x !== key) : [...cur, key];
+        const lastLesson = [...classCalendar({ ...c, offDates: nextOff })].reverse().find((e) => !e.isOff);
+        return { ...c, offDates: nextOff, endDate: lastLesson ? fmtDMY(lastLesson.date) : c.endDate };
+      }),
     );
-    toast.success("Đã dời ngày kết thúc lớp do có lịch nghỉ.", {
-      description: `Ngày nghỉ: ${holidayDate}. Không trừ buổi học viên, không cộng buổi giáo viên.`,
-    });
-    setOpenHoliday(false);
-    setHolidayDate("");
+    toast.success(adding ? `Đã đánh dấu nghỉ ${key} — các buổi sau tự dời.` : `Đã bỏ ngày nghỉ ${key}.`);
   };
+  const holidayCalendar = cls ? classCalendar(cls) : [];
+  // Gom lịch theo từng khóa (block 24 buổi)
+  const khoaGroups: { khoa: number; entries: ClassCalendarEntry[]; start?: Date; end?: Date; offCount: number; status: string }[] = [];
+  {
+    const map = new Map<number, ClassCalendarEntry[]>();
+    for (const e of holidayCalendar) {
+      const arr = map.get(e.khoa) ?? [];
+      arr.push(e);
+      map.set(e.khoa, arr);
+    }
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    for (const khoa of Array.from(map.keys()).sort((a, b) => a - b)) {
+      const entries = map.get(khoa)!;
+      const teach = entries.filter((e) => !e.isOff);
+      const start = teach[0]?.date;
+      const end = teach[teach.length - 1]?.date;
+      const offCount = entries.filter((e) => e.isOff).length;
+      const status = end && end < today ? "Đã xong" : start && start > today ? "Sắp học" : "Đang học";
+      khoaGroups.push({ khoa, entries, start, end, offCount, status });
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -846,21 +1443,67 @@ export function AdminClasses() {
                 <DialogTrigger asChild>
                   <Button variant="outline" size="sm"><CalendarOff className="h-4 w-4" /> Set lịch nghỉ</Button>
                 </DialogTrigger>
-                <DialogContent>
+                <DialogContent className="max-w-lg">
                   <DialogHeader>
-                    <DialogTitle>Set lịch nghỉ buổi học</DialogTitle>
+                    <DialogTitle>Lịch nghỉ buổi học</DialogTitle>
                     <DialogDescription>
-                      Khi xác nhận: trạng thái buổi chuyển "Nghỉ", không trừ buổi học viên, không cộng buổi giáo viên,
-                      và ngày kết thúc lớp tự dời thêm 1 buổi.
+                      Tick buổi nghỉ — lưu ngay; bỏ tick để hủy. Buổi nghỉ không trừ buổi học viên,
+                      không cộng buổi giáo viên; các buổi sau tự dời sang buổi học kế tiếp và ngày kết thúc lớp dời theo.
                     </DialogDescription>
                   </DialogHeader>
-                  <div className="space-y-2">
-                    <Label>Ngày nghỉ</Label>
-                    <Input placeholder="VD: 25/03/2026" value={holidayDate} onChange={(e) => setHolidayDate(e.target.value)} />
+                  <div className="max-h-[26rem] overflow-y-auto space-y-3 pr-1">
+                    {khoaGroups.map((g) => {
+                      const size = g.entries.filter((e) => !e.isOff).length;
+                      const open = openKhoa[g.khoa] ?? false;
+                      return (
+                        <div key={g.khoa} className="rounded-lg border">
+                          <button
+                            type="button"
+                            onClick={() => setOpenKhoa((o) => ({ ...o, [g.khoa]: !open }))}
+                            className="w-full flex items-center justify-between gap-2 px-3 py-2 hover:bg-slate-50 rounded-t-lg"
+                          >
+                            <div className="text-sm min-w-0 text-left">
+                              <span className="font-semibold text-indigo-700">Khóa {g.khoa}</span>{" "}
+                              <span className="text-slate-500">
+                                {g.start ? fmtDMY(g.start) : "—"} – {g.end ? fmtDMY(g.end) : "—"}
+                              </span>
+                              <Badge variant="outline" className="ml-2 bg-indigo-50 text-indigo-700 border-indigo-200 align-middle">{g.status}</Badge>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <Badge variant="outline" className="bg-amber-100 text-amber-700 border-amber-200">{g.offCount} ngày nghỉ</Badge>
+                              <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`} />
+                            </div>
+                          </button>
+                          {open && (
+                            <div className="px-2 pb-2 space-y-0.5">
+                              {g.entries.map((e) => (
+                                <button
+                                  key={e.key}
+                                  type="button"
+                                  onClick={() => toggleOffDate(e.key)}
+                                  className={`w-full flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-left transition-colors ${
+                                    e.isOff ? "bg-amber-50 hover:bg-amber-100" : "hover:bg-slate-50"
+                                  }`}
+                                >
+                                  {e.isOff ? (
+                                    <CheckCircle2 className="h-4 w-4 text-teal-600 shrink-0" />
+                                  ) : (
+                                    <span className="h-4 w-4 rounded-full border-2 border-slate-300 shrink-0" />
+                                  )}
+                                  <span className={e.isOff ? "font-medium text-amber-800" : "text-slate-700"}>
+                                    {e.isOff ? `Buổi nghỉ ${e.offNo}` : `Buổi ${e.withinNo}/${size}`}
+                                    {" · "}{e.dayLabel}{" · "}{fmtDMY(e.date)}
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                   <DialogFooter>
-                    <Button variant="outline" onClick={() => setOpenHoliday(false)}>Hủy</Button>
-                    <Button onClick={confirmHoliday}>Xác nhận lịch nghỉ</Button>
+                    <Button variant="outline" onClick={() => setOpenHoliday(false)}>Đóng</Button>
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
@@ -870,58 +1513,11 @@ export function AdminClasses() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Tabs defaultValue="info">
-              <TabsList>
-                <TabsTrigger value="info"><Info className="h-4 w-4 mr-1" /> Thông tin lớp học</TabsTrigger>
-                <TabsTrigger value="syllabus"><BookOpen className="h-4 w-4 mr-1" /> Syllabus</TabsTrigger>
-              </TabsList>
-              <TabsContent value="info" className="space-y-4">
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <Info2 label="Chi nhánh" value={cls.branch} />
-              <Info2 label="Giáo viên" value={cls.teacher} />
-              <Info2 label="Syllabus" value={cls.syllabus} />
-              <div className="rounded-md border bg-slate-50 px-3 py-2 col-span-1">
-                <div className="text-xs text-slate-500 mb-1">Lịch học</div>
-                {cls.sessions?.length ? (
-                  <div className="space-y-0.5">
-                    {cls.sessions.map((sess, i) => (
-                      <div key={i} className="font-medium text-sm">
-                        <span className="text-slate-700">{sess.day}</span>
-                        <span className="text-slate-400 mx-1">·</span>
-                        <span>{sess.time}</span>
-                        <span className="text-slate-400 mx-1">·</span>
-                        <span className="text-indigo-700">{sess.room}</span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="font-medium">{cls.schedule} · {cls.time} · {cls.room}</div>
-                )}
-              </div>
-              <Info2 label="Ngày bắt đầu" value={cls.startDate} />
-              <Info2 label="Ngày kết thúc dự kiến" value={cls.endDate} />
-              <Info2 label="Số buổi / khóa" value={cls.totalSessions.toString()} />
-              <Info2
-                label="Tiến độ"
-                value={`${Math.min(
-                  cls.totalSessions,
-                  Math.max(0, ...students.filter((s) => s.classId === cls.id).map((s) => s.attended)),
-                )}/${cls.totalSessions} buổi`}
-              />
-              <Info2 label="Học phí" value={formatVND(cls.pricePerCourse)} />
-            </div>
-
-            <div>
-            <ClassStudentsTabs cls={cls} students={students.filter((s) => s.classId === cls.id)} onTransfer={setTransferStudentId} />
-            </div>
-              </TabsContent>
-              <TabsContent value="syllabus">
-                {(() => {
-                  const sy = SYLLABI.find((s) => cls.syllabus.includes(s.name) || cls.syllabus.includes(s.code)) ?? SYLLABI[0];
-                  return <SyllabusDetail syllabus={sy} embedded />;
-                })()}
-              </TabsContent>
-            </Tabs>
+            <ClassDetailTabs
+              cls={cls}
+              students={students.filter((s) => s.classId === cls.id)}
+              onTransfer={setTransferStudentId}
+            />
           </CardContent>
         </Card>
       ) : (
@@ -1933,6 +2529,7 @@ export function TransferDialog({ studentId, onClose }: { studentId: string | nul
 
 /* ============== SYLLABUS ============== */
 export function AdminSyllabus() {
+  const { ensureSyllabusStages } = useApp();
   const [q, setQ] = React.useState("");
   const [selId, setSelId] = React.useState<string | null>(null);
   const [extraSyllabi, setExtraSyllabi] = React.useState<Syllabus[]>([]);
@@ -1991,6 +2588,7 @@ export function AdminSyllabus() {
       description: "Syllabus mới — bấm để cấu hình chi tiết từng chặng.",
     };
     setExtraSyllabi((prev) => [newItem, ...prev]);
+    ensureSyllabusStages(id);
     toast.success(`Đã tạo syllabus ${newItem.code}. Bấm vào để cấu hình chi tiết.`);
     setOpenAdd(false);
     setForm(emptyForm());
@@ -2153,15 +2751,22 @@ export function AdminSyllabus() {
 }
 
 /* ----- Syllabus detail ----- */
-function SyllabusDetail({ syllabus, onBack, embedded }: { syllabus: Syllabus; onBack?: () => void; embedded?: boolean }) {
-  const stages = SYLLABUS_STAGES;
-
-  type Sel = { kind: "lesson"; stageId: string; lessonId: string } | { kind: "bigtest"; stageId: string };
-  const [sel, setSel] = React.useState<Sel>({ kind: "lesson", stageId: stages[0].id, lessonId: stages[0].lessons[0].id });
+function SyllabusDetail({ syllabus, onBack }: { syllabus: Syllabus; onBack?: () => void }) {
+  const { getSyllabusStages, ensureSyllabusStages } = useApp();
+  React.useEffect(() => {
+    ensureSyllabusStages(syllabus.id);
+  }, [syllabus.id, ensureSyllabusStages]);
+  const stages = getSyllabusStages(syllabus.id);
+  const [sel, setSel] = React.useState<SyllabusSel>(() => {
+    const st = stages[0];
+    const first = st?.sessions[0];
+    if (!st || !first) return { kind: "lesson", stageId: "st1", lessonId: "s1-l1" };
+    if (first.kind === "lesson") return { kind: "lesson", stageId: st.id, lessonId: first.lesson.id };
+    return { kind: "bigtest", stageId: st.id, sessionId: first.id };
+  });
 
   return (
     <div className="space-y-4">
-      {!embedded && (
       <div className="sticky top-0 z-30 -mx-4 px-4 pt-1 pb-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b">
       <Card>
         <CardContent className="p-3">
@@ -2188,37 +2793,9 @@ function SyllabusDetail({ syllabus, onBack, embedded }: { syllabus: Syllabus; on
         </CardContent>
       </Card>
       </div>
-      )}
 
       <div className="space-y-3">
-        {embedded ? (
-          <Tabs defaultValue="content" className="space-y-3">
-            <TabsList className="flex-wrap h-auto">
-              <TabsTrigger value="content">Nội dung syllabus</TabsTrigger>
-              <TabsTrigger value="attendance">Điểm danh</TabsTrigger>
-              <TabsTrigger value="grades">Nhập điểm trên lớp</TabsTrigger>
-              <TabsTrigger value="homework">Nhập điểm homeworks</TabsTrigger>
-              <TabsTrigger value="report">Báo cáo học vụ</TabsTrigger>
-            </TabsList>
-            <TabsContent value="content">
-              <SyllabusContentTree stages={stages} sel={sel} setSel={setSel} />
-            </TabsContent>
-            <TabsContent value="attendance">
-              <SyllabusAttendanceTab sel={sel} />
-            </TabsContent>
-            <TabsContent value="grades">
-              <SyllabusGradesTab />
-            </TabsContent>
-            <TabsContent value="homework">
-              <SyllabusHomeworkTab sel={sel} />
-            </TabsContent>
-            <TabsContent value="report">
-              <SyllabusReportTab />
-            </TabsContent>
-          </Tabs>
-        ) : (
-          <SyllabusContentTree stages={stages} sel={sel} setSel={setSel} />
-        )}
+        <SyllabusContentTree syllabusId={syllabus.id} sel={sel} setSel={setSel} startDate={syllabus.createdAt ?? "01/03/2026"} title={syllabus.name} showDates={false} />
       </div>
     </div>
   );
@@ -2238,101 +2815,269 @@ function StatBox({ icon: Icon, label, value, color }: { icon: React.ComponentTyp
   );
 }
 
-type SyllabusSel = { kind: "lesson"; stageId: string; lessonId: string } | { kind: "bigtest"; stageId: string };
+function SyllabusInsertSlot({ onInsert }: { onInsert: () => void }) {
+  return (
+    <button
+      type="button"
+      aria-label="Chèn buổi tại đây"
+      onClick={(e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        onInsert();
+      }}
+      className="group w-full h-2 my-0 relative flex items-center justify-center cursor-pointer rounded hover:bg-indigo-50/80 transition-colors"
+    >
+      <span className="absolute inset-x-3 top-1/2 -translate-y-1/2 h-px bg-transparent group-hover:bg-indigo-300 transition-colors" />
+      <span className="relative z-10 inline-flex items-center justify-center h-5 w-5 rounded-full bg-indigo-600 text-white text-xs leading-none opacity-0 group-hover:opacity-100 transition-opacity shadow-sm">
+        +
+      </span>
+    </button>
+  );
+}
 
-function SyllabusContentTree({ stages, sel, setSel }: { stages: typeof SYLLABUS_STAGES; sel: SyllabusSel; setSel: React.Dispatch<React.SetStateAction<SyllabusSel>> }) {
-  const [stagesState, setStagesState] = React.useState(stages);
+function SyllabusContentTree({
+  syllabusId,
+  sel,
+  setSel,
+  startDate = "01/03/2026",
+  title = "Cây nội dung",
+  showDates = true,
+  scheduleDays,
+  offDates,
+  readOnly = false,
+}: {
+  syllabusId: string;
+  sel: SyllabusSel;
+  setSel: React.Dispatch<React.SetStateAction<SyllabusSel>>;
+  startDate?: string;
+  title?: string;
+  showDates?: boolean;
+  scheduleDays?: { day: string }[];
+  offDates?: string[];
+  readOnly?: boolean;
+}) {
+  const { getSyllabusStages, setSyllabusStages, ensureSyllabusStages } = useApp();
+  React.useEffect(() => {
+    ensureSyllabusStages(syllabusId);
+  }, [syllabusId, ensureSyllabusStages]);
+  const stagesState = getSyllabusStages(syllabusId);
+  const patchStages = React.useCallback(
+    (updater: (prev: SyllabusStageData[]) => SyllabusStageData[]) => {
+      setSyllabusStages(syllabusId, updater);
+    },
+    [syllabusId, setSyllabusStages],
+  );
   const [openStages, setOpenStages] = React.useState<Record<string, boolean>>(() =>
-    Object.fromEntries(stagesState.map((s, i) => [s.id, i === 0])),
+    Object.fromEntries(stagesState.map((s) => [s.id, false])),
   );
 
-  const stage = stagesState.find((s) => s.id === sel.stageId)!;
-  const lesson = sel.kind === "lesson" ? stage.lessons.find((l) => l.id === sel.lessonId)! : null;
-  const bigTest = sel.kind === "bigtest" ? stage.bigTest : null;
+  const selected = findSelectedSession(stagesState, sel);
+  const stage = selected?.stage ?? stagesState.find((s) => s.id === sel.stageId)!;
+  const session = selected?.session ?? null;
 
-  // Continuous numbering across stages: each lesson + each big test occupies one "buổi" slot.
-  const lessonNo = new Map<string, number>();
-  const bigTestNo = new Map<string, number>();
+  const sessionNo = new Map<string, number>();
   {
     let n = 0;
     for (const st of stagesState) {
-      for (const l of st.lessons) { n += 1; lessonNo.set(l.id, n); }
-      n += 1; bigTestNo.set(st.id, n);
+      for (const s of st.sessions) {
+        n += 1;
+        sessionNo.set(s.id, n);
+      }
     }
   }
-  const lessonGlobal = lesson ? lessonNo.get(lesson.id) : undefined;
-  const bigTestGlobal = sel.kind === "bigtest" ? bigTestNo.get(sel.stageId) : undefined;
+  const sessionGlobal = session ? sessionNo.get(session.id) : undefined;
+
+  const totalSlots = React.useMemo(
+    () => stagesState.reduce((sum, st) => sum + st.sessions.length, 0),
+    [stagesState],
+  );
+
+  const sessionDates = React.useMemo(
+    () => buildClassSessions({ totalSessions: totalSlots, startDate, sessions: scheduleDays, offDates }),
+    [totalSlots, startDate, scheduleDays, offDates],
+  );
+  const getSessionDate = (no?: number) => (showDates && no != null ? sessionDates[no - 1]?.date : undefined);
+  const kGlobal = khoaOf(sessionGlobal, totalSlots);
+
+  type SessionType = "lesson" | "bigtest";
+  const [addDialog, setAddDialog] = React.useState<{ stageId: string; insertIndex: number } | null>(null);
+  const [addForm, setAddForm] = React.useState<{ name: string; type: SessionType }>({ name: "", type: "lesson" });
+  const [highlightSessionId, setHighlightSessionId] = React.useState<string | null>(null);
+  const highlightTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  React.useEffect(() => () => {
+    if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+  }, []);
+
+  React.useEffect(() => {
+    if (!highlightSessionId) return;
+    const el = document.querySelector(`[data-session-id="${highlightSessionId}"]`);
+    el?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [highlightSessionId, stagesState]);
 
   const toggle = (id: string) => setOpenStages((o) => ({ ...o, [id]: !o[id] }));
 
-  const insertLessonAt = (stageId: string, pos: number) => {
-    const newId = `${stageId}-l-${Date.now()}`;
-    setStagesState((sts) =>
+  const openAddSession = (stageId: string, insertIndex: number) => {
+    setAddForm({ name: "", type: "lesson" });
+    setAddDialog({ stageId, insertIndex });
+  };
+
+  const selectSession = (stageId: string, item: SyllabusSessionData) => {
+    if (item.kind === "lesson") {
+      setSel({ kind: "lesson", stageId, lessonId: item.lesson.id });
+    } else {
+      setSel({ kind: "bigtest", stageId, sessionId: item.id });
+    }
+  };
+
+  const isSessionActive = (stageId: string, item: SyllabusSessionData) => {
+    if (sel.stageId !== stageId) return false;
+    if (item.kind === "lesson") return sel.kind === "lesson" && sel.lessonId === item.lesson.id;
+    if (sel.kind === "bigtest") {
+      const lastBigTest = stagesState.find((s) => s.id === stageId)?.sessions.slice().reverse().find((s) => s.kind === "bigtest");
+      return sel.sessionId ? sel.sessionId === item.id : item.id === lastBigTest?.id;
+    }
+    return false;
+  };
+
+  const insertSessionAt = (stageId: string, insertIndex: number, name: string, type: SessionType) => {
+    const newId = `${stageId}-s-${Date.now()}`;
+    const newSession: SyllabusSessionData =
+      type === "bigtest"
+        ? { id: newId, kind: "bigtest", name, note: "", material: "" }
+        : { id: newId, kind: "lesson", lesson: mkEmptyLesson(newId, name) };
+
+    patchStages((sts) =>
       sts.map((st) => {
         if (st.id !== stageId) return st;
-        const newLesson = {
-          id: newId,
-          index: pos + 1,
-          unit: "",
-          objective: "",
-          content: "",
-          homework: "",
-          material: "",
-          note: "",
-        };
-        const lessons = [...st.lessons];
-        lessons.splice(pos, 0, newLesson);
-        return { ...st, lessons: lessons.map((l, i) => ({ ...l, index: i + 1 })) };
+        const sessions = [...st.sessions];
+        sessions.splice(insertIndex, 0, newSession);
+        return { ...st, sessions };
       }),
     );
     setOpenStages((o) => ({ ...o, [stageId]: true }));
-    setSel({ kind: "lesson", stageId, lessonId: newId });
+    selectSession(stageId, newSession);
+    setHighlightSessionId(newId);
+    if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+    highlightTimerRef.current = setTimeout(() => setHighlightSessionId(null), 4000);
+
+    requestAnimationFrame(() => {
+      let sessionNo = 0;
+      for (const st of stagesState) {
+        if (st.id === stageId) {
+          sessionNo += insertIndex + 1;
+          break;
+        }
+        sessionNo += st.sessions.length;
+      }
+      const total = stagesState.reduce((sum, st) => sum + st.sessions.length, 0) + 1;
+      const date = showDates ? buildClassSessions({ totalSessions: total, startDate, sessions: scheduleDays, offDates })[sessionNo - 1]?.date : undefined;
+      toast.success(`Đã thêm Buổi ${sessionNo}${date ? ` · ${date}` : ""}`, {
+        description: `"${name}" đã được chèn vào đúng vị trí bạn chọn.`,
+      });
+    });
   };
 
-  const updateLesson = (stageId: string, lessonId: string, patch: Partial<typeof stagesState[number]["lessons"][number]>) => {
-    setStagesState((sts) =>
+  const quickAddSession = (type: SessionType) => {
+    if (!addDialog) return;
+    const { stageId, insertIndex } = addDialog;
+    const name = type === "bigtest" ? "Big Test" : "Buổi mới";
+    insertSessionAt(stageId, insertIndex, name, type);
+    setAddForm({ name: "", type: "lesson" });
+    setAddDialog(null);
+  };
+
+  const updateLesson = (stageId: string, sessionId: string, patch: Partial<SyllabusLesson>) => {
+    patchStages((sts) =>
       sts.map((st) =>
-        st.id !== stageId ? st : { ...st, lessons: st.lessons.map((l) => (l.id === lessonId ? { ...l, ...patch } : l)) },
+        st.id !== stageId
+          ? st
+          : {
+              ...st,
+              sessions: st.sessions.map((s) =>
+                s.kind === "lesson" && s.id === sessionId ? { ...s, lesson: { ...s.lesson, ...patch } } : s,
+              ),
+            },
       ),
     );
   };
-  const updateBigTest = (stageId: string, patch: Partial<typeof stagesState[number]["bigTest"]>) => {
-    setStagesState((sts) =>
-      sts.map((st) => (st.id !== stageId ? st : { ...st, bigTest: { ...st.bigTest, ...patch } })),
+
+  const updateBigTestSession = (stageId: string, sessionId: string, patch: Partial<{ name: string; note: string; material: string }>) => {
+    patchStages((sts) =>
+      sts.map((st) =>
+        st.id !== stageId
+          ? st
+          : {
+              ...st,
+              sessions: st.sessions.map((s) =>
+                s.kind === "bigtest" && s.id === sessionId ? { ...s, ...patch } : s,
+              ),
+            },
+      ),
     );
   };
 
   const addStage = () => {
     const newId = `st-${Date.now()}`;
-    const bigTestNum = stagesState.length + 1;
-    const newStage = {
+    const firstId = `${newId}-s-${Date.now()}`;
+    const firstSession: SyllabusSessionData = { id: firstId, kind: "lesson", lesson: mkEmptyLesson(firstId, "Buổi mới") };
+    const newStage: SyllabusStageData = {
       id: newId,
       name: `Chặng ${stagesState.length + 1}: Chặng mới`,
       goal: "",
-      lessons: [],
-      bigTest: {
-        id: `${newId}-bt`,
-        name: `Big Test ${bigTestNum}`,
-        note: "",
-        material: "",
-      },
-    } as typeof stagesState[number];
-    setStagesState((sts) => [...sts, newStage]);
+      sessions: [firstSession],
+    };
+    patchStages((sts) => [...sts, newStage]);
     setOpenStages((o) => ({ ...o, [newId]: true }));
-    // Add an empty first lesson and select it for editing
-    setTimeout(() => insertLessonAt(newId, 0), 0);
+    selectSession(newId, firstSession);
+    toast.success(`Đã thêm Chặng ${stagesState.length + 1}`, {
+      description: "Chặng mới đã có sẵn Buổi 1. Bạn có thể chỉnh nội dung ngay.",
+    });
   };
 
-  const InsertSlot = ({ stageId, pos }: { stageId: string; pos: number }) => (
-    <button
-      onClick={(e) => { e.stopPropagation(); insertLessonAt(stageId, pos); }}
-      className="group w-full h-1.5 my-0.5 relative flex items-center justify-center"
-      title="Chèn buổi tại đây"
-    >
-      <span className="absolute inset-x-2 h-px bg-transparent group-hover:bg-indigo-300 transition-colors" />
-      <span className="relative z-10 opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center justify-center h-4 w-4 rounded-full bg-indigo-600 text-white text-[10px] leading-none">+</span>
-    </button>
-  );
+  const selOfSession = (stageId: string, item: SyllabusSessionData): SyllabusSel =>
+    item.kind === "lesson"
+      ? { kind: "lesson", stageId, lessonId: item.lesson.id }
+      : { kind: "bigtest", stageId, sessionId: item.id };
+
+  const firstSelOf = (sts: SyllabusStageData[]): SyllabusSel | null => {
+    for (const st of sts) {
+      const f = st.sessions[0];
+      if (f) return selOfSession(st.id, f);
+    }
+    return null;
+  };
+
+  const deleteStage = (stageId: string) => {
+    const nextStages = stagesState.filter((s) => s.id !== stageId);
+    patchStages(() => nextStages);
+    setOpenStages((o) => { const n = { ...o }; delete n[stageId]; return n; });
+    if (sel.stageId === stageId) {
+      const target = firstSelOf(nextStages);
+      if (target) setSel(target);
+    }
+    toast.success("Đã xoá chặng");
+  };
+
+  const deleteSession = (stageId: string, item: SyllabusSessionData) => {
+    const st = stagesState.find((s) => s.id === stageId);
+    const idx = st ? st.sessions.findIndex((s) => s.id === item.id) : -1;
+    const nextStages = stagesState.map((s) =>
+      s.id !== stageId ? s : { ...s, sessions: s.sessions.filter((x) => x.id !== item.id) },
+    );
+    patchStages(() => nextStages);
+    const selRefersDeleted =
+      sel.stageId === stageId &&
+      ((item.kind === "lesson" && sel.kind === "lesson" && sel.lessonId === item.lesson.id) ||
+        (item.kind === "bigtest" && sel.kind === "bigtest" && sel.sessionId === item.id));
+    if (selRefersDeleted) {
+      const remain = nextStages.find((s) => s.id === stageId)?.sessions ?? [];
+      const neighbor = remain[Math.min(idx, remain.length - 1)];
+      const target = neighbor ? selOfSession(stageId, neighbor) : firstSelOf(nextStages);
+      if (target) setSel(target);
+    }
+    toast.success("Đã xoá buổi");
+  };
 
   return (
     <div className="grid grid-cols-12 gap-4 items-start">
@@ -2340,8 +3085,8 @@ function SyllabusContentTree({ stages, sel, setSel }: { stages: typeof SYLLABUS_
       <Card className="col-span-12 md:col-span-4 lg:col-span-3 md:sticky md:top-4 md:max-h-[calc(100vh-7rem)] md:overflow-y-auto">
         <CardHeader className="pb-3 sticky top-0 bg-card z-10">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-base flex items-center gap-2"><Layers className="h-4 w-4" /> Cây nội dung</CardTitle>
-            <Button size="icon" variant="ghost" title="Thêm chặng" onClick={addStage}><Plus className="h-4 w-4" /></Button>
+            <CardTitle className="text-base flex items-center gap-2"><Layers className="h-4 w-4" /> {title}</CardTitle>
+            {!readOnly && <Button size="icon" variant="ghost" title="Thêm chặng" onClick={addStage}><Plus className="h-4 w-4" /></Button>}
           </div>
         </CardHeader>
         <CardContent className="pt-0">
@@ -2350,45 +3095,77 @@ function SyllabusContentTree({ stages, sel, setSel }: { stages: typeof SYLLABUS_
               const open = !!openStages[st.id];
               return (
                 <div key={st.id}>
-                  <button
-                    onClick={() => toggle(st.id)}
-                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-accent text-left"
-                  >
-                    <ChevronRight className={`h-3.5 w-3.5 shrink-0 transition-transform ${open ? "rotate-90" : ""}`} />
-                    <Layers className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
-                    <span className="font-medium truncate">{st.name}</span>
-                  </button>
+                  <div className="group/stage flex items-center rounded hover:bg-accent">
+                    <button
+                      onClick={() => toggle(st.id)}
+                      className="flex-1 min-w-0 flex items-center gap-2 px-2 py-1.5 text-left"
+                    >
+                      <ChevronRight className={`h-3.5 w-3.5 shrink-0 transition-transform ${open ? "rotate-90" : ""}`} />
+                      <Layers className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
+                      <span className="font-medium truncate">{st.name}</span>
+                    </button>
+                    {!readOnly && (
+                      <button
+                        type="button"
+                        title="Xoá chặng"
+                        onClick={(e) => { e.stopPropagation(); deleteStage(st.id); }}
+                        className="shrink-0 mr-1 p-1 rounded text-rose-500 opacity-0 group-hover/stage:opacity-100 hover:bg-rose-50 transition-opacity"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
                   {open && (
-                    <div className="ml-5 border-l pl-2 mt-0.5 space-y-0.5">
-                      <InsertSlot stageId={st.id} pos={0} />
-                      {st.lessons.map((l, idx) => {
-                        const active = sel.kind === "lesson" && sel.lessonId === l.id;
+                    <div className="ml-5 border-l pl-2 mt-0.5 space-y-0">
+                      {!readOnly && <SyllabusInsertSlot onInsert={() => openAddSession(st.id, 0)} />}
+                      {st.sessions.map((item, idx) => {
+                        const active = isSessionActive(st.id, item);
+                        const no = sessionNo.get(item.id)!;
+                        const kno = khoaOf(no, totalSlots);
+                        const date = getSessionDate(no);
+                        const isBt = item.kind === "bigtest";
                         return (
-                          <React.Fragment key={l.id}>
-                            <button
-                              onClick={() => setSel({ kind: "lesson", stageId: st.id, lessonId: l.id })}
-                              className={`w-full flex items-center gap-2 px-2 py-1 rounded text-left ${active ? "bg-indigo-100 text-indigo-700 font-medium" : "hover:bg-accent"}`}
+                          <React.Fragment key={item.id}>
+                            <div
+                              className={`group/sess flex items-center rounded transition-shadow ${
+                                highlightSessionId === item.id
+                                  ? "ring-2 ring-indigo-500 bg-indigo-50 shadow-sm"
+                                  : active
+                                    ? isBt ? "bg-amber-100 text-amber-700 font-medium" : "bg-indigo-100 text-indigo-700 font-medium"
+                                    : "hover:bg-accent"
+                              }`}
                             >
-                              <BookOpen className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-                              <span className="truncate text-xs">Buổi {lessonNo.get(l.id)}: {l.unit}</span>
-                            </button>
-                            <InsertSlot stageId={st.id} pos={idx + 1} />
+                              <button
+                                data-session-id={item.id}
+                                onClick={() => selectSession(st.id, item)}
+                                className="flex-1 min-w-0 flex items-center gap-2 px-2 py-0.5 text-left"
+                              >
+                                <span className="text-[11px] font-semibold text-slate-400 w-5 text-right shrink-0 tabular-nums">{no}</span>
+                                {isBt ? (
+                                  <ClipboardCheck className="h-3.5 w-3.5 text-rose-600 shrink-0" />
+                                ) : (
+                                  <BookOpen className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+                                )}
+                                <span className="truncate text-xs">
+                                  Buổi {kno.within}/{kno.size}
+                                  {date && <span className="text-slate-400"> · {date}</span>}
+                                </span>
+                              </button>
+                              {!readOnly && (
+                                <button
+                                  type="button"
+                                  title="Xoá buổi"
+                                  onClick={(e) => { e.stopPropagation(); deleteSession(st.id, item); }}
+                                  className="shrink-0 mr-1 p-1 rounded text-rose-500 opacity-0 group-hover/sess:opacity-100 hover:bg-rose-50 transition-opacity"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </button>
+                              )}
+                            </div>
+                            {!readOnly && <SyllabusInsertSlot onInsert={() => openAddSession(st.id, idx + 1)} />}
                           </React.Fragment>
                         );
                       })}
-                      {(() => {
-                        const active = sel.kind === "bigtest" && sel.stageId === st.id;
-                        return (
-                          <button
-                            onClick={() => setSel({ kind: "bigtest", stageId: st.id })}
-                            className={`w-full flex items-center gap-2 px-2 py-1 rounded text-left ${active ? "bg-amber-100 text-amber-700 font-medium" : "hover:bg-accent"}`}
-                          >
-                            <ClipboardCheck className="h-3.5 w-3.5 text-amber-600 shrink-0" />
-                            <span className="truncate text-xs">Buổi {bigTestNo.get(st.id)}: {st.bigTest.name}</span>
-                          </button>
-                        );
-                      })()}
-                      <InsertSlot stageId={st.id} pos={st.lessons.length} />
                     </div>
                   )}
                 </div>
@@ -2402,22 +3179,37 @@ function SyllabusContentTree({ stages, sel, setSel }: { stages: typeof SYLLABUS_
       <Card className="col-span-12 md:col-span-8 lg:col-span-9">
         <CardContent className="p-5 space-y-4">
           <div className="text-xs text-slate-500 flex items-center gap-1">
-            <Layers className="h-3 w-3" /> {stage.name}
+            <Layers className="h-3 w-3" /> {stage?.name}
           </div>
 
-          {lesson && (
+          {session?.kind === "lesson" && (
             <>
               <div className="flex items-start justify-between gap-3 flex-wrap">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 text-xs text-slate-500">
-                    <BookOpen className="h-3 w-3 text-emerald-600" /> Buổi {lessonGlobal}
+                    <BookOpen className="h-3 w-3 text-blue-600" /> Khóa {kGlobal.khoa} · Buổi {kGlobal.within}/{kGlobal.size}
+                    {getSessionDate(sessionGlobal) && (
+                      <>
+                        <span className="text-slate-300">·</span>
+                        <Calendar className="h-3 w-3" />
+                        <span>{getSessionDate(sessionGlobal)}</span>
+                      </>
+                    )}
                   </div>
-                  <Input
-                    value={lesson.unit}
-                    onChange={(e) => updateLesson(stage.id, lesson.id, { unit: e.target.value })}
-                    placeholder="Tên buổi..."
-                    className="text-xl font-bold h-auto py-1 border-0 border-b rounded-none px-0 focus-visible:ring-0 focus-visible:border-indigo-500"
-                  />
+                  <Label className="text-[11px] text-muted-foreground mt-1 block">Tên buổi{readOnly ? "" : " (bấm để sửa)"}</Label>
+                  {readOnly ? (
+                    <div className="mt-0.5 text-lg font-bold py-1.5 px-2 text-slate-800">{session.lesson.unit || "—"}</div>
+                  ) : (
+                    <div className="relative mt-0.5">
+                      <Input
+                        value={session.lesson.unit}
+                        onChange={(e) => updateLesson(stage.id, session.id, { unit: e.target.value })}
+                        placeholder="Tên buổi..."
+                        className="text-lg font-bold h-auto py-1.5 pl-2 pr-8 border rounded-md bg-white hover:border-indigo-300 focus-visible:ring-1 focus-visible:ring-indigo-500"
+                      />
+                      <Pencil className="h-3.5 w-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -2427,47 +3219,95 @@ function SyllabusContentTree({ stages, sel, setSel }: { stages: typeof SYLLABUS_
                   <TabsTrigger value="after-class">AFTER CLASS</TabsTrigger>
                   <TabsTrigger value="teaching-material">TEACHING MATERIAL</TabsTrigger>
                 </TabsList>
-                <TabsContent value="in-class" className="space-y-4">
-                  <EditField icon={Target} label="Mục tiêu tổng quan" value={lesson.objective} onChange={(v) => updateLesson(stage.id, lesson.id, { objective: v })} />
-                  <EditField icon={FileText} label="Nội dung chi tiết" value={lesson.content} onChange={(v) => updateLesson(stage.id, lesson.id, { content: v })} multiline />
-                  <EditField icon={Info} label="Lưu ý" value={lesson.note} onChange={(v) => updateLesson(stage.id, lesson.id, { note: v })} />
+                <TabsContent value="in-class" className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+                  <EditField icon={Target} label="Outcome" value={session.lesson.content} onChange={(v) => updateLesson(stage.id, session.id, { content: v })} multiline readOnly={readOnly} placeholder="Nội dung / mục tiêu đạt được của buổi (cột Content)..." />
+                  <EditField icon={ListChecks} label="Lesson plan" value={session.lesson.lessonPlan ?? ""} onChange={(v) => updateLesson(stage.id, session.id, { lessonPlan: v })} multiline readOnly={readOnly} placeholder="Các bước tiến trình dạy trên lớp (cột Process)..." />
                 </TabsContent>
                 <TabsContent value="after-class" className="space-y-4">
-                  <EditField icon={ListChecks} label="Homeworks" value={lesson.homework} onChange={(v) => updateLesson(stage.id, lesson.id, { homework: v })} multiline />
+                  <HomeworkListEditor
+                    items={session.lesson.homeworks}
+                    onChange={(homeworks) => updateLesson(stage.id, session.id, { homeworks })}
+                    readOnly={readOnly}
+                  />
                 </TabsContent>
                 <TabsContent value="teaching-material" className="space-y-4">
                   <MaterialLinks
-                    value={lesson.material}
-                    onChange={(v) => updateLesson(stage.id, lesson.id, { material: v })}
+                    value={session.lesson.material}
+                    onChange={(v) => updateLesson(stage.id, session.id, { material: v })}
+                    readOnly={readOnly}
                   />
                 </TabsContent>
               </Tabs>
             </>
           )}
 
-          {bigTest && (
+          {session?.kind === "bigtest" && (
             <>
               <div className="flex items-start justify-between gap-3 flex-wrap">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 text-xs text-slate-500">
-                    <ClipboardCheck className="h-3 w-3 text-amber-600" /> Buổi {bigTestGlobal} · Big Test
+                    <ClipboardCheck className="h-3 w-3 text-rose-600" /> Khóa {kGlobal.khoa} · Buổi {kGlobal.within}/{kGlobal.size} · Big Test
+                    {getSessionDate(sessionGlobal) && (
+                      <>
+                        <span className="text-slate-300">·</span>
+                        <Calendar className="h-3 w-3" />
+                        <span>{getSessionDate(sessionGlobal)}</span>
+                      </>
+                    )}
                   </div>
-                  <Input
-                    value={bigTest.name}
-                    onChange={(e) => updateBigTest(stage.id, { name: e.target.value })}
-                    placeholder="Tên big test..."
-                    className="text-xl font-bold h-auto py-1 border-0 border-b rounded-none px-0 focus-visible:ring-0 focus-visible:border-amber-500"
-                  />
+                  <Label className="text-[11px] text-muted-foreground mt-1 block">Tên buổi{readOnly ? "" : " (bấm để sửa)"}</Label>
+                  {readOnly ? (
+                    <div className="mt-0.5 text-lg font-bold py-1.5 px-2 text-slate-800">{session.name || "—"}</div>
+                  ) : (
+                    <div className="relative mt-0.5">
+                      <Input
+                        value={session.name}
+                        onChange={(e) => updateBigTestSession(stage.id, session.id, { name: e.target.value })}
+                        placeholder="Tên big test..."
+                        className="text-lg font-bold h-auto py-1.5 pl-2 pr-8 border rounded-md bg-white hover:border-rose-300 focus-visible:ring-1 focus-visible:ring-rose-500"
+                      />
+                      <Pencil className="h-3.5 w-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
+                  )}
                 </div>
               </div>
 
-              <EditField icon={Info} label="Lưu ý" value={bigTest.note} onChange={(v) => updateBigTest(stage.id, { note: v })} />
-              <EditField icon={ExternalLink} label="Tài liệu (Google Drive)" value={bigTest.material} onChange={(v) => updateBigTest(stage.id, { material: v })} placeholder="https://..." />
-              <DetailField icon={Target} label="Mục tiêu chặng" value={stage.goal} />
+              <EditField icon={Info} label="Lưu ý" value={session.note} onChange={(v) => updateBigTestSession(stage.id, session.id, { note: v })} multiline readOnly={readOnly} placeholder="Ghi chú cho buổi Big Test..." />
+              <EditField icon={ExternalLink} label="Tài liệu (Google Drive)" value={session.material} onChange={(v) => updateBigTestSession(stage.id, session.id, { material: v })} readOnly={readOnly} placeholder="https://..." />
             </>
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={!!addDialog} onOpenChange={(open) => { if (!open) { setAddDialog(null); setAddForm({ name: "", type: "lesson" }); } }}>
+        <DialogContent className="max-w-md z-[100]">
+          <DialogHeader>
+            <DialogTitle>Thêm buổi mới</DialogTitle>
+            <DialogDescription>Chọn loại buổi để thêm ngay.</DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-3 py-2">
+            <button
+              type="button"
+              onClick={() => quickAddSession("lesson")}
+              className="flex flex-col items-center gap-2 rounded-lg border p-4 hover:border-blue-500 hover:bg-blue-50 transition-colors"
+            >
+              <BookOpen className="h-7 w-7 text-blue-600" />
+              <span className="text-sm font-medium">Buổi thường</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => quickAddSession("bigtest")}
+              className="flex flex-col items-center gap-2 rounded-lg border p-4 hover:border-rose-500 hover:bg-rose-50 transition-colors"
+            >
+              <ClipboardCheck className="h-7 w-7 text-rose-600" />
+              <span className="text-sm font-medium">Big Test</span>
+            </button>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => { setAddDialog(null); setAddForm({ name: "", type: "lesson" }); }}>Hủy</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -2487,7 +3327,79 @@ function DetailField({ icon: Icon, label, value, link }: { icon: React.Component
   );
 }
 
-function MaterialLinks({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function HomeworkListEditor({
+  items,
+  onChange,
+  readOnly,
+}: {
+  items: SyllabusHomeworkItem[];
+  onChange: (items: SyllabusHomeworkItem[]) => void;
+  readOnly?: boolean;
+}) {
+  const updateAt = (id: string, patch: Partial<SyllabusHomeworkItem>) =>
+    onChange(items.map((h) => (h.id === id ? { ...h, ...patch } : h)));
+  const removeAt = (id: string) => onChange(items.filter((h) => h.id !== id));
+  const addOne = () =>
+    onChange([...items, { id: `hw-${Date.now()}`, content: "", type: "Phiếu bài tập" }]);
+
+  return (
+    <div className="rounded-md border bg-slate-50/50 p-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="text-xs text-slate-500 flex items-center gap-1">
+          <ListChecks className="h-3 w-3" /> Homeworks
+        </div>
+        {!readOnly && (
+          <Button size="sm" variant="outline" className="h-7 gap-1" onClick={addOne}>
+            <Plus className="h-3.5 w-3.5" /> Thêm bài
+          </Button>
+        )}
+      </div>
+      {items.length === 0 ? (
+        <div className="text-xs text-slate-400 italic py-2">{readOnly ? "Chưa có bài tập." : "Chưa có bài tập. Bấm \"Thêm bài\" để tạo HM1, HM2..."}</div>
+      ) : readOnly ? (
+        items.map((hw, idx) => (
+          <div key={hw.id} className="rounded-md border bg-background p-2 flex items-start gap-2 text-sm">
+            <span className="text-xs font-semibold text-indigo-700 shrink-0 w-9 pt-0.5">HM{idx + 1}</span>
+            <span className="flex-1 whitespace-pre-wrap text-slate-700">{hw.content || <span className="text-slate-400 italic">—</span>}</span>
+            <Badge variant="outline" className="shrink-0 text-[11px]">{hw.type}</Badge>
+          </div>
+        ))
+      ) : (
+        items.map((hw, idx) => (
+          <div key={hw.id} className="rounded-md border bg-background p-2 flex items-start gap-2">
+            <span className="text-xs font-semibold text-indigo-700 shrink-0 w-9 pt-2">HM{idx + 1}</span>
+            <Textarea
+              value={hw.content}
+              onChange={(e) => updateAt(hw.id, { content: e.target.value })}
+              placeholder="Mô tả bài tập về nhà..."
+              rows={2}
+              className="flex-1 min-h-[44px] resize-none bg-white text-sm"
+            />
+            <Select value={hw.type} onValueChange={(v) => updateAt(hw.id, { type: v as HomeworkTaskType })}>
+              <SelectTrigger className="h-9 w-[140px] shrink-0 bg-white"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {HOMEWORK_TASK_TYPES.map((t) => (
+                  <SelectItem key={t} value={t}>{t}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-9 w-9 shrink-0 text-rose-500 hover:text-rose-600 hover:bg-rose-50"
+              onClick={() => removeAt(hw.id)}
+              title="Xoá bài tập"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
+function MaterialLinks({ value, onChange, readOnly }: { value: string; onChange: (v: string) => void; readOnly?: boolean }) {
   const links = value === "" ? [] : value.split("\n");
   const setLinks = (next: string[]) => onChange(next.join("\n"));
   const updateAt = (i: number, v: string) => setLinks(links.map((l, idx) => (idx === i ? v : l)));
@@ -2500,12 +3412,30 @@ function MaterialLinks({ value, onChange }: { value: string; onChange: (v: strin
         <div className="text-xs text-slate-500 flex items-center gap-1">
           <ExternalLink className="h-3 w-3" /> PPTX bài giảng và tài liệu đính kèm
         </div>
-        <Button size="sm" variant="outline" className="h-7 gap-1" onClick={addOne}>
-          <Plus className="h-3.5 w-3.5" /> Thêm link
-        </Button>
+        {!readOnly && (
+          <Button size="sm" variant="outline" className="h-7 gap-1" onClick={addOne}>
+            <Plus className="h-3.5 w-3.5" /> Thêm link
+          </Button>
+        )}
       </div>
       {links.length === 0 ? (
-        <div className="text-xs text-slate-400 italic py-2">Chưa có tài liệu nào. Bấm "Thêm link" để thêm.</div>
+        <div className="text-xs text-slate-400 italic py-2">{readOnly ? "Chưa có tài liệu nào." : "Chưa có tài liệu nào. Bấm \"Thêm link\" để thêm."}</div>
+      ) : readOnly ? (
+        <div className="space-y-1">
+          {links.map((link, i) => {
+            const isUrl = /^https?:\/\//i.test(link.trim());
+            return (
+              <div key={i} className="flex items-center gap-2 text-sm">
+                <ExternalLink className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                {isUrl ? (
+                  <a href={link} target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline break-all">{link}</a>
+                ) : (
+                  <span className="text-slate-700 break-all">{link}</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
       ) : (
         <div className="space-y-2">
           {links.map((link, i) => (
@@ -2532,14 +3462,39 @@ function MaterialLinks({ value, onChange }: { value: string; onChange: (v: strin
   );
 }
 
-function EditField({ icon: Icon, label, value, onChange, multiline, placeholder }: { icon: React.ComponentType<{ className?: string }>; label: string; value: string; onChange: (v: string) => void; multiline?: boolean; placeholder?: string }) {
+function AutoGrowTextarea({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
+  const ref = React.useRef<HTMLTextAreaElement>(null);
+  const resize = React.useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight + 2}px`;
+  }, []);
+  React.useLayoutEffect(() => { resize(); }, [value, resize]);
+  return (
+    <Textarea
+      ref={ref}
+      value={value}
+      onChange={(e) => { onChange(e.target.value); resize(); }}
+      placeholder={placeholder ?? "Nhập nội dung..."}
+      rows={1}
+      className="min-h-[80px] bg-white resize-none overflow-hidden"
+    />
+  );
+}
+
+function EditField({ icon: Icon, label, value, onChange, multiline, placeholder, readOnly }: { icon: React.ComponentType<{ className?: string }>; label: string; value: string; onChange: (v: string) => void; multiline?: boolean; placeholder?: string; readOnly?: boolean }) {
   return (
     <div className="rounded-md border bg-slate-50/50 p-3">
       <div className="text-xs text-slate-500 flex items-center gap-1 mb-1">
         <Icon className="h-3 w-3" /> {label}
       </div>
-      {multiline ? (
-        <Textarea value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder ?? "Nhập nội dung..."} className="min-h-[80px] bg-white" />
+      {readOnly ? (
+        <div className={`rounded-md border bg-white px-3 py-2 text-sm text-slate-700 ${multiline ? "whitespace-pre-wrap min-h-[44px]" : ""}`}>
+          {value ? value : <span className="text-slate-400 italic">—</span>}
+        </div>
+      ) : multiline ? (
+        <AutoGrowTextarea value={value} onChange={onChange} placeholder={placeholder} />
       ) : (
         <Input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder ?? "Nhập nội dung..."} className="bg-white" />
       )}
@@ -2547,157 +3502,391 @@ function EditField({ icon: Icon, label, value, onChange, multiline, placeholder 
   );
 }
 
-function SyllabusAttendanceTab({ sel }: { sel: SyllabusSel }) {
-  const stages = SYLLABUS_STAGES;
-  const stage = stages.find((s) => s.id === sel.stageId)!;
-  const lesson = sel.kind === "lesson" ? stage.lessons.find((l) => l.id === sel.lessonId) ?? null : null;
+function ColoredPillSelect<T extends string>({
+  value,
+  options,
+  onChange,
+  compact,
+}: {
+  value: T;
+  options: ReportSelectOption<T>[];
+  onChange: (v: T) => void;
+  compact?: boolean;
+}) {
+  const [open, setOpen] = React.useState(false);
+  const selected = options.find((o) => o.value === value);
+  const toneClass = selected ? REPORT_TAG_TONE_CLASS[selected.tone] : REPORT_TAG_TONE_CLASS.muted;
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className={cn(
+            "inline-flex items-center gap-1 rounded-md border font-medium justify-between shadow-sm hover:opacity-90 transition-opacity",
+            compact ? "px-2 py-0.5 text-[11px] min-w-[72px]" : "px-2.5 py-1 text-xs min-w-[130px]",
+            toneClass,
+          )}
+        >
+          <span className="truncate">{value}</span>
+          <ChevronDown className="h-3 w-3 shrink-0 opacity-70" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-72 p-1.5" align="start">
+        <div className="max-h-72 overflow-y-auto space-y-1">
+          {options.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              className={cn(
+                "w-full text-left rounded-md px-2.5 py-1.5 text-xs font-medium border",
+                REPORT_TAG_TONE_CLASS[opt.tone],
+                value === opt.value && "ring-2 ring-ring ring-offset-1",
+              )}
+              onClick={() => { onChange(opt.value); setOpen(false); }}
+            >
+              {opt.value}
+            </button>
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function AutoResizeTextarea({
+  value,
+  onChange,
+  placeholder,
+  className,
+}: {
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+  placeholder?: string;
+  className?: string;
+}) {
+  const ref = React.useRef<HTMLTextAreaElement>(null);
+
+  const resize = React.useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, []);
+
+  React.useLayoutEffect(() => {
+    resize();
+  }, [value, resize]);
+
+  return (
+    <Textarea
+      ref={ref}
+      value={value}
+      onChange={(e) => {
+        onChange(e);
+        resize();
+      }}
+      placeholder={placeholder}
+      rows={1}
+      className={cn(
+        "min-h-9 max-h-40 resize-none overflow-hidden py-1.5 leading-normal",
+        className,
+      )}
+    />
+  );
+}
+
+function SyllabusReportsTab({
+  sel,
+  setSel,
+  sessionDate,
+  sessionIdx,
+  students,
+  stages,
+  sessionOptions,
+  totalSessions,
+}: {
+  sel: SyllabusSel;
+  setSel?: React.Dispatch<React.SetStateAction<SyllabusSel>>;
+  sessionDate?: string;
+  sessionIdx?: number;
+  students?: Student[];
+  stages?: SyllabusStageData[];
+  sessionOptions?: { idx: number; date?: string; label: string; sel: SyllabusSel }[];
+  totalSessions?: number;
+}) {
+  const { homeworkSubmissions, homeworkCorrections, setHomeworkCorrection } = useApp();
+  const stageList = stages ?? SYLLABUS_STAGES.map(normalizeSyllabusStage);
+  const stage = stageList.find((s) => s.id === sel.stageId) ?? stageList[0];
+  const selSession = stage?.sessions.find((s) =>
+    (sel.kind === "lesson" && s.kind === "lesson" && s.lesson.id === sel.lessonId) ||
+    (sel.kind === "bigtest" && s.kind === "bigtest" && (sel.sessionId ? s.id === sel.sessionId : true)),
+  );
+  const isBigTest = selSession?.kind === "bigtest";
+  const lessonUnit = selSession?.kind === "lesson" ? selSession.lesson.unit : selSession?.kind === "bigtest" ? selSession.name : "";
+  // Cột điểm "After class" = các bài tập HM của buổi (khớp syllabus)
+  const homeworks = selSession?.kind === "lesson" ? selSession.lesson.homeworks : [];
+  const scoreColumns = homeworks.length > 0
+    ? homeworks.map((hw, i) => ({ id: hw.id, label: `HM${i + 1}`, content: hw.content }))
+    : [{ id: "hm-none", label: "—", content: "" }];
   const [q, setQ] = React.useState("");
-  const [rows, setRows] = React.useState(SYLLABUS_STUDENTS);
+  const [btvnColumns, setBtvnColumns] = React.useState<BtvnColumn[]>(() => DEFAULT_BTVN_COLUMNS.map((c) => ({ ...c })));
+  const activeSessionIdx = sessionIdx ?? 1;
+  const [rows, setRows] = React.useState<SyllabusReportRow[]>(() =>
+    SYLLABUS_REPORT_ROWS.map((r) => ({ ...r, btvnHw: { ...r.btvnHw }, scores: { ...r.scores } })),
+  );
 
-  const filtered = rows.filter((r) => `${r.code} ${r.name}`.toLowerCase().includes(q.toLowerCase()));
+  React.useEffect(() => {
+    if (!students?.length) return;
+    setRows(
+      students.map((stu) => ({
+        id: stu.id,
+        code: stu.id.toUpperCase(),
+        name: stu.nickname ? `${stu.name} (${stu.nickname})` : stu.name,
+        ...mockSessionReport(stu, activeSessionIdx),
+      })),
+    );
+  }, [students, activeSessionIdx]);
 
-  const update = (id: string, patch: Partial<typeof rows[number]>) =>
+  const filtered = rows.filter((r) => r.name.toLowerCase().includes(q.toLowerCase()));
+
+  const update = (id: string, patch: Partial<SyllabusReportRow>) =>
     setRows((rs) => rs.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+
+  const updateBtvnHw = (id: string, colId: string, val: BtvnStatus) =>
+    setRows((rs) => rs.map((r) => (r.id === id ? { ...r, btvnHw: { ...r.btvnHw, [colId]: val } } : r)));
+
+  const updateScore = (id: string, colId: string, val: string) => {
+    const n = val === "" ? "" : Number(val);
+    setRows((rs) =>
+      rs.map((r) =>
+        r.id === id ? { ...r, scores: { ...r.scores, [colId]: n === "" || Number.isFinite(n) ? n : r.scores[colId] } } : r,
+      ),
+    );
+  };
+
+  const updateBtvnColumnLabel = (colId: string, label: string) =>
+    setBtvnColumns((cols) => cols.map((c) => (c.id === colId ? { ...c, label } : c)));
+
+  const addBtvnColumn = () => {
+    const newId = `btvn-${Date.now()}`;
+    setBtvnColumns((cols) => [...cols, { id: newId, label: "" }]);
+    setRows((rs) => rs.map((r) => ({ ...r, btvnHw: { ...r.btvnHw, [newId]: "Yes" } })));
+  };
+
+  const removeBtvnColumn = (colId: string) => {
+    if (btvnColumns.length <= 1) return;
+    setBtvnColumns((cols) => cols.filter((c) => c.id !== colId));
+    setRows((rs) =>
+      rs.map((r) => {
+        const { [colId]: _, ...rest } = r.btvnHw;
+        return { ...r, btvnHw: rest };
+      }),
+    );
+  };
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2"><ClipboardCheck className="h-5 w-5" /> Điểm danh học viên</CardTitle>
+        <CardTitle className="flex items-center gap-2"><FileSpreadsheet className="h-5 w-5" /> Reports</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {sessionOptions && sessionOptions.length > 0 && setSel && (
+          <div>
+            <Label className="text-xs text-muted-foreground">Ngày học</Label>
+            <Select
+              value={String(sessionIdx ?? 1)}
+              onValueChange={(v) => {
+                const opt = sessionOptions.find((o) => String(o.idx) === v);
+                if (opt) setSel(opt.sel);
+              }}
+            >
+              <SelectTrigger className="h-9 w-80 mt-1"><SelectValue /></SelectTrigger>
+              <SelectContent className="max-h-[60vh]">
+                {sessionOptions.map((o) => (
+                  <SelectItem key={o.idx} value={String(o.idx)}>
+                    Buổi {o.idx}{totalSessions ? `/${totalSessions}` : ""}{o.date ? ` · ${o.date}` : ""} · {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
         <div className="rounded-md border bg-slate-50/60 px-3 py-2 flex items-center justify-between gap-3 flex-wrap text-sm">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {sessionDate && (
+              <>
+                <Calendar className="h-4 w-4 text-indigo-600 shrink-0" />
+                <span className="font-medium">{sessionDate}</span>
+                {sessionIdx != null && (
+                  <>
+                    <span className="text-slate-400">·</span>
+                    <span className="text-slate-600">Buổi {sessionIdx}</span>
+                  </>
+                )}
+                <span className="text-slate-400">·</span>
+              </>
+            )}
             <Layers className="h-4 w-4 text-indigo-600" />
-            <span className="text-slate-500">{stage.name}</span>
+            <span className="text-slate-500">{stage?.name}</span>
             <span className="text-slate-400">·</span>
-            {lesson ? (
+            {!isBigTest ? (
               <>
                 <BookOpen className="h-4 w-4 text-emerald-600" />
-                <span className="font-medium">Buổi {lesson.index}: {lesson.unit}</span>
+                <span className="font-medium">Buổi {sessionIdx ?? 1}: {lessonUnit}</span>
               </>
             ) : (
               <>
                 <ClipboardCheck className="h-4 w-4 text-amber-600" />
-                <span className="font-medium">{stage.bigTest.name}</span>
+                <span className="font-medium">{lessonUnit}</span>
               </>
             )}
           </div>
           <Input className="h-8 w-56" placeholder="Tìm học viên..." value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
 
-        <div className="flex gap-2">
-          <Button size="sm" onClick={() => toast.success("Đã lưu điểm danh")}><CheckCircle2 className="h-4 w-4" /> Lưu điểm danh</Button>
+        <div className="flex gap-2 flex-wrap">
+          <Button size="sm" onClick={() => toast.success("Đã lưu báo cáo buổi học")}>
+            <CheckCircle2 className="h-4 w-4" /> Lưu báo cáo
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => toast.info("Đã xuất bảng báo cáo")}>
+            <FileSpreadsheet className="h-4 w-4" /> Xuất bảng
+          </Button>
+          <span className="text-xs text-muted-foreground self-center ml-1">
+            <ExternalLink className="inline h-3 w-3 text-indigo-600" /> bài nộp HS ·{" "}
+            <Upload className="inline h-3 w-3 text-emerald-600" /> up link chữa bài
+          </span>
         </div>
 
         <div className="border rounded-md overflow-x-auto">
-          <Table>
+          <Table className="border-collapse">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-24">Mã HV</TableHead>
-                <TableHead>Tên học viên</TableHead>
-                <TableHead className="w-48">Trạng thái</TableHead>
-                <TableHead>Ghi chú</TableHead>
+                <TableHead rowSpan={2} className={cn(reportTh, reportCell, "w-12 text-center")}>STT</TableHead>
+                <TableHead rowSpan={2} className={cn(reportTh, reportCell, "min-w-[160px]")}>Học viên</TableHead>
+                <TableHead rowSpan={2} className={cn(reportTh, reportCell, "w-36 text-center")}>Điểm danh</TableHead>
+                <TableHead colSpan={btvnColumns.length} className={cn(reportTh, reportCell, "text-center text-emerald-700")}>
+                  <div className="flex items-center justify-center gap-1.5">
+                    <span>In class</span>
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      className="h-6 w-6"
+                      title="Thêm cột BTVN"
+                      onClick={addBtvnColumn}
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </TableHead>
+                <TableHead colSpan={scoreColumns.length} className={cn(reportTh, reportCell, "text-center text-emerald-700")}>After class</TableHead>
+                <TableHead rowSpan={2} className={cn(reportTh, reportCell, "min-w-[180px] text-center")}>Tinh thần học tập</TableHead>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell className="font-mono text-xs">{r.code}</TableCell>
-                  <TableCell className="font-medium">{r.name}</TableCell>
-                  <TableCell>
-                    <Select value={r.attendance} onValueChange={(v) => update(r.id, { attendance: v as typeof r.attendance })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Có mặt">Có mặt</SelectItem>
-                        <SelectItem value="Vắng có phép">Vắng có phép</SelectItem>
-                        <SelectItem value="Vắng không phép">Vắng không phép</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
-                  <TableCell>
-                    <Input value={r.attendanceNote} onChange={(e) => update(r.id, { attendanceNote: e.target.value })} placeholder="Ghi chú..." />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function SyllabusGradesTab() {
-  const [cols, setCols] = React.useState<string[]>(SYLLABUS_GRADE_COLUMNS);
-  const [rows, setRows] = React.useState(SYLLABUS_STUDENTS);
-  const [newCol, setNewCol] = React.useState("");
-
-  const addCol = () => {
-    const name = newCol.trim();
-    if (!name) return;
-    if (cols.includes(name)) { toast.error("Cột điểm đã tồn tại"); return; }
-    setCols((c) => [...c, name]);
-    setRows((rs) => rs.map((r) => ({ ...r, grades: { ...r.grades, [name]: 0 } })));
-    setNewCol("");
-    toast.success(`Đã thêm cột "${name}"`);
-  };
-
-  const updateGrade = (id: string, col: string, val: string) => {
-    const n = Number(val);
-    setRows((rs) => rs.map((r) => (r.id === id ? { ...r, grades: { ...r.grades, [col]: Number.isFinite(n) ? n : 0 } } : r)));
-  };
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2"><ListChecks className="h-5 w-5" /> Nhập điểm trên lớp</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex items-end gap-2 flex-wrap">
-          <div>
-            <Label className="text-xs">Tên cột điểm mới</Label>
-            <Input value={newCol} onChange={(e) => setNewCol(e.target.value)} placeholder="Ví dụ: Dictation, Speaking Test..." className="w-64" />
-          </div>
-          <Button size="sm" onClick={addCol}><Plus className="h-4 w-4" /> Thêm cột điểm</Button>
-          <div className="flex-1" />
-          <Button size="sm" onClick={() => toast.success("Đã lưu điểm")}><CheckCircle2 className="h-4 w-4" /> Lưu điểm</Button>
-          <Button size="sm" variant="outline" onClick={() => toast.info("Đã xuất bảng điểm")}><FileSpreadsheet className="h-4 w-4" /> Xuất bảng điểm</Button>
-        </div>
-
-        <div className="border rounded-md overflow-x-auto">
-          <Table>
-            <TableHeader>
               <TableRow>
-                <TableHead className="w-24">Mã HV</TableHead>
-                <TableHead>Tên học viên</TableHead>
-                {cols.map((c) => <TableHead key={c} className="text-center w-28">{c}</TableHead>)}
-                <TableHead>Ghi chú</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell className="font-mono text-xs">{r.code}</TableCell>
-                  <TableCell className="font-medium">{r.name}</TableCell>
-                  {cols.map((c) => (
-                    <TableCell key={c} className="text-center">
+                {btvnColumns.map((col) => (
+                  <TableHead key={col.id} className={cn(reportTh, reportCell, "min-w-[120px] p-1.5")}>
+                    <div className="flex items-center gap-1">
                       <Input
-                        type="number" step="0.5" min={0} max={10}
-                        value={r.grades[c] ?? 0}
-                        onChange={(e) => updateGrade(r.id, c, e.target.value)}
-                        className="h-8 text-center"
+                        value={col.label}
+                        onChange={(e) => updateBtvnColumnLabel(col.id, e.target.value)}
+                        placeholder="Tên BTVN..."
+                        className="h-8 text-xs"
                       />
-                    </TableCell>
-                  ))}
-                  <TableCell>
-                    <Input
-                      value={r.gradeNote}
-                      onChange={(e) => setRows((rs) => rs.map((x) => x.id === r.id ? { ...x, gradeNote: e.target.value } : x))}
-                      placeholder="Ghi chú..."
-                    />
-                  </TableCell>
-                </TableRow>
-              ))}
+                      {btvnColumns.length > 1 && (
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                          title="Xóa cột"
+                          onClick={() => removeBtvnColumn(col.id)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                  </TableHead>
+                ))}
+                {scoreColumns.map((col) => (
+                  <TableHead
+                    key={col.id}
+                    title={col.content || undefined}
+                    className={cn(reportTh, reportCell, "min-w-[130px] text-center text-xs font-semibold text-emerald-700", col.content && "cursor-help")}
+                  >
+                    {col.label}
+                  </TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtered.map((r, idx) => {
+                const dataColSpan = 3 + btvnColumns.length + scoreColumns.length + 1;
+                return (
+                  <React.Fragment key={r.id}>
+                    <TableRow>
+                      <TableCell className={cn(reportCell, "text-center text-muted-foreground align-top pt-3")}>{idx + 1}</TableCell>
+                      <TableCell className={cn(reportCell, "font-medium align-top pt-3")}>{r.name}</TableCell>
+                      <TableCell className={cn(reportCell, "text-center align-top pt-2")}>
+                        <ColoredPillSelect
+                          value={r.attendance}
+                          options={REPORT_ATTENDANCE_OPTIONS}
+                          onChange={(v) => update(r.id, { attendance: v as ReportAttendance })}
+                          compact
+                        />
+                      </TableCell>
+                      {btvnColumns.map((col) => (
+                        <TableCell key={col.id} className={cn(reportCell, "text-center align-top pt-2")}>
+                          <ColoredPillSelect
+                            value={r.btvnHw[col.id] ?? "Yes"}
+                            options={BTVN_STATUS_OPTIONS}
+                            onChange={(v) => updateBtvnHw(r.id, col.id, v as BtvnStatus)}
+                            compact
+                          />
+                        </TableCell>
+                      ))}
+                      {scoreColumns.map((col) => (
+                        <TableCell key={col.id} className={cn(reportCell, "text-center p-1 align-top pt-2")}>
+                          <div className="flex items-center justify-center gap-1">
+                            <Input
+                              type="number"
+                              min={0}
+                              value={r.scores[col.id] ?? ""}
+                              onChange={(e) => updateScore(r.id, col.id, e.target.value)}
+                              className="h-8 w-16 text-center"
+                              placeholder="—"
+                            />
+                            <SubmissionLinkButton
+                              url={homeworkSubmissions[homeworkSubmissionKey(r.id, activeSessionIdx, col.id)]}
+                            />
+                            <CorrectionLinkControl
+                              url={homeworkCorrections[homeworkCorrectionKey(r.id, activeSessionIdx, col.id)]}
+                              onSave={(url) => setHomeworkCorrection(r.id, activeSessionIdx, col.id, url)}
+                            />
+                          </div>
+                        </TableCell>
+                      ))}
+                      <TableCell className={cn(reportCell, "text-center align-top pt-2")}>
+                        <ColoredPillSelect
+                          value={r.learningSpirit}
+                          options={LEARNING_SPIRIT_OPTIONS}
+                          onChange={(v) => update(r.id, { learningSpirit: v as LearningSpirit })}
+                        />
+                      </TableCell>
+                    </TableRow>
+                    <TableRow className="hover:bg-transparent border-b-2 border-border">
+                      <TableCell colSpan={dataColSpan} className="p-2 pb-3 bg-muted/20">
+                        <AutoResizeTextarea
+                          value={r.teacherComment}
+                          onChange={(e) => update(r.id, { teacherComment: e.target.value })}
+                          placeholder="Nhận xét của giáo viên..."
+                          className="text-sm bg-background"
+                        />
+                      </TableCell>
+                    </TableRow>
+                  </React.Fragment>
+                );
+              })}
             </TableBody>
           </Table>
         </div>
@@ -2708,99 +3897,6 @@ function SyllabusGradesTab() {
 
 function SyllabusReportTab() {
   return <SyllabusReportTabImpl />;
-}
-
-function SyllabusHomeworkTab({ sel }: { sel: SyllabusSel }) {
-  const stages = SYLLABUS_STAGES;
-  const lessons = stages.flatMap((st) => st.lessons.map((l) => ({ ...l, stageName: st.name })));
-  const stage = stages.find((s) => s.id === sel.stageId)!;
-  const currentLesson = sel.kind === "lesson" ? stage.lessons.find((l) => l.id === sel.lessonId) ?? null : null;
-  const [rows, setRows] = React.useState(() =>
-    SYLLABUS_STUDENTS.map((s) => ({
-      id: s.id, code: s.code, name: s.name,
-      scores: Object.fromEntries(lessons.map((l) => [l.id, 8 + ((s.id.charCodeAt(2) + l.index) % 3)])) as Record<string, number>,
-      note: "",
-    })),
-  );
-
-  const update = (id: string, lessonId: string, val: string) => {
-    const n = Number(val);
-    setRows((rs) => rs.map((r) => (r.id === id ? { ...r, scores: { ...r.scores, [lessonId]: Number.isFinite(n) ? n : 0 } } : r)));
-  };
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2"><FileText className="h-5 w-5" /> Nhập điểm homeworks</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="rounded-md border bg-slate-50/60 px-3 py-2 flex items-center justify-between gap-3 flex-wrap text-sm">
-          <div className="flex items-center gap-2">
-            <Layers className="h-4 w-4 text-indigo-600" />
-            <span className="text-slate-500">{stage.name}</span>
-            <span className="text-slate-400">·</span>
-            {currentLesson ? (
-              <>
-                <BookOpen className="h-4 w-4 text-emerald-600" />
-                <span className="font-medium">Buổi {currentLesson.index}: {currentLesson.unit}</span>
-              </>
-            ) : (
-              <>
-                <ClipboardCheck className="h-4 w-4 text-amber-600" />
-                <span className="font-medium">{stage.bigTest.name}</span>
-              </>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            <Button size="sm" onClick={() => toast.success("Đã lưu điểm homeworks")}><CheckCircle2 className="h-4 w-4" /> Lưu điểm</Button>
-            <Button size="sm" variant="outline" onClick={() => toast.info("Đã xuất bảng điểm homeworks")}><FileSpreadsheet className="h-4 w-4" /> Xuất bảng</Button>
-          </div>
-        </div>
-
-        {!currentLesson ? (
-          <div className="text-sm text-slate-500 italic p-4 border rounded-md">
-            Big Test không có điểm homeworks. Chọn một buổi học ở "Nội dung syllabus" để nhập điểm.
-          </div>
-        ) : (
-        <div className="border rounded-md overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-24">Mã HV</TableHead>
-                <TableHead>Tên học viên</TableHead>
-                <TableHead className="text-center w-32">Điểm homeworks</TableHead>
-                <TableHead>Ghi chú</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell className="font-mono text-xs">{r.code}</TableCell>
-                  <TableCell className="font-medium">{r.name}</TableCell>
-                  <TableCell className="text-center">
-                    <Input
-                      type="number" step="0.5" min={0} max={10}
-                      value={r.scores[currentLesson.id] ?? 0}
-                      onChange={(e) => update(r.id, currentLesson.id, e.target.value)}
-                      className="h-8 text-center px-1"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Input
-                      value={r.note}
-                      onChange={(e) => setRows((rs) => rs.map((x) => x.id === r.id ? { ...x, note: e.target.value } : x))}
-                      placeholder="Ghi chú..."
-                    />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-        )}
-      </CardContent>
-    </Card>
-  );
 }
 
 function SyllabusReportTabImpl() {
@@ -3275,12 +4371,19 @@ function formatDateKey(value: string) {
   return `${day}/${month}/${year}`;
 }
 
+type ScheduleEvent = {
+  id: string; day: string; date?: string; start: number; end: number;
+  cls: string; teacher: string; room: string; color: string;
+  classId?: string; sessionId?: string; teacherId?: string; branch?: Branch;
+};
+
 export function AdminSchedule() {
-  const { classes, scheduledSessions, setScheduledSessions } = useApp();
+  const { classes, setClasses, scheduledSessions, setScheduledSessions } = useApp();
   const colors = ["bg-indigo-100 border-indigo-300 text-indigo-800", "bg-emerald-100 border-emerald-300 text-emerald-800", "bg-amber-100 border-amber-300 text-amber-800", "bg-rose-100 border-rose-300 text-rose-800", "bg-sky-100 border-sky-300 text-sky-800"];
   const [branch, setBranch] = React.useState<"all" | Branch>("all");
   const [weekOffset, setWeekOffset] = React.useState(0);
   const [assignOpen, setAssignOpen] = React.useState(false);
+  const [selectedEvent, setSelectedEvent] = React.useState<ScheduleEvent | null>(null);
   const [selectedSlot, setSelectedSlot] = React.useState<{ date: string; day: string; hour: number } | null>(null);
   const [assignment, setAssignment] = React.useState({
     classId: "",
@@ -3317,7 +4420,7 @@ export function AdminSchedule() {
   );
 
   // Build events
-  const events: { id: string; day: string; date?: string; start: number; end: number; cls: string; teacher: string; room: string; color: string }[] = [];
+  const events: ScheduleEvent[] = [];
   classes
     .filter((c) => branch === "all" || c.branch === branch)
     .forEach((c, idx) => {
@@ -3332,6 +4435,8 @@ export function AdminSchedule() {
         teacher: c.teacher,
         room: s.room,
         color: colors[idx % colors.length],
+        classId: c.id,
+        branch: c.branch,
       });
     });
   });
@@ -3349,6 +4454,10 @@ export function AdminSchedule() {
         teacher: session.teacherName,
         room: `${session.branch} · ${session.room}`,
         color: colors[(index + 2) % colors.length],
+        classId: session.classId,
+        sessionId: session.id,
+        teacherId: session.teacherId,
+        branch: session.branch,
       });
     });
 
@@ -3397,6 +4506,37 @@ export function AdminSchedule() {
       description: `${selectedSlot.day}, ${formatDateKey(selectedSlot.date)} · ${assignment.start} - ${assignment.end}`,
     });
     setAssignOpen(false);
+  };
+
+  // ==== Chi tiết buổi dạy khi bấm vào thẻ ====
+  const evClass = selectedEvent
+    ? classes.find((c) => c.id === selectedEvent.classId) ?? classes.find((c) => c.name === selectedEvent.cls)
+    : null;
+  const evSyllabus = evClass ? SYLLABI.find((s) => s.id === resolveSyllabusId(evClass.syllabus)) : null;
+  const evBuoi = React.useMemo(() => {
+    if (!evClass || !selectedEvent?.date) return null;
+    const [y, m, d] = selectedEvent.date.split("-");
+    const dm = `${d}/${m}`;
+    const found = buildClassSessions(evClass).find((s) => s.date === dm);
+    if (!found) return { off: true as const };
+    const k = khoaOf(found.idx, evClass.totalSessions);
+    return { off: false as const, idx: found.idx, ...k };
+  }, [evClass, selectedEvent?.date]);
+  const evTeacherId =
+    selectedEvent?.teacherId ?? TEACHERS.find((t) => t.name === selectedEvent?.teacher)?.id ?? "";
+
+  const changeTeacher = (newTeacherId: string) => {
+    const t = TEACHERS.find((x) => x.id === newTeacherId);
+    if (!t || !selectedEvent) return;
+    if (selectedEvent.sessionId) {
+      setScheduledSessions((cur) =>
+        cur.map((s) => (s.id === selectedEvent.sessionId ? { ...s, teacherId: t.id, teacherName: t.name } : s)),
+      );
+    } else if (selectedEvent.classId) {
+      setClasses((cur) => cur.map((c) => (c.id === selectedEvent.classId ? { ...c, teacher: t.name } : c)));
+    }
+    setSelectedEvent((ev) => (ev ? { ...ev, teacher: t.name, teacherId: t.id } : ev));
+    toast.success(`Đã đổi giáo viên sang ${t.name}`);
   };
 
   return (
@@ -3458,9 +4598,13 @@ export function AdminSchedule() {
                         return (
                           <div
                             key={e.id}
-                            className={`absolute left-1 right-1 z-[1] rounded-md border px-1.5 py-0.5 text-[10px] leading-tight shadow-sm overflow-hidden ${e.color}`}
+                            className={`absolute left-1 right-1 z-[1] rounded-md border px-1.5 py-0.5 text-[10px] leading-tight shadow-sm overflow-hidden cursor-pointer hover:ring-2 hover:ring-indigo-400 ${e.color}`}
                             style={{ top: `${topPct}%`, height: `${heightPct}%` }}
-                            onClick={(event) => event.stopPropagation()}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setSelectedEvent({ ...e, date: e.date ?? weekDates[DAYS.indexOf(e.day)] });
+                            }}
+                            title="Bấm để xem chi tiết buổi dạy"
                           >
                             <div className="font-semibold truncate">{e.cls}</div>
                             <div className="truncate opacity-80">{e.teacher}</div>
@@ -3549,13 +4693,88 @@ export function AdminSchedule() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!selectedEvent} onOpenChange={(o) => { if (!o) setSelectedEvent(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Chi tiết buổi dạy</DialogTitle>
+            <DialogDescription>Thông tin lớp, syllabus và giáo viên của buổi dạy này.</DialogDescription>
+          </DialogHeader>
+          {selectedEvent && (
+            <div className="space-y-3 text-sm">
+              <div className="grid grid-cols-[110px_1fr] gap-y-2">
+                <span className="text-slate-500">Chi nhánh</span>
+                <span className="font-medium text-slate-800">{selectedEvent.branch ?? evClass?.branch ?? "—"}</span>
+                <span className="text-slate-500">Lớp</span>
+                <span className="font-medium text-slate-800">{selectedEvent.cls}</span>
+                <span className="text-slate-500">Ngày</span>
+                <span className="font-medium text-slate-800">
+                  {selectedEvent.day}{selectedEvent.date ? ` · ${formatDateKey(selectedEvent.date)}` : ""}
+                  {" · "}
+                  {String(Math.floor(selectedEvent.start)).padStart(2, "0")}:{selectedEvent.start % 1 ? "30" : "00"}
+                  {" - "}
+                  {String(Math.floor(selectedEvent.end)).padStart(2, "0")}:{selectedEvent.end % 1 ? "30" : "00"}
+                </span>
+                <span className="text-slate-500">Syllabus</span>
+                <span className="font-medium text-slate-800">
+                  {evSyllabus ? `${evSyllabus.code} · ${evSyllabus.name}` : evClass?.syllabus ?? "—"}
+                </span>
+                <span className="text-slate-500">Buổi theo syllabus</span>
+                <span className="font-medium text-slate-800">
+                  {!evBuoi
+                    ? "—"
+                    : evBuoi.off
+                      ? "Buổi nghỉ"
+                      : `Khóa ${evBuoi.khoa} · Buổi ${evBuoi.within}/${evBuoi.size} (buổi ${evBuoi.idx}/${evClass?.totalSessions})`}
+                </span>
+              </div>
+              <div className="pt-1">
+                <Label className="text-xs text-slate-500 mb-1 block">Giáo viên dạy (đổi được)</Label>
+                <Select value={evTeacherId} onValueChange={changeTeacher}>
+                  <SelectTrigger className="h-9"><SelectValue placeholder="Chọn giáo viên" /></SelectTrigger>
+                  <SelectContent>
+                    {TEACHERS.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {!selectedEvent.sessionId && (
+                  <p className="text-[11px] text-slate-400 mt-1">Đổi ở đây sẽ cập nhật giáo viên của lớp {selectedEvent.cls}.</p>
+                )}
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSelectedEvent(null)}>Đóng</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
 
 /* ============== ATTENDANCE REPORT (demo) ============== */
 export function AdminAttendanceReport() {
-  return <AttendanceReportCard />;
+  return (
+    <div className="space-y-4">
+      <Tabs defaultValue="admin" className="space-y-4">
+        <TabsList className="h-10">
+          <TabsTrigger value="admin" className="gap-2">
+            <Users className="h-4 w-4" /> Admin
+          </TabsTrigger>
+          <TabsTrigger value="teacher" className="gap-2">
+            <GraduationCap className="h-4 w-4" /> Giáo viên
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="admin">
+          <AttendanceReportCard />
+        </TabsContent>
+        <TabsContent value="teacher">
+          <AttendanceReportCard selfCheck />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
 }
 
 /* ============== FINANCE REPORT (Thu / Chi) ============== */
@@ -3563,22 +4782,48 @@ export function AdminFinanceReport() {
   return <FinanceReportCard />;
 }
 
-function AttendanceReportCard() {
-  const { scheduledSessions } = useApp();
+function AttendanceReportCard({ selfCheck = false }: { selfCheck?: boolean }) {
+  const { scheduledSessions, setScheduledSessions } = useApp();
   const [teacherId, setTeacherId] = React.useState(TEACHERS[0]?.id ?? "");
   const [month, setMonth] = React.useState("06/2026");
   const [view, setView] = React.useState<"admin" | "teacher">("admin");
   const [punches, setPunches] = React.useState<Record<string, { in?: string; out?: string }>>({});
   const teacher = TEACHERS.find((item) => item.id === teacherId) ?? TEACHERS[0];
-  const attendanceRows = React.useMemo(
+  const baseAttendanceRows = React.useMemo(
     () => createMonthlyAttendance(teacherId, month, scheduledSessions),
     [teacherId, month, scheduledSessions],
   );
+  const attendanceRows = baseAttendanceRows;
   const workingRows = attendanceRows.filter((row) => row.shift !== null);
   const lateCount = workingRows.filter((row) => row.lateMinutes > 0).length;
   const earlyCount = workingRows.filter((row) => row.earlyMinutes > 0).length;
   const absentCount = workingRows.filter((row) => row.status === "absent").length;
   const successfulCount = workingRows.filter((row) => row.status === "present").length;
+
+  const updateSelfCheck = (row: AttendanceRow, field: "checkIn" | "checkOut") => {
+    if (!row.shift) return;
+    const selfCheckKey = `${teacherId}-${row.id}`;
+    const current = selfCheckTimes[selfCheckKey];
+    if (field === "checkOut" && !current?.checkIn) {
+      toast.error("Vui lòng bấm IN trước khi bấm OUT");
+      return;
+    }
+
+    const time = getNow();
+    setSelfCheckTimes((previous) => ({
+      ...previous,
+      [selfCheckKey]: {
+        checkIn: field === "checkIn" ? time : previous[selfCheckKey]?.checkIn ?? null,
+        checkOut: field === "checkOut" ? time : previous[selfCheckKey]?.checkOut ?? null,
+      },
+    }));
+    setScheduledSessions((previous) =>
+      previous.map((session) =>
+        session.id === row.id ? { ...session, [field]: time } : session,
+      ),
+    );
+    toast.success(`${field === "checkIn" ? "Check-in" : "Check-out"} thành công lúc ${time}`);
+  };
 
   return (
     <Card className="flex h-[calc(100vh-7rem)] min-h-0 flex-col overflow-hidden">
@@ -3760,7 +5005,236 @@ function AttendanceReportCard() {
   );
 }
 
+/* ===== Teacher Self-Check-In Card ===== */
+type SelfCheckSession = {
+  id: string;
+  className: string;
+  branch: Branch;
+  room: string;
+  scheduledStart: string;
+  scheduledEnd: string;
+  checkIn: string | null;
+  checkOut: string | null;
+};
+
+function getNow() {
+  const now = new Date();
+  return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+}
+
+function diffMinutes(a: string, b: string): number {
+  const [ah, am] = a.split(":").map(Number);
+  const [bh, bm] = b.split(":").map(Number);
+  return (bh * 60 + bm) - (ah * 60 + am);
+}
+
+function TeacherSelfCheckCard() {
+  const { scheduledSessions, setScheduledSessions } = useApp();
+  const [teacherId, setTeacherId] = React.useState(TEACHERS[0]?.id ?? "");
+  const [selfSessions, setSelfSessions] = React.useState<SelfCheckSession[]>(() =>
+    buildDemoSessions(TEACHERS[0]?.id ?? ""),
+  );
+
+  React.useEffect(() => {
+    setSelfSessions(buildDemoSessions(teacherId));
+  }, [teacherId]);
+
+  const teacher = TEACHERS.find((t) => t.id === teacherId) ?? TEACHERS[0];
+
+  const handleIn = (id: string) => {
+    const time = getNow();
+    setSelfSessions((prev) =>
+      prev.map((s) => s.id === id && !s.checkIn ? { ...s, checkIn: time } : s),
+    );
+    // also update scheduledSessions if this session exists
+    setScheduledSessions((prev) =>
+      prev.map((s) => s.id === id && !s.checkIn ? { ...s, checkIn: time } : s),
+    );
+    toast.success(`Check-in thành công lúc ${time}`);
+  };
+
+  const handleOut = (id: string) => {
+    const sess = selfSessions.find((s) => s.id === id);
+    if (!sess?.checkIn) { toast.error("Chưa check-in!"); return; }
+    const time = getNow();
+    setSelfSessions((prev) =>
+      prev.map((s) => s.id === id && s.checkIn && !s.checkOut ? { ...s, checkOut: time } : s),
+    );
+    setScheduledSessions((prev) =>
+      prev.map((s) => s.id === id && s.checkIn && !s.checkOut ? { ...s, checkOut: time } : s),
+    );
+    toast.success(`Check-out thành công lúc ${time}`);
+  };
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <CardTitle className="text-lg">Chấm công giáo viên</CardTitle>
+            <p className="text-sm text-slate-500 mt-0.5">
+              Bấm <span className="font-semibold text-emerald-600">IN</span> khi vào, <span className="font-semibold text-rose-600">OUT</span> khi ra. Kết quả hiển thị tự động.
+            </p>
+          </div>
+          <div className="space-y-1 min-w-[200px]">
+            <Label className="text-xs">Giáo viên</Label>
+            <Select value={teacherId} onValueChange={setTeacherId}>
+              <SelectTrigger className="h-9 bg-white">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {TEACHERS.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>{t.name} · {t.branch}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="p-0">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm border-collapse">
+            <thead className="bg-slate-50 border-y">
+              <tr>
+                <th className="text-left px-4 py-3 font-semibold text-slate-600 min-w-[140px]">Lớp học</th>
+                <th className="text-left px-4 py-3 font-semibold text-slate-600">Trung tâm</th>
+                <th className="text-left px-4 py-3 font-semibold text-slate-600">Phòng</th>
+                <th className="text-left px-4 py-3 font-semibold text-slate-600">Ca</th>
+                <th className="text-center px-4 py-3 font-semibold text-slate-600 min-w-[110px]">Giờ vào</th>
+                <th className="text-center px-4 py-3 font-semibold text-slate-600 min-w-[110px]">Giờ ra</th>
+                <th className="text-left px-4 py-3 font-semibold text-slate-600 min-w-[160px]">Kết quả</th>
+              </tr>
+            </thead>
+            <tbody>
+              {selfSessions.map((sess) => {
+                const lateMin = sess.checkIn ? diffMinutes(sess.scheduledStart, sess.checkIn) : 0;
+                const earlyMin = sess.checkOut ? diffMinutes(sess.checkOut, sess.scheduledEnd) : 0;
+                const isDone = !!(sess.checkIn && sess.checkOut);
+                const isAbsent = false;
+
+                let resultNode: React.ReactNode = null;
+                if (isDone) {
+                  if (lateMin > 0 || earlyMin > 0) {
+                    resultNode = (
+                      <div className="flex flex-wrap gap-1.5">
+                        {lateMin > 0 && <Badge className="bg-rose-100 text-rose-700 hover:bg-rose-100">Đi trễ {lateMin} phút</Badge>}
+                        {earlyMin > 0 && <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100">Về sớm {earlyMin} phút</Badge>}
+                      </div>
+                    );
+                  } else {
+                    resultNode = <span className="text-emerald-600 font-semibold">✓ Đúng giờ</span>;
+                  }
+                } else if (sess.checkIn) {
+                  resultNode = <span className="text-blue-600 text-xs">Đang trong ca...</span>;
+                } else {
+                  resultNode = <span className="text-slate-400 text-xs">Chờ check-in</span>;
+                }
+
+                return (
+                  <tr key={sess.id} className="border-b hover:bg-slate-50/60 transition-colors">
+                    <td className="px-4 py-3 font-semibold text-indigo-700">{sess.className}</td>
+                    <td className="px-4 py-3 text-slate-600">{sess.branch}</td>
+                    <td className="px-4 py-3 text-slate-600">{sess.room}</td>
+                    <td className="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">
+                      {sess.scheduledStart} – {sess.scheduledEnd}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      {sess.checkIn ? (
+                        <div className="flex flex-col items-center gap-0.5">
+                          <span className="font-bold text-emerald-600 text-base">{sess.checkIn}</span>
+                          <span className="text-[10px] text-slate-400">đã check-in</span>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => handleIn(sess.id)}
+                          className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-bold text-sm shadow-sm transition-all"
+                          title="Check-in"
+                        >
+                          IN
+                        </button>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      {sess.checkOut ? (
+                        <div className="flex flex-col items-center gap-0.5">
+                          <span className="font-bold text-rose-600 text-base">{sess.checkOut}</span>
+                          <span className="text-[10px] text-slate-400">đã check-out</span>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => handleOut(sess.id)}
+                          disabled={!sess.checkIn}
+                          className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full font-bold text-sm shadow-sm transition-all ${
+                            sess.checkIn
+                              ? "bg-rose-500 hover:bg-rose-600 active:scale-95 text-white"
+                              : "bg-slate-100 text-slate-400 cursor-not-allowed"
+                          }`}
+                          title="Check-out"
+                        >
+                          OUT
+                        </button>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">{resultNode}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <div className="px-4 py-3 border-t bg-slate-50/50 flex flex-wrap gap-4 text-xs text-slate-500">
+          <span><span className="inline-block w-3 h-3 rounded-full bg-emerald-500 mr-1.5 align-middle" />Đúng giờ</span>
+          <span><span className="inline-block w-3 h-3 rounded-full bg-rose-400 mr-1.5 align-middle" />Đi trễ</span>
+          <span><span className="inline-block w-3 h-3 rounded-full bg-amber-400 mr-1.5 align-middle" />Về sớm</span>
+          <span><span className="inline-block w-3 h-3 rounded-full bg-slate-200 mr-1.5 align-middle" />Chờ chấm công</span>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function buildDemoSessions(teacherId: string): SelfCheckSession[] {
+  const teacher = TEACHERS.find((t) => t.id === teacherId) ?? TEACHERS[0];
+  const shifts = [
+    { start: "08:00", end: "09:30" },
+    { start: "14:00", end: "15:30" },
+    { start: "18:00", end: "19:30" },
+  ];
+  const today = new Date();
+  const dateKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+
+  return teacher.classes.map((classId, idx) => {
+    const cls = CLASSES.find((c) => c.id === classId);
+    const shift = shifts[idx % shifts.length];
+    return {
+      id: `self-${teacherId}-${idx}`,
+      className: cls?.name ?? `Lớp ${idx + 1}`,
+      branch: teacher.branch,
+      room: cls?.room ?? "P.101",
+      scheduledStart: shift.start,
+      scheduledEnd: shift.end,
+      checkIn: null,
+      checkOut: null,
+    };
+  }).concat(
+    // Add extra demo sessions if teacher has no classes
+    teacher.classes.length === 0
+      ? [{
+          id: `self-${teacherId}-demo`,
+          className: "Ca dạy demo",
+          branch: teacher.branch,
+          room: "P.201",
+          scheduledStart: "18:00",
+          scheduledEnd: "19:30",
+          checkIn: null,
+          checkOut: null,
+        }]
+      : [],
+  );
+}
+
 type AttendanceStatus = "present" | "absent" | "scheduled" | "off";
+
 
 type AttendanceRow = {
   id: string;
@@ -3885,12 +5359,6 @@ function AttendanceCheckCell({
       {kind === "in" ? "IN" : "OUT"}
     </Button>
   );
-}
-
-function diffMinutes(a: string, b: string) {
-  const [ah, am] = a.split(":").map(Number);
-  const [bh, bm] = b.split(":").map(Number);
-  return (bh * 60 + bm) - (ah * 60 + am);
 }
 
 function TeacherAttendanceNote({
@@ -4789,6 +6257,136 @@ const STAFF: Staff[] = [
 ];
 const staffName = (id?: string) => STAFF.find((s) => s.id === id)?.name ?? "—";
 
+type WorkTab = "admin" | "teacher" | "academic";
+type WorkTaskStatus = "Mới" | "Đang xử lý" | "Hoàn thành" | "Quá hạn";
+type WorkTask = {
+  id: string;
+  title: string;
+  description: string;
+  team: WorkTab;
+  status: WorkTaskStatus;
+  assignedTo?: string;
+  dueDate: string;
+  priority: "Cao" | "Trung bình" | "Thấp";
+  category: string;
+  requester: string;
+};
+
+type TaskAssignee = { id: string; name: string; team: WorkTab; role: string };
+const TASK_TABS: { id: WorkTab; label: string }[] = [
+  { id: "admin", label: "Admin" },
+  { id: "teacher", label: "Giáo viên" },
+  { id: "academic", label: "Học vụ" },
+];
+const TASK_STATUSES: WorkTaskStatus[] = ["Mới", "Đang xử lý", "Hoàn thành", "Quá hạn"];
+const TASK_STATUS_BADGE: Record<WorkTaskStatus, string> = {
+  "Mới": "bg-slate-100 text-slate-700 border-slate-200",
+  "Đang xử lý": "bg-amber-100 text-amber-700 border-amber-200",
+  "Hoàn thành": "bg-emerald-100 text-emerald-700 border-emerald-200",
+  "Quá hạn": "bg-rose-100 text-rose-700 border-rose-200",
+};
+const TASK_ASSIGNEES: TaskAssignee[] = [
+  { id: "a1", name: "Hà Anh", team: "admin", role: "Quản lý hành chính" },
+  { id: "a2", name: "Minh Nhật", team: "admin", role: "Trợ lý hành chính" },
+  { id: "t1", name: "Thảo Vy", team: "teacher", role: "Giáo viên tiếng Anh" },
+  { id: "t2", name: "Quốc Bảo", team: "teacher", role: "Giáo viên Toán" },
+  { id: "h1", name: "Khánh Linh", team: "academic", role: "Điều phối học vụ" },
+  { id: "h2", name: "Ngọc Mai", team: "academic", role: "Chăm sóc học vụ" },
+];
+const taskAssigneeName = (id?: string) => TASK_ASSIGNEES.find((a) => a.id === id)?.name ?? "—";
+
+const parseTaskDate = (value: string) => {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, month - 1, day);
+};
+const formatTaskDate = (value: string) => parseTaskDate(value).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });
+const taskDueLabel = (value: string, status: WorkTaskStatus) => {
+  if (status === "Hoàn thành") return "Đã hoàn thành";
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const due = parseTaskDate(value);
+  const diff = Math.round((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  if (diff < 0) return `Quá hạn ${Math.abs(diff)} ngày`;
+  if (diff === 0) return "Hạn hôm nay";
+  return `Còn ${diff} ngày`;
+};
+
+const WORK_TASK_TEMPLATES: Omit<WorkTask, "id" | "dueDate" | "status" | "assignedTo">[] = [
+  {
+    title: "Điều phối lịch học bù",
+    description: "Liên hệ phụ huynh và sắp xếp các buổi học bù cho học viên.",
+    team: "admin",
+    priority: "Cao",
+    category: "Hành chính",
+    requester: "Ban Giám đốc",
+  },
+  {
+    title: "Cập nhật hợp đồng gia sư",
+    description: "Hoàn thiện hồ sơ và điều chỉnh phụ cấp cho giáo viên mới.",
+    team: "admin",
+    priority: "Trung bình",
+    category: "Hành chính",
+    requester: "Phòng nhân sự",
+  },
+  {
+    title: "Xác nhận danh sách lớp học thử",
+    description: "Rà soát danh sách học viên và gửi thông báo xác nhận đến PHHS.",
+    team: "teacher",
+    priority: "Cao",
+    category: "Giáo viên",
+    requester: "Phòng tuyển sinh",
+  },
+  {
+    title: "Chuẩn bị bài kiểm tra giữa kỳ",
+    description: "Thiết kế đề kiểm tra và tải lên hệ thống cho các lớp Toán.",
+    team: "teacher",
+    priority: "Trung bình",
+    category: "Giáo viên",
+    requester: "Tổ chuyên môn",
+  },
+  {
+    title: "Rà soát hồ sơ học vụ",
+    description: "Kiểm tra thông tin học sinh mới và xác nhận lịch học.",
+    team: "academic",
+    priority: "Trung bình",
+    category: "Học vụ",
+    requester: "Ban học vụ",
+  },
+  {
+    title: "Gọi chăm sóc học viên sau ghi danh",
+    description: "Thu thập phản hồi phụ huynh và cập nhật nhật ký học vụ.",
+    team: "academic",
+    priority: "Cao",
+    category: "Học vụ",
+    requester: "Phòng dịch vụ",
+  },
+];
+
+const WORK_TASKS: WorkTask[] = Array.from({ length: 30 }, (_, index) => {
+  const template = WORK_TASK_TEMPLATES[index % WORK_TASK_TEMPLATES.length];
+  const status = TASK_STATUSES[index % TASK_STATUSES.length];
+  const assignedMap: Record<WorkTab, string[]> = {
+    admin: ["a1", "a2"],
+    teacher: ["t1", "t2"],
+    academic: ["h1", "h2"],
+  };
+  const dueDay = 10 + (index % 21);
+  const dueMonth = dueDay > 30 ? 7 : 6;
+  const dueDate = dueMonth === 6 ? `2026-06-${String(dueDay).padStart(2, "0")}` : `2026-07-${String(dueDay - 30).padStart(2, "0")}`;
+  return {
+    id: `work-${index + 1}`,
+    title: template.title + ` #${index + 1}`,
+    description: template.description,
+    team: template.team,
+    status,
+    assignedTo: assignedMap[template.team][index % 2],
+    dueDate,
+    priority: template.priority,
+    category: template.category,
+    requester: template.requester,
+  };
+});
+
 const ALL_STATUSES: LeadStatus[] = ["Lead Mới", "Đang Tham Vấn", "Fail", "Đang Học Thử", "Đã Chốt", "Chăm Sóc"];
 const SOURCES = ["Chị Liên", "Vãng lai", "Page", "Zalo OA", "Giới thiệu", "Tiktok"];
 const FIRST_NAMES = ["Bảo An", "Gia Hưng", "Khánh Linh", "Minh Khôi", "Ngọc Mai", "Tuấn Kiệt", "Thảo Vy", "Hà My", "Quang Minh", "Tú Anh", "Đức Anh", "Phương Linh", "Hải Đăng", "Nhật Minh", "Bảo Châu", "Khôi Nguyên", "Thanh Trúc", "Gia Bảo", "Hoàng Long", "Thùy Dương"];
@@ -5248,6 +6846,243 @@ export function AdminAdmissions() {
   );
 }
 
+export function AdminWorkManagement() {
+  const [tasks, setTasks] = React.useState<WorkTask[]>(WORK_TASKS);
+  const [search, setSearch] = React.useState("");
+  const [dueFilter, setDueFilter] = React.useState<"all" | "onTime" | "overdue">("all");
+  const [requesterFilter, setRequesterFilter] = React.useState<string>("all");
+  const [assigneeFilter, setAssigneeFilter] = React.useState<string>("all");
+  const [sortOrder, setSortOrder] = React.useState<"nearest" | "furthest">("nearest");
+  const [selectedTask, setSelectedTask] = React.useState<WorkTask | null>(null);
+  const [detailOpen, setDetailOpen] = React.useState(false);
+
+  const taskDueStatus = React.useCallback((task: WorkTask) => {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    return parseTaskDate(task.dueDate).getTime() < now.getTime() ? "overdue" : "onTime";
+  }, []);
+
+  const requesterOptions = React.useMemo(
+    () => Array.from(new Set(tasks.map((task) => task.requester))),
+    [tasks],
+  );
+
+  const filtered = React.useMemo(() => {
+    const query = search.trim().toLowerCase();
+
+    return tasks
+      .filter((task) => {
+        if (dueFilter !== "all" && taskDueStatus(task) !== dueFilter) return false;
+        if (requesterFilter !== "all" && task.requester !== requesterFilter) return false;
+        if (assigneeFilter !== "all" && task.assignedTo !== assigneeFilter) return false;
+        if (!query) return true;
+        return task.title.toLowerCase().includes(query)
+          || task.description.toLowerCase().includes(query)
+          || task.category.toLowerCase().includes(query)
+          || task.requester.toLowerCase().includes(query)
+          || taskAssigneeName(task.assignedTo).toLowerCase().includes(query);
+      })
+      .sort((a, b) => {
+        const diff = parseTaskDate(a.dueDate).getTime() - parseTaskDate(b.dueDate).getTime();
+        return sortOrder === "nearest" ? diff : -diff;
+      });
+  }, [tasks, search, dueFilter, requesterFilter, assigneeFilter, sortOrder, taskDueStatus]);
+
+  const overdueCount = tasks.filter((task) => task.status === "Quá hạn").length;
+  const openCount = tasks.filter((task) => task.status === "Mới" || task.status === "Đang xử lý").length;
+  const doneCount = tasks.filter((task) => task.status === "Hoàn thành").length;
+
+  const updateTaskStatus = (taskId: string, newStatus: WorkTaskStatus) => {
+    setTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, status: newStatus } : t));
+    toast.success("Đã cập nhật trạng thái nhiệm vụ");
+    setDetailOpen(false);
+  };
+
+  const openDetail = (task: WorkTask) => {
+    setSelectedTask(task);
+    setDetailOpen(true);
+  };
+
+  return (
+    <div className="flex flex-1 min-h-0 flex-col space-y-5 animate-fade-in overflow-hidden">
+      <div className="hidden" />
+
+      <div className="grid gap-3 lg:grid-cols-[minmax(0,_1fr)_220px_220px_220px_220px] items-center">
+        <div className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
+          <div className="relative min-w-0">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Input
+              className="pl-9 h-9"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Tìm theo tiêu đề, mô tả, người giao, người phụ trách..."
+            />
+          </div>
+        </div>
+
+        <Select value={dueFilter} onValueChange={(value) => setDueFilter(value as "all" | "onTime" | "overdue")}> 
+          <SelectTrigger className="h-9 w-full">
+            <SelectValue placeholder="Tình trạng" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tất cả</SelectItem>
+            <SelectItem value="onTime">Đúng hạn</SelectItem>
+            <SelectItem value="overdue">Trễ hạn</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={requesterFilter} onValueChange={setRequesterFilter}>
+          <SelectTrigger className="h-9 w-full">
+            <SelectValue placeholder="Người giao" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tất cả người giao</SelectItem>
+            {requesterOptions.map((name) => (
+              <SelectItem key={name} value={name}>{name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
+          <SelectTrigger className="h-9 w-full">
+            <SelectValue placeholder="Người nhận" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tất cả người nhận</SelectItem>
+            {TASK_ASSIGNEES.map((assignee) => (
+              <SelectItem key={assignee.id} value={assignee.id}>{assignee.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={sortOrder} onValueChange={(value) => setSortOrder(value as "nearest" | "furthest")}> 
+          <SelectTrigger className="h-9 w-full">
+            <SelectValue placeholder="Deadline" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="nearest">Deadline gần nhất</SelectItem>
+            <SelectItem value="furthest">Deadline xa nhất</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <Card className="flex-1 flex flex-col overflow-hidden min-h-0">
+        <CardHeader>
+          <CardTitle className="text-sm">Danh sách tất cả nhiệm vụ</CardTitle>
+        </CardHeader>
+        <CardContent className="flex-1 min-h-0 p-0 overflow-hidden">
+          <div className="flex-1 min-h-0 max-h-[calc(100vh-250px)] overflow-y-auto scrollbar-none">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nhiệm vụ</TableHead>
+                  <TableHead>Người giao</TableHead>
+                  <TableHead>Người phụ trách</TableHead>
+                  <TableHead>Độ ưu tiên</TableHead>
+                  <TableHead>Deadline</TableHead>
+                  <TableHead>Trạng thái</TableHead>
+                  <TableHead className="text-right">Hành động</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+              {filtered.map((task) => (
+                <TableRow key={task.id} className="group hover:bg-slate-50 transition-colors">
+                  <TableCell>
+                    <div className="text-sm font-semibold text-slate-900">{task.title}</div>
+                    <div className="text-xs text-slate-500">{task.category} · {task.description}</div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-sm font-medium text-slate-900">{task.requester}</div>
+                  </TableCell>
+                  <TableCell className="text-sm">{taskAssigneeName(task.assignedTo)}</TableCell>
+                  <TableCell className="text-sm">{task.priority}</TableCell>
+                  <TableCell>
+                    <div className="text-sm font-medium">{formatTaskDate(task.dueDate)}</div>
+                    <div className="text-xs text-slate-500">{taskDueLabel(task.dueDate, task.status)}</div>
+                  </TableCell>
+                  <TableCell><Badge variant="outline" className={TASK_STATUS_BADGE[task.status]}>{task.status}</Badge></TableCell>
+                  <TableCell className="text-right">
+                    <Button variant="ghost" size="sm" onClick={() => openDetail(task)}>
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {filtered.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center text-slate-400 py-10">Không có nhiệm vụ phù hợp.</TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Task Detail Dialog */}
+      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{selectedTask?.title}</DialogTitle>
+            <DialogDescription>{selectedTask?.description}</DialogDescription>
+          </DialogHeader>
+          {selectedTask && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <div className="text-xs font-semibold text-slate-500 uppercase">Người giao</div>
+                  <div className="text-sm font-medium text-slate-900">{selectedTask.requester}</div>
+                </div>
+                <div>
+                  <div className="text-xs font-semibold text-slate-500 uppercase">Người phụ trách</div>
+                  <div className="text-sm font-medium text-slate-900">{taskAssigneeName(selectedTask.assignedTo)}</div>
+                </div>
+                <div>
+                  <div className="text-xs font-semibold text-slate-500 uppercase">Độ ưu tiên</div>
+                  <div className="text-sm font-medium text-slate-900">{selectedTask.priority}</div>
+                </div>
+                <div>
+                  <div className="text-xs font-semibold text-slate-500 uppercase">Deadline</div>
+                  <div className="text-sm font-medium text-slate-900">{formatTaskDate(selectedTask.dueDate)}</div>
+                </div>
+              </div>
+              
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <div className="text-xs font-semibold text-slate-500 uppercase mb-2">Cập nhật trạng thái</div>
+                <div className="grid grid-cols-2 gap-2">
+                  {TASK_STATUSES.map((status) => (
+                    <Button
+                      key={status}
+                      size="sm"
+                      variant={selectedTask.status === status ? "default" : "outline"}
+                      className={selectedTask.status === status ? "bg-teal-600 hover:bg-teal-700" : ""}
+                      onClick={() => updateTaskStatus(selectedTask.id, status)}
+                    >
+                      {status}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-slate-200 bg-blue-50 p-3 text-xs text-blue-900">
+                <div className="font-semibold mb-1">Thông báo:</div>
+                {selectedTask.status === "Quá hạn" && "🔴 Nhiệm vụ này đã vượt quá deadline, hãy cập nhật trạng thái sớm"}
+                {selectedTask.status === "Mới" && "📌 Chưa bắt đầu xử lý"}
+                {selectedTask.status === "Đang xử lý" && "⏳ Đang thực hiện, hãy cố gắng hoàn thành đúng deadline"}
+                {selectedTask.status === "Hoàn thành" && "✅ Đã hoàn thành thành công"}
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDetailOpen(false)}>Đóng</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+
 function FilterOptionCount({ label, count }: { label: string; count: number }) {
   return (
     <span className="inline-flex min-w-[165px] items-center justify-between gap-4 pr-3">
@@ -5308,7 +7143,7 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
     }
     if (lead.consultationDecision === "test") {
       if (!lead.testDate || !lead.testCenter || !lead.testFileName) {
-        toast.error("Vui lòng nhập ngày test, trung tâm test và tải đề test");
+        toast.error("Vui lòng nhập ngày test, trung tâm test và tải kết quả test");
         return;
       }
       if (lead.testResult !== "Thành công") {
@@ -5551,10 +7386,10 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
                       </SelectContent>
                     </Select>
                   </Field>
-                  <Field label="Đề test">
+                  <Field label="Kết quả test">
                     <label className="flex h-9 cursor-pointer items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm hover:bg-slate-50">
                       <Upload className="h-4 w-4 text-slate-500" />
-                      <span className="truncate">{lead.testFileName || "Chọn file đề test"}</span>
+                      <span className="truncate">{lead.testFileName || "Chọn file kết quả test"}</span>
                       <input
                         type="file"
                         className="hidden"
@@ -5671,34 +7506,8 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
                 <Badge variant="outline" className="bg-white">{lead.feeStatus ?? "Chưa thu"}</Badge>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Trạng thái">
-                  <Select value={lead.feeStatus ?? "Chưa thu"} onValueChange={(v) => update("feeStatus", v as Lead["feeStatus"])}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Chưa thu">Chưa thu</SelectItem>
-                      <SelectItem value="Thu một phần">Thu một phần</SelectItem>
-                      <SelectItem value="Đã thu đủ">Đã thu đủ</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field label="Số tiền thu (VNĐ)">
-                  <Input
-                    value={lead.tuition ?? ""}
-                    onChange={(e) => {
-                      const raw = e.target.value.replace(/\D/g, "");
-                      update("tuition", raw ? Number(raw).toLocaleString("vi-VN") : "");
-                    }}
-                    placeholder="2.500.000"
-                  />
-                </Field>
-                <Field label="Ghi chú thu tiền" className="col-span-2">
-                  <Textarea rows={2} value={lead.paymentNote ?? ""} onChange={(e) => update("paymentNote", e.target.value)} placeholder="Phương thức thanh toán, số tiền còn lại..." />
-                </Field>
-              </div>
-              <div className="flex justify-end">
-                <Button type="button" onClick={recordPayment} className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5">
-                  <Wallet className="h-4 w-4" /> Ghi nhận thu tiền
-                </Button>
+                <Info2 label="Trạng thái" value={lead.feeStatus ?? "Chưa thu"} />
+                <Info2 label="Số tiền thu (VNĐ)" value={lead.tuition ? formatVND(Number(lead.tuition.replace(/\D/g, ""))) : ""} />
               </div>
             </section>
 

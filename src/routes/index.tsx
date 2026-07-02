@@ -4,11 +4,11 @@ import { AppShell } from "@/components/app-shell";
 import {
   AdminStudents, AdminClasses, AdminTuition, AdminFees, AdminSyllabus,
   AdminTeachers, AdminSchedule, AdminAttendanceReport, AdminSalaryReport,
-  AdminFinanceReport, AdminAdmissions,
+  AdminFinanceReport, AdminAdmissions, AdminWorkManagement,
 } from "@/components/pages/admin-pages";
 import { TeacherToday, TeacherSyllabus } from "@/components/pages/teacher-pages";
 import {
-  StudentInfo, StudentSchedule, StudentTuition, StudentResults,
+  StudentInfo, StudentSchedule, StudentTuition, StudentResults, StudentHomework,
 } from "@/components/pages/student-pages";
 import { Toaster } from "@/components/ui/sonner";
 
@@ -31,6 +31,7 @@ function PageRouter() {
       case "salary-report": return <AdminSalaryReport />;
       case "finance-report": return <AdminFinanceReport />;
       case "tuition": return <AdminTuition />;
+      case "work-management": return <AdminWorkManagement />;
     }
   }
   if (role === "teacher") {
@@ -43,6 +44,7 @@ function PageRouter() {
     switch (page) {
       case "info": return <StudentInfo />;
       case "schedule": return <StudentSchedule />;
+      case "homework": return <StudentHomework />;
       case "tuition-history": return <StudentTuition />;
       case "results": return <StudentResults />;
     }
