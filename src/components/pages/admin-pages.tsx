@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -6350,7 +6350,11 @@ function AcademicSalaryDetail({
 }
 
 /* ============== ADMISSIONS CRM ============== */
-type LeadStatus = "Lead Mới" | "Fail" | "Đang Học Thử" | "Đã Chốt" | "Đang Tham Vấn" | "Chăm Sóc";
+type LeadStatus =
+  | "Lead mới" | "Đang liên hệ" | "Đang tham vấn"
+  | "Chờ test" | "Đã test chờ tư vấn" | "Chờ học thử" | "Đã học thử chờ tư vấn"
+  | "Chờ xếp lớp" | "Xếp lớp chờ" | "Xếp lớp cụ thể" | "Chờ đóng học phí" | "Đã nhập học"
+  | "Pending" | "Fail";
 type LeadActivity = {
   id: string;
   at: string;
@@ -6543,7 +6547,34 @@ const WORK_TASKS: WorkTask[] = Array.from({ length: 30 }, (_, index) => {
   };
 });
 
-const ALL_STATUSES: LeadStatus[] = ["Lead Mới", "Đang Tham Vấn", "Fail", "Đang Học Thử", "Đã Chốt", "Chăm Sóc"];
+// Hành trình 1 lead: 12 trạng thái theo thứ tự, chia 3 bước.
+const LEAD_JOURNEY: { status: LeadStatus; step: 1 | 2 | 3; hint: string }[] = [
+  { status: "Lead mới", step: 1, hint: "Khách vừa để lại thông tin, học vụ mới nhận, chưa liên hệ." },
+  { status: "Đang liên hệ", step: 1, hint: "Học vụ đang gọi/nhắn để kết nối với khách." },
+  { status: "Đang tham vấn", step: 1, hint: "Đã nói chuyện được với khách, đang tìm hiểu nhu cầu và tư vấn khóa học." },
+  { status: "Chờ test", step: 2, hint: "Khách đồng ý làm bài kiểm tra trình độ, đang chờ test." },
+  { status: "Đã test chờ tư vấn", step: 2, hint: "Khách đã test xong, chờ học vụ tư vấn kết quả và bước tiếp theo." },
+  { status: "Chờ học thử", step: 2, hint: "Khách đồng ý học thử, đang sắp xếp buổi học thử." },
+  { status: "Đã học thử chờ tư vấn", step: 2, hint: "Khách đã học thử xong, chờ học vụ trao đổi cảm nhận và chốt." },
+  { status: "Chờ xếp lớp", step: 3, hint: "Khách quyết định theo học, đang chờ trung tâm sắp lớp phù hợp." },
+  { status: "Xếp lớp chờ", step: 3, hint: "Chưa có lớp đúng ý ngay, khách được giữ chỗ trong lớp chờ." },
+  { status: "Xếp lớp cụ thể", step: 3, hint: "Đã có lớp chính thức cho khách." },
+  { status: "Chờ đóng học phí", step: 3, hint: "Đã có lớp, chỉ còn chờ khách hoàn tất học phí." },
+  { status: "Đã nhập học", step: 3, hint: "Khách đã đóng phí và chính thức vào học. Hành trình hoàn tất." },
+];
+const CROSS_STATUSES: { status: LeadStatus; hint: string }[] = [
+  { status: "Pending", hint: "Khách đang do dự, chưa từ chối hẳn, tạm dừng để chăm sóc lại sau." },
+  { status: "Fail", hint: "Khách từ chối, không tiếp tục." },
+];
+const STATUS_STEP: Record<LeadStatus, 1 | 2 | 3> = {
+  "Lead mới": 1, "Đang liên hệ": 1, "Đang tham vấn": 1,
+  "Chờ test": 2, "Đã test chờ tư vấn": 2, "Chờ học thử": 2, "Đã học thử chờ tư vấn": 2,
+  "Chờ xếp lớp": 3, "Xếp lớp chờ": 3, "Xếp lớp cụ thể": 3, "Chờ đóng học phí": 3, "Đã nhập học": 3,
+  "Pending": 1, "Fail": 1,
+};
+const ALL_STATUSES: LeadStatus[] = [...LEAD_JOURNEY.map((j) => j.status), ...CROSS_STATUSES.map((c) => c.status)];
+// Trạng thái dùng để rải seed demo (ít hơn để không quá nhiều lead)
+const SEED_STATUSES: LeadStatus[] = ALL_STATUSES;
 const SOURCES = ["Chị Liên", "Vãng lai", "Page", "Zalo OA", "Giới thiệu", "Tiktok"];
 const FIRST_NAMES = ["Bảo An", "Gia Hưng", "Khánh Linh", "Minh Khôi", "Ngọc Mai", "Tuấn Kiệt", "Thảo Vy", "Hà My", "Quang Minh", "Tú Anh", "Đức Anh", "Phương Linh", "Hải Đăng", "Nhật Minh", "Bảo Châu", "Khôi Nguyên", "Thanh Trúc", "Gia Bảo", "Hoàng Long", "Thùy Dương"];
 const LASTNAMES = ["Nguyễn", "Trần", "Lê", "Phạm", "Hoàng", "Vũ", "Đỗ", "Bùi", "Đặng", "Ngô"];
@@ -6568,8 +6599,8 @@ function generateLeads(): Lead[] {
   const leads: Lead[] = [];
   let counter = 1;
   STAFF.forEach((staff) => {
-    ALL_STATUSES.forEach((status) => {
-      for (let i = 0; i < 10; i++) {
+    SEED_STATUSES.forEach((status) => {
+      for (let i = 0; i < 4; i++) {
         const seed = counter;
         const firstName = FIRST_NAMES[seed % FIRST_NAMES.length];
         const lastName = LASTNAMES[seed % LASTNAMES.length];
@@ -6579,12 +6610,7 @@ function generateLeads(): Lead[] {
         const month = ((seed * 3) % 12) + 1;
         const year = 2014 + (seed % 6);
         const dob = `${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")}/${year}`;
-        const step: 1 | 2 | 3 =
-          status === "Lead Mới" || status === "Đang Tham Vấn" || status === "Fail"
-            ? 1
-            : status === "Đang Học Thử"
-            ? 2
-            : 3;
+        const step: 1 | 2 | 3 = STATUS_STEP[status];
         const base: Lead = {
           id: `L${String(counter).padStart(4, "0")}`,
           source: SOURCES[seed % SOURCES.length],
@@ -6599,7 +6625,7 @@ function generateLeads(): Lead[] {
           facility: staff.facility,
           step,
           assignedTo: staff.id,
-          testResult: status === "Lead Mới" || status === "Đang Tham Vấn" || status === "Fail" ? "Pending" : "Thành công",
+          testResult: step >= 2 ? "Thành công" : "Pending",
         };
         if (step >= 2) {
           base.consultationDecision = seed % 2 === 0 ? "test" : "no-test";
@@ -6614,14 +6640,10 @@ function generateLeads(): Lead[] {
           base.tuition = TUITIONS[seed % TUITIONS.length];
         }
         if (step === 3) {
-          base.placementType = seed % 4 === 0 ? "waitlist" : "existing";
-          base.closedClass = base.trialClass;
-          base.feeStatus = seed % 3 === 0 ? "Thu một phần" : "Đã thu đủ";
+          base.placementType = status === "Xếp lớp chờ" ? "waitlist" : "existing";
+          base.closedClass = base.placementType === "existing" ? base.trialClass : undefined;
+          base.feeStatus = status === "Đã nhập học" ? "Đã thu đủ" : status === "Chờ đóng học phí" ? "Chưa thu" : "Thu một phần";
           base.paymentNote = "Đã xác nhận tình trạng học phí với phụ huynh.";
-          if (status === "Chăm Sóc") {
-            base.care1Date = `${String(((seed * 5) % 27) + 1).padStart(2, "0")}/06/2026`;
-            base.care1Note = "PH hài lòng, con thích lớp.";
-          }
         }
         base.activities = [
           {
@@ -6661,7 +6683,7 @@ function generateUnassignedLeads(): Lead[] {
       grade: GRADES[seed % GRADES.length],
       school: SCHOOLS[seed % SCHOOLS.length],
       feature: FEATURES[seed % FEATURES.length],
-      status: "Lead Mới",
+      status: "Lead mới",
       facility: FACILITIES[i % FACILITIES.length],
       step: 1,
       testResult: "Pending",
@@ -6673,24 +6695,32 @@ function generateUnassignedLeads(): Lead[] {
 const INITIAL_LEADS: Lead[] = [...generateUnassignedLeads(), ...generateLeads()];
 
 const STAGES: { key: 1 | 2 | 3 | 0; title: string; statuses: LeadStatus[]; color: string; ring: string; chip: string; dot: string }[] = [
-  { key: 0, title: "Lead Mới", statuses: ["Lead Mới"], color: "bg-slate-50", ring: "border-slate-200", chip: "bg-slate-100 text-slate-700 border-slate-200", dot: "bg-slate-400" },
-  { key: 1, title: "Bước 1: Test & Tham vấn", statuses: ["Đang Tham Vấn", "Fail"], color: "bg-orange-50/60", ring: "border-orange-200", chip: "bg-orange-100 text-orange-700 border-orange-200", dot: "bg-orange-500" },
-  { key: 2, title: "Bước 2: Học thử & Chốt lớp", statuses: ["Đang Học Thử"], color: "bg-amber-50/60", ring: "border-amber-200", chip: "bg-amber-100 text-amber-800 border-amber-200", dot: "bg-amber-500" },
-  { key: 3, title: "Bước 3: Chăm sóc 1 tháng", statuses: ["Đã Chốt", "Chăm Sóc"], color: "bg-teal-50/60", ring: "border-teal-200", chip: "bg-teal-100 text-teal-700 border-teal-200", dot: "bg-teal-500" },
+  { key: 0, title: "Lead mới", statuses: ["Lead mới"], color: "bg-slate-50", ring: "border-slate-200", chip: "bg-slate-100 text-slate-700 border-slate-200", dot: "bg-slate-400" },
+  { key: 1, title: "Bước 1: Tham vấn", statuses: ["Đang liên hệ", "Đang tham vấn", "Pending", "Fail"], color: "bg-orange-50/60", ring: "border-orange-200", chip: "bg-orange-100 text-orange-700 border-orange-200", dot: "bg-orange-500" },
+  { key: 2, title: "Bước 2: Test & Học thử", statuses: ["Chờ test", "Đã test chờ tư vấn", "Chờ học thử", "Đã học thử chờ tư vấn"], color: "bg-amber-50/60", ring: "border-amber-200", chip: "bg-amber-100 text-amber-800 border-amber-200", dot: "bg-amber-500" },
+  { key: 3, title: "Bước 3: Xếp lớp & Học phí", statuses: ["Chờ xếp lớp", "Xếp lớp chờ", "Xếp lớp cụ thể", "Chờ đóng học phí", "Đã nhập học"], color: "bg-teal-50/60", ring: "border-teal-200", chip: "bg-teal-100 text-teal-700 border-teal-200", dot: "bg-teal-500" },
 ];
 
 const STATUS_BADGE: Record<LeadStatus, string> = {
-  "Lead Mới": "bg-slate-100 text-slate-700 border-slate-200",
-  "Đang Tham Vấn": "bg-orange-100 text-orange-700 border-orange-200",
+  "Lead mới": "bg-slate-100 text-slate-700 border-slate-200",
+  "Đang liên hệ": "bg-sky-100 text-sky-700 border-sky-200",
+  "Đang tham vấn": "bg-orange-100 text-orange-700 border-orange-200",
+  "Chờ test": "bg-amber-100 text-amber-800 border-amber-200",
+  "Đã test chờ tư vấn": "bg-yellow-100 text-yellow-800 border-yellow-200",
+  "Chờ học thử": "bg-lime-100 text-lime-800 border-lime-200",
+  "Đã học thử chờ tư vấn": "bg-green-100 text-green-700 border-green-200",
+  "Chờ xếp lớp": "bg-teal-100 text-teal-700 border-teal-200",
+  "Xếp lớp chờ": "bg-cyan-100 text-cyan-700 border-cyan-200",
+  "Xếp lớp cụ thể": "bg-indigo-100 text-indigo-700 border-indigo-200",
+  "Chờ đóng học phí": "bg-violet-100 text-violet-700 border-violet-200",
+  "Đã nhập học": "bg-emerald-100 text-emerald-700 border-emerald-200",
+  "Pending": "bg-yellow-100 text-yellow-700 border-yellow-200",
   "Fail": "bg-rose-100 text-rose-700 border-rose-200",
-  "Đang Học Thử": "bg-amber-100 text-amber-800 border-amber-200",
-  "Đã Chốt": "bg-emerald-100 text-emerald-700 border-emerald-200",
-  "Chăm Sóc": "bg-teal-100 text-teal-700 border-teal-200",
 };
 
 const EMPTY_LEAD: Lead = {
   id: "", source: "", parentName: "", phone: "", studentName: "", dob: "", grade: "", school: "",
-  feature: "", status: "Lead Mới", facility: "ĐC", step: 1, testResult: "Pending",
+  feature: "", status: "Lead mới", facility: "ĐC", step: 1, testResult: "Pending",
 };
 
 export function AdminAdmissions() {
@@ -7282,6 +7312,15 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
     ],
   });
 
+  // Dropdown chuyển trạng thái: cập nhật status + nhảy đúng bước + ghi log
+  const changeStatus = (s: LeadStatus) => {
+    if (s === lead.status) return;
+    const step = s === "Pending" || s === "Fail" ? lead.step : STATUS_STEP[s];
+    const next = withActivity({ ...lead, status: s, step }, "Đổi trạng thái", `Chuyển sang "${s}".`);
+    onSave(next, `Đã chuyển: ${s}`);
+    setActiveStep(step);
+  };
+
   const addManualActivity = () => {
     if (!activityNote.trim()) {
       toast.error("Vui lòng nhập nội dung ghi chú");
@@ -7292,31 +7331,13 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
     onSave(next, "Đã thêm ghi chú");
   };
 
-  const toTrial = () => {
-    if (!lead.consultationDecision) {
-      toast.error("Vui lòng chọn phụ huynh có test đầu vào hay không");
-      return;
-    }
-    if (lead.consultationDecision === "test") {
-      if (!lead.testDate || !lead.testCenter || !lead.testFileName) {
-        toast.error("Vui lòng nhập ngày test, trung tâm test và tải kết quả test");
-        return;
-      }
-      if (lead.testResult !== "Thành công") {
-        toast.error("Chỉ chuyển sang học thử sau khi đã trả kết quả test");
-        return;
-      }
-    }
-    const note = lead.consultationDecision === "test"
-      ? `Đã hoàn tất test đầu vào ngày ${lead.testDate} tại ${lead.testCenter}. ${lead.testNote || "Đã trả kết quả."}`
-      : "Phụ huynh quyết định không test đầu vào.";
+  const goStep2 = () => {
     const next = withActivity(
-      { ...lead, step: 2, status: "Đang Học Thử" },
-      "Chuyển sang học thử",
-      note,
-      lead.testFileName,
+      { ...lead, step: 2, status: lead.step >= 2 ? lead.status : "Chờ test" },
+      "Sang Bước 2 · Test & Học thử",
+      "Bắt đầu quy trình test đầu vào / học thử.",
     );
-    onSave(next, "Đã chuyển sang Học thử");
+    onSave(next, "Đã sang Bước 2");
     setActiveStep(2);
   };
 
@@ -7337,11 +7358,17 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
     onSave(next, "Đã đánh dấu Fail");
   };
 
-  const confirmClose = () => {
-    if (!lead.trialClass?.trim()) {
-      toast.error("Vui lòng chọn lớp học thử");
-      return;
-    }
+  const goStep3 = () => {
+    const next = withActivity(
+      { ...lead, step: 3, status: lead.step >= 3 ? lead.status : "Chờ xếp lớp" },
+      "Sang Bước 3 · Xếp lớp & Học phí",
+      "Chuyển sang bước xếp lớp.",
+    );
+    onSave(next, "Đã sang Bước 3");
+    setActiveStep(3);
+  };
+
+  const confirmPlacement = () => {
     if (!lead.placementType) {
       toast.error("Vui lòng chọn gán lớp có sẵn hoặc danh sách chờ");
       return;
@@ -7350,16 +7377,26 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
       toast.error("Vui lòng chọn lớp chính thức");
       return;
     }
+    const status: LeadStatus = lead.placementType === "existing" ? "Xếp lớp cụ thể" : "Xếp lớp chờ";
     const placementNote = lead.placementType === "existing"
       ? `Đã gán vào lớp ${lead.closedClass}.`
       : `Đã đưa vào danh sách chờ. ${lead.waitlistNote || ""}`.trim();
     const next = withActivity(
-      { ...lead, step: 3, status: "Đã Chốt", feeStatus: lead.feeStatus ?? "Chưa thu" },
-      "Chốt lớp",
-      `${placementNote} ${lead.trialNote || ""}`.trim(),
+      { ...lead, step: 3, status, feeStatus: lead.feeStatus ?? "Chưa thu" },
+      "Xếp lớp",
+      placementNote,
     );
-    onSave(next, "Đã chốt lớp");
+    onSave(next, "Đã xếp lớp");
     setActiveStep(3);
+  };
+
+  const finishEnroll = () => {
+    const next = withActivity(
+      { ...lead, step: 3, status: "Đã nhập học" },
+      "Nhập học",
+      `Khách đã hoàn tất học phí và chính thức vào học. ${lead.paymentNote || ""}`.trim(),
+    );
+    onSave(next, "Đã nhập học");
   };
 
   const recordPayment = () => {
@@ -7391,7 +7428,41 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
                 {isEmpty ? "Điền thông tin để bắt đầu quy trình tuyển sinh" : `${lead.parentName} · ${lead.phone}`}
               </DialogDescription>
             </div>
-            <Badge variant="outline" className={cn("text-[11px] font-medium", STATUS_BADGE[lead.status])}>{lead.status}</Badge>
+            <div className="flex items-center gap-2 shrink-0">
+              <Badge variant="outline" className={cn("text-[11px] font-medium", STATUS_BADGE[lead.status])}>{lead.status}</Badge>
+              <div className="flex flex-col items-end">
+                <span className="text-[10px] text-slate-500 mb-0.5">Chuyển trạng thái</span>
+                <Select value={lead.status} onValueChange={(v) => changeStatus(v as LeadStatus)}>
+                  <SelectTrigger className="h-8 w-[230px] text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent className="max-h-[70vh]">
+                    <SelectGroup>
+                      <SelectLabel>Bước 1 · Tham vấn</SelectLabel>
+                      {LEAD_JOURNEY.filter((j) => j.step === 1).map((j) => (
+                        <SelectItem key={j.status} value={j.status} className="text-xs">{j.status}</SelectItem>
+                      ))}
+                    </SelectGroup>
+                    <SelectGroup>
+                      <SelectLabel>Bước 2 · Test & Học thử</SelectLabel>
+                      {LEAD_JOURNEY.filter((j) => j.step === 2).map((j) => (
+                        <SelectItem key={j.status} value={j.status} className="text-xs">{j.status}</SelectItem>
+                      ))}
+                    </SelectGroup>
+                    <SelectGroup>
+                      <SelectLabel>Bước 3 · Xếp lớp & Học phí</SelectLabel>
+                      {LEAD_JOURNEY.filter((j) => j.step === 3).map((j) => (
+                        <SelectItem key={j.status} value={j.status} className="text-xs">{j.status}</SelectItem>
+                      ))}
+                    </SelectGroup>
+                    <SelectGroup>
+                      <SelectLabel>Khác</SelectLabel>
+                      {CROSS_STATUSES.map((c) => (
+                        <SelectItem key={c.status} value={c.status} className="text-xs">{c.status}</SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
           </div>
 
           {/* Assignment */}
@@ -7426,7 +7497,7 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
                   >
                     <span className={cn("h-5 w-5 rounded-full grid place-content-center text-[11px] font-bold",
                       active ? "bg-white text-teal-700" : reached ? "bg-teal-600 text-white" : "bg-slate-300 text-white")}>{s}</span>
-                    {s === 1 ? "Tham vấn & Test" : s === 2 ? "Học thử & Chốt lớp" : "Học phí & Chăm sóc"}
+                    {s === 1 ? "Tham vấn" : s === 2 ? "Test & Học thử" : "Xếp lớp & Học phí"}
                   </div>
                   {idx < 2 && <div className={cn("flex-1 h-0.5 rounded", reached && (lead.step > s || activeStep > s) ? "bg-teal-400" : "bg-slate-200")} />}
                 </React.Fragment>
@@ -7478,6 +7549,34 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
               </div>
             </div>
 
+            <section className="rounded-lg border border-orange-200 bg-orange-50/40 p-3">
+              <div className="flex items-center gap-3 flex-wrap">
+                <div className="min-w-0">
+                  <h3 className="text-sm font-semibold text-slate-800">Tiến trình tham vấn</h3>
+                  <p className="text-[11px] text-slate-500">Học vụ nhận lead → gọi/nhắn liên hệ → tham vấn nhu cầu.</p>
+                </div>
+                <div className="ml-auto flex items-center gap-2 shrink-0">
+                  <span className="text-xs text-slate-500">Trạng thái:</span>
+                  <Select value={STATUS_STEP[lead.status] === 1 ? lead.status : ""} onValueChange={(v) => changeStatus(v as LeadStatus)}>
+                    <SelectTrigger className="h-8 w-[190px] text-sm bg-white"><SelectValue placeholder="Chọn trạng thái" /></SelectTrigger>
+                    <SelectContent>
+                      {LEAD_JOURNEY.filter((j) => j.step === 1).map((j) => (
+                        <SelectItem key={j.status} value={j.status} className="text-sm">{j.status}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              {STATUS_STEP[lead.status] === 1 && (
+                <p className="text-xs text-slate-600 mt-2 border-t border-orange-200 pt-2">
+                  {LEAD_JOURNEY.find((j) => j.status === lead.status)?.hint}
+                </p>
+              )}
+            </section>
+          </TabsContent>
+
+          {/* TAB 2 */}
+          <TabsContent value="2" className="flex-1 overflow-y-auto px-4 py-3 mt-0 space-y-3 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
             <section className="rounded-lg border border-orange-200 bg-orange-50/40 p-2.5 space-y-2.5">
               <div className="flex items-center justify-between gap-3">
                 <div>
@@ -7568,11 +7667,6 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
                 </div>
               )}
             </section>
-
-          </TabsContent>
-
-          {/* TAB 2 */}
-          <TabsContent value="2" className="flex-1 overflow-y-auto px-4 py-3 mt-0 space-y-3 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
             <div className="grid grid-cols-2 gap-3 h-full content-start">
             <section className="rounded-lg border border-amber-200 bg-amber-50/40 p-3 space-y-3">
               <h3 className="text-sm font-semibold text-slate-800">Học thử</h3>
@@ -7601,6 +7695,12 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
               </div>
             </section>
 
+            </div>
+
+          </TabsContent>
+
+          {/* TAB 3 */}
+          <TabsContent value="3" className="flex-1 overflow-y-auto px-4 py-3 mt-0 space-y-3 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
             <section className="rounded-lg border border-teal-200 bg-teal-50/40 p-3 space-y-3">
               <div>
                 <h3 className="text-sm font-semibold text-slate-800">Chốt lớp</h3>
@@ -7646,12 +7746,6 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
                 </Field>
               )}
             </section>
-            </div>
-
-          </TabsContent>
-
-          {/* TAB 3 */}
-          <TabsContent value="3" className="flex-1 overflow-y-auto px-4 py-3 mt-0 space-y-3 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
             <div className="grid grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] gap-3 h-full content-start">
             <section className="rounded-lg border border-emerald-200 bg-emerald-50/40 p-3 space-y-3">
               <div className="flex items-start justify-between gap-3">
@@ -7717,8 +7811,8 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
               <div />
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => onSave(lead)}>Lưu</Button>
-                <Button className="bg-teal-600 hover:bg-teal-700 text-white gap-1.5" onClick={toTrial}>
-                  Xác nhận & sang Học thử <ArrowRight className="h-4 w-4" />
+                <Button className="bg-teal-600 hover:bg-teal-700 text-white gap-1.5" onClick={goStep2}>
+                  Sang Bước 2 · Test & Học thử <ArrowRight className="h-4 w-4" />
                 </Button>
               </div>
             </div>
@@ -7730,20 +7824,25 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
               </Button>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => onSave(lead, "Đã lưu")}>Lưu</Button>
-                <Button className="bg-teal-600 hover:bg-teal-700 text-white gap-1.5" onClick={confirmClose}>
-                  <CheckCircle2 className="h-4 w-4" /> Xác nhận Chốt lớp
+                <Button className="bg-teal-600 hover:bg-teal-700 text-white gap-1.5" onClick={goStep3}>
+                  Sang Bước 3 · Xếp lớp & Học phí <ArrowRight className="h-4 w-4" />
                 </Button>
               </div>
             </div>
           )}
           {activeStep === 3 && (
-            <div className="flex w-full justify-between gap-2">
+            <div className="flex w-full justify-between gap-2 flex-wrap">
               <Button variant="ghost" onClick={() => setActiveStep(2)} className="gap-1.5">
                 <ArrowLeft className="h-4 w-4" /> Quay lại Bước 2
               </Button>
-              <Button className="bg-teal-600 hover:bg-teal-700 text-white" onClick={() => onSave({ ...lead, status: lead.managerChecked ? "Chăm Sóc" : lead.status }, "Đã lưu nhật ký chăm sóc")}>
-                Lưu Học phí & Chăm sóc
-              </Button>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={confirmPlacement} className="gap-1.5">
+                  <CheckCircle2 className="h-4 w-4" /> Xác nhận xếp lớp
+                </Button>
+                <Button className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5" onClick={finishEnroll}>
+                  <CheckCircle2 className="h-4 w-4" /> Hoàn tất nhập học
+                </Button>
+              </div>
             </div>
           )}
         </DialogFooter>
