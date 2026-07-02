@@ -5889,307 +5889,450 @@ function FinanceTxnDialog({ open, type, onClose, onSubmit }: {
 }
 
 /* ============== SALARY REPORT ============== */
+type SalaryStatus = "Đã duyệt" | "Chờ duyệt" | "Đang tính";
+
 type TeacherSalary = {
   id: string;
   name: string;
   position: string;
-  sessionsWithForeign: number;
-  sessionsWithoutForeign: number;
-  allowance: number;
-  parking: number;
-  students: number;
-  status: "Đã duyệt" | "Chờ duyệt" | "Đã chi";
+  foreignSessions: number;
+  localSessions: number;
+  supportAllowance: number;
+  parkingAllowance: number;
+  studentCount: number;
+  bonus: number;
   rateA?: number;
   rateB?: number;
-  rateStudent?: number;
+  studentRate?: number;
+  status: SalaryStatus;
 };
-type StaffSalary = {
+
+type RenewalClass = {
+  name: string;
+  renewalRate: number;
+  amount: number;
+  note?: string;
+};
+
+type AcademicSalary = {
   id: string;
   name: string;
   position: string;
   baseSalary: number;
-  revenue: number;
   closedStudents: number;
-  renewalBase: number;
-  absentStudents: number;
-  kpiTarget: number;
+  salesRevenue: number;
+  renewalRevenue: number;
+  renewalClasses: RenewalClass[];
+  studentsLeft: number;
+  kpiBudget: number;
   kpiPercent: number;
-  status: "Đã duyệt" | "Chờ duyệt" | "Đã chi";
+  bonus: number;
+  status: SalaryStatus;
 };
 
-const DEFAULT_RATE_A = 350000;
-const DEFAULT_RATE_B = 250000;
-const DEFAULT_RATE_STUDENT = 15000;
+type TeacherSalarySettings = {
+  rateA: number;
+  rateB: number;
+  studentRate: number;
+  defaultParking: number;
+};
 
-const INITIAL_TEACHER_SALARY: TeacherSalary[] = [
-  { id: "T01", name: "Cô Mai Anh", position: "GV Tiếng Anh", sessionsWithForeign: 12, sessionsWithoutForeign: 18, allowance: 1500000, parking: 200000, students: 45, status: "Chờ duyệt" },
-  { id: "T02", name: "Thầy Quang Huy", position: "GV Toán", sessionsWithForeign: 0, sessionsWithoutForeign: 32, allowance: 1000000, parking: 200000, students: 38, status: "Đã duyệt" },
-  { id: "T03", name: "Cô Thu Hà", position: "GV Tiếng Anh", sessionsWithForeign: 16, sessionsWithoutForeign: 14, allowance: 2000000, parking: 200000, students: 52, status: "Đã duyệt" },
-  { id: "T04", name: "Thầy David Brown", position: "GV Nước ngoài", sessionsWithForeign: 24, sessionsWithoutForeign: 0, allowance: 3000000, parking: 0, students: 60, status: "Đã chi" },
-  { id: "T05", name: "Cô Phương Linh", position: "GV Tiếng Anh", sessionsWithForeign: 10, sessionsWithoutForeign: 20, allowance: 1200000, parking: 200000, students: 40, status: "Chờ duyệt" },
-  { id: "T06", name: "Thầy Minh Đức", position: "GV Văn", sessionsWithForeign: 0, sessionsWithoutForeign: 28, allowance: 800000, parking: 200000, students: 35, status: "Chờ duyệt" },
-  { id: "T07", name: "Cô Ngọc Bích", position: "GV Tiếng Anh", sessionsWithForeign: 14, sessionsWithoutForeign: 16, allowance: 1500000, parking: 200000, students: 48, status: "Đã duyệt" },
-  { id: "T08", name: "Cô Sarah Lee", position: "GV Nước ngoài", sessionsWithForeign: 22, sessionsWithoutForeign: 0, allowance: 2800000, parking: 0, students: 55, status: "Đã chi" },
+const INITIAL_TEACHER_SALARY_SETTINGS: TeacherSalarySettings = {
+  rateA: 320000,
+  rateB: 230000,
+  studentRate: 15000,
+  defaultParking: 300000,
+};
+
+const INITIAL_TEACHER_SALARIES: TeacherSalary[] = [
+  { id: "GV01", name: "Cô Mai", position: "Giáo viên chủ nhiệm", foreignSessions: 12, localSessions: 18, supportAllowance: 1200000, parkingAllowance: 300000, studentCount: 48, bonus: 500000, status: "Đã duyệt" },
+  { id: "GV02", name: "Thầy Nam", position: "Giáo viên IELTS", foreignSessions: 16, localSessions: 12, supportAllowance: 800000, parkingAllowance: 300000, studentCount: 42, bonus: 400000, status: "Chờ duyệt" },
+  { id: "GV03", name: "Cô Linh", position: "Giáo viên Kids", foreignSessions: 10, localSessions: 22, supportAllowance: 1000000, parkingAllowance: 250000, studentCount: 55, bonus: 300000, status: "Đã duyệt" },
+  { id: "GV04", name: "Thầy Minh", position: "Giáo viên giao tiếp", foreignSessions: 14, localSessions: 16, supportAllowance: 600000, parkingAllowance: 300000, studentCount: 39, bonus: 250000, status: "Đang tính" },
+  { id: "GV05", name: "Cô Hương", position: "Giáo viên Cambridge", foreignSessions: 18, localSessions: 10, supportAllowance: 1500000, parkingAllowance: 300000, studentCount: 61, bonus: 550000, status: "Đã duyệt" },
+  { id: "GV06", name: "Thầy Long", position: "Giáo viên Teens", foreignSessions: 8, localSessions: 24, supportAllowance: 500000, parkingAllowance: 200000, studentCount: 46, bonus: 200000, status: "Chờ duyệt" },
+  { id: "GV07", name: "Cô Trang", position: "Giáo viên TOEIC", foreignSessions: 15, localSessions: 15, supportAllowance: 900000, parkingAllowance: 300000, studentCount: 44, bonus: 450000, status: "Đang tính" },
+  { id: "GV08", name: "Thầy Quân", position: "Giáo viên Foundation", foreignSessions: 11, localSessions: 19, supportAllowance: 700000, parkingAllowance: 300000, studentCount: 50, bonus: 350000, status: "Chờ duyệt" },
 ];
 
-const INITIAL_STAFF_SALARY: StaffSalary[] = [
-  { id: "S01", name: "Nguyễn Thu Trang", position: "Học vụ ĐC", baseSalary: 8000000, revenue: 280000000, closedStudents: 18, renewalBase: 120000000, absentStudents: 0, kpiTarget: 3000000, kpiPercent: 95, status: "Chờ duyệt" },
-  { id: "S02", name: "Lê Minh Châu", position: "Học vụ NH", baseSalary: 8000000, revenue: 150000000, closedStudents: 12, renewalBase: 90000000, absentStudents: 1, kpiTarget: 3000000, kpiPercent: 88, status: "Đã duyệt" },
-  { id: "S03", name: "Phạm Hoài An", position: "Học vụ HHT", baseSalary: 8500000, revenue: 320000000, closedStudents: 22, renewalBase: 150000000, absentStudents: 2, kpiTarget: 3500000, kpiPercent: 100, status: "Đã chi" },
-  { id: "S04", name: "Trần Khánh Linh", position: "Học vụ ĐC", baseSalary: 8000000, revenue: 95000000, closedStudents: 8, renewalBase: 75000000, absentStudents: 3, kpiTarget: 3000000, kpiPercent: 70, status: "Chờ duyệt" },
+const INITIAL_ACADEMIC_SALARIES: AcademicSalary[] = [
+  { id: "HV01", name: "Nguyễn Thu Hà", position: "Học vụ Đội Cấn", baseSalary: 8500000, closedStudents: 19, salesRevenue: 142000000, renewalRevenue: 96000000, renewalClasses: [
+      { name: "Lớp ESL A", renewalRate: 0.035, amount: 52000000, note: "24/24" },
+      { name: "Lớp IELTS B", renewalRate: 0.025, amount: 44000000, note: "22/22" },
+    ], studentsLeft: 0, kpiBudget: 3000000, kpiPercent: 95, bonus: 1200000, status: "Đã duyệt" },
+  { id: "HV02", name: "Trần Minh Anh", position: "Học vụ Hoàng Hoa Thám", baseSalary: 8200000, closedStudents: 14, salesRevenue: 105000000, renewalRevenue: 78000000, renewalClasses: [
+      { name: "Lớp TOEIC 1", renewalRate: 0.04, amount: 32000000, note: "24/24" },
+      { name: "Lớp Junior", renewalRate: 0.033, amount: 26000000, note: "20/24" },
+      { name: "Lớp Basic", renewalRate: 0.02, amount: 20000000, note: "18/24" },
+    ], studentsLeft: 1, kpiBudget: 2800000, kpiPercent: 88, bonus: 800000, status: "Chờ duyệt" },
+  { id: "HV03", name: "Lê Khánh Vy", position: "Học vụ Ngọc Hà", baseSalary: 8000000, closedStudents: 9, salesRevenue: 68000000, renewalRevenue: 64000000, renewalClasses: [
+      { name: "Lớp Kids", renewalRate: 0.045, amount: 34000000, note: "18/20" },
+      { name: "Lớp Basic", renewalRate: 0.035, amount: 30000000, note: "16/18" },
+    ], studentsLeft: 2, kpiBudget: 2500000, kpiPercent: 76, bonus: 600000, status: "Đang tính" },
+  { id: "HV04", name: "Phạm Đức Anh", position: "Trưởng nhóm học vụ", baseSalary: 11000000, closedStudents: 22, salesRevenue: 178000000, renewalRevenue: 120000000, renewalClasses: [
+      { name: "Lớp IELTS Pro", renewalRate: 0.05, amount: 66000000, note: "24/24" },
+      { name: "Lớp Conversation", renewalRate: 0.04, amount: 54000000, note: "22/22" },
+    ], studentsLeft: 3, kpiBudget: 4500000, kpiPercent: 103, bonus: 1500000, status: "Chờ duyệt" },
 ];
 
-function calcTeacherSalary(t: TeacherSalary, rA: number, rB: number, rS: number) {
-  const a = t.sessionsWithForeign * (t.rateA ?? rA);
-  const b = t.sessionsWithoutForeign * (t.rateB ?? rB);
-  const s = t.students * (t.rateStudent ?? rS);
-  const total = a + b + t.allowance + t.parking + s;
-  return { a, b, s, total };
+function calculateTeacherSalary(person: TeacherSalary, settings: TeacherSalarySettings) {
+  const rateA = person.rateA ?? settings.rateA;
+  const rateB = person.rateB ?? settings.rateB;
+  const studentRate = person.studentRate ?? settings.studentRate;
+  const foreignSalary = person.foreignSessions * rateA;
+  const localSalary = person.localSessions * rateB;
+  const studentSalary = person.studentCount * studentRate;
+  const total = foreignSalary + localSalary + person.supportAllowance + person.parkingAllowance + studentSalary + person.bonus;
+  return { rateA, rateB, studentRate, foreignSalary, localSalary, studentSalary, total };
 }
 
-function calcStaffSalary(s: StaffSalary) {
-  const revPct = s.closedStudents >= 17 ? 0.05 : s.closedStudents >= 1 ? 0.03 : 0;
-  const revenueSalary = Math.round(s.revenue * revPct);
-  const renewPct = s.absentStudents === 0 ? 0.01 : s.absentStudents === 1 ? 0.008 : s.absentStudents === 2 ? 0.005 : 0;
-  const renewalSalary = Math.round(s.renewalBase * renewPct);
-  const kpiBonus = Math.round((s.kpiTarget * s.kpiPercent) / 100);
-  const total = s.baseSalary + revenueSalary + renewalSalary + kpiBonus;
-  return { revPct, revenueSalary, renewPct, renewalSalary, kpiBonus, total };
+function getSalesRate(closedStudents: number) {
+  if (closedStudents <= 0) return 0;
+  return closedStudents >= 17 ? 0.05 : 0.03;
 }
 
-function StatusBadge({ status }: { status: TeacherSalary["status"] }) {
-  const map: Record<string, string> = {
-    "Đã duyệt": "bg-emerald-100 text-emerald-700",
-    "Chờ duyệt": "bg-amber-100 text-amber-700",
-    "Đã chi": "bg-slate-200 text-slate-700",
-  };
-  return <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${map[status]}`}>{status}</span>;
+function getRenewalRate(studentsLeft: number) {
+  if (studentsLeft <= 0) return 0.01;
+  if (studentsLeft === 1) return 0.008;
+  if (studentsLeft === 2) return 0.005;
+  return 0;
+}
+
+function calculateAcademicSalary(person: AcademicSalary) {
+  const salesRate = getSalesRate(person.closedStudents);
+  const renewalRate = 0.01;
+  const salesSalary = person.salesRevenue * salesRate;
+  const renewalSalary = person.renewalRevenue * renewalRate;
+  const kpiSalary = person.kpiBudget * (person.kpiPercent / 100);
+  const total = person.baseSalary + salesSalary + renewalSalary + kpiSalary + person.bonus;
+  return { salesRate, renewalRate, salesSalary, renewalSalary, kpiSalary, total };
+}
+
+function SalaryStatusBadge({ status }: { status: SalaryStatus }) {
+  return (
+    <Badge
+      className={cn(
+        "whitespace-nowrap",
+        status === "Đã duyệt" && "bg-emerald-100 text-emerald-700 hover:bg-emerald-100",
+        status === "Chờ duyệt" && "bg-amber-100 text-amber-700 hover:bg-amber-100",
+        status === "Đang tính" && "bg-blue-100 text-blue-700 hover:bg-blue-100",
+      )}
+    >
+      {status}
+    </Badge>
+  );
+}
+
+function SalaryMoneyInput({
+  label,
+  value,
+  onChange,
+  disabled,
+}: {
+  label: string;
+  value: number;
+  onChange: (value: number) => void;
+  disabled?: boolean;
+}) {
+  const formattedValue = value.toLocaleString("vi-VN");
+
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs text-slate-600">{label}</Label>
+      <Input
+        type="text"
+        inputMode="numeric"
+        disabled={disabled}
+        value={formattedValue}
+        onChange={(event) => {
+          const raw = event.target.value.replace(/\D/g, "");
+          onChange(Math.max(0, Number(raw) || 0));
+        }}
+      />
+    </div>
+  );
 }
 
 export function AdminSalaryReport() {
-  const [rateA, setRateA] = React.useState(DEFAULT_RATE_A);
-  const [rateB, setRateB] = React.useState(DEFAULT_RATE_B);
-  const [rateStudent, setRateStudent] = React.useState(DEFAULT_RATE_STUDENT);
-  const [teachers, setTeachers] = React.useState<TeacherSalary[]>(INITIAL_TEACHER_SALARY);
-  const [staff, setStaff] = React.useState<StaffSalary[]>(INITIAL_STAFF_SALARY);
-  const [openTeacher, setOpenTeacher] = React.useState<TeacherSalary | null>(null);
-  const [openStaff, setOpenStaff] = React.useState<StaffSalary | null>(null);
+  const [teacherSettings, setTeacherSettings] = React.useState(INITIAL_TEACHER_SALARY_SETTINGS);
+  const [teachers, setTeachers] = React.useState(INITIAL_TEACHER_SALARIES);
+  const [academicStaff, setAcademicStaff] = React.useState(INITIAL_ACADEMIC_SALARIES);
+  const [selected, setSelected] = React.useState<
+    { kind: "teacher"; id: string } | { kind: "academic"; id: string } | null
+  >(null);
+
+  const selectedTeacher = selected?.kind === "teacher"
+    ? teachers.find((person) => person.id === selected.id)
+    : undefined;
+  const selectedAcademic = selected?.kind === "academic"
+    ? academicStaff.find((person) => person.id === selected.id)
+    : undefined;
 
   const updateTeacher = (id: string, patch: Partial<TeacherSalary>) => {
-    setTeachers((arr) => arr.map((t) => (t.id === id ? { ...t, ...patch } : t)));
-    setOpenTeacher((cur) => (cur && cur.id === id ? { ...cur, ...patch } : cur));
+    setTeachers((current) => current.map((person) => person.id === id ? { ...person, ...patch } : person));
   };
-  const updateStaff = (id: string, patch: Partial<StaffSalary>) => {
-    setStaff((arr) => arr.map((t) => (t.id === id ? { ...t, ...patch } : t)));
-    setOpenStaff((cur) => (cur && cur.id === id ? { ...cur, ...patch } : cur));
+  const updateAcademic = (id: string, patch: Partial<AcademicSalary>) => {
+    setAcademicStaff((current) => current.map((person) => person.id === id ? { ...person, ...patch } : person));
   };
+
+  const teacherPayroll = teachers.reduce(
+    (sum, person) => sum + calculateTeacherSalary(person, teacherSettings).total,
+    0,
+  );
+  const academicPayroll = academicStaff.reduce(
+    (sum, person) => sum + calculateAcademicSalary(person).total,
+    0,
+  );
 
   return (
-    <Card>
-      <CardHeader><CardTitle>Báo cáo lương</CardTitle></CardHeader>
-      <CardContent className="space-y-4">
-        <div className="rounded-lg border bg-slate-50 p-3 grid gap-3 sm:grid-cols-3">
-          <div>
-            <Label className="text-xs">Đơn giá A (có GV nước ngoài)</Label>
-            <Input type="number" className="h-9 mt-1" value={rateA} onChange={(e) => setRateA(Number(e.target.value))} />
-          </div>
-          <div>
-            <Label className="text-xs">Đơn giá B (không có GV nước ngoài)</Label>
-            <Input type="number" className="h-9 mt-1" value={rateB} onChange={(e) => setRateB(Number(e.target.value))} />
-          </div>
-          <div>
-            <Label className="text-xs">Đơn giá / học sinh</Label>
-            <Input type="number" className="h-9 mt-1" value={rateStudent} onChange={(e) => setRateStudent(Number(e.target.value))} />
-          </div>
+    <div className="space-y-4">
+      <Tabs defaultValue="teachers" className="space-y-4">
+        <TabsList className="grid h-auto w-full max-w-md grid-cols-2 p-1">
+          <TabsTrigger value="teachers">Giáo viên ({teachers.length})</TabsTrigger>
+          <TabsTrigger value="academic">Học vụ ({academicStaff.length})</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="teachers" className="space-y-4">
+          <SalaryTable
+            rows={teachers.map((person) => ({
+              id: person.id,
+              name: person.name,
+              position: person.position,
+              total: calculateTeacherSalary(person, teacherSettings).total,
+              status: person.status,
+            }))}
+            onSelect={(id) => setSelected({ kind: "teacher", id })}
+          />
+        </TabsContent>
+
+        <TabsContent value="academic">
+          <SalaryTable
+            rows={academicStaff.map((person) => ({
+              id: person.id,
+              name: person.name,
+              position: person.position,
+              total: calculateAcademicSalary(person).total,
+              status: person.status,
+            }))}
+            onSelect={(id) => setSelected({ kind: "academic", id })}
+          />
+        </TabsContent>
+      </Tabs>
+
+      <Dialog open={selected !== null} onOpenChange={(open) => !open && setSelected(null)}>
+        <DialogContent className="max-h-[90vh] max-w-6xl overflow-y-auto p-0">
+          {selectedTeacher && (
+            <TeacherSalaryDetail
+              person={selectedTeacher}
+              settings={teacherSettings}
+              onChange={(patch) => updateTeacher(selectedTeacher.id, patch)}
+            />
+          )}
+          {selectedAcademic && (
+            <AcademicSalaryDetail
+              person={selectedAcademic}
+              onChange={(patch) => updateAcademic(selectedAcademic.id, patch)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function SalaryTable({
+  rows,
+  onSelect,
+}: {
+  rows: { id: string; name: string; position: string; total: number; status: SalaryStatus }[];
+  onSelect: (id: string) => void;
+}) {
+  return (
+    <Card className="overflow-hidden">
+      <CardContent className="p-0">
+        <div className="overflow-x-auto">
+          <Table className="min-w-[720px]">
+            <TableHeader><TableRow>
+              <TableHead className="w-24">Mã</TableHead>
+              <TableHead>Tên</TableHead>
+              <TableHead>Vị trí</TableHead>
+              <TableHead className="text-right">Tổng lương</TableHead>
+              <TableHead>Trạng thái</TableHead>
+              <TableHead className="w-28"></TableHead>
+            </TableRow></TableHeader>
+            <TableBody>
+              {rows.map((row) => (
+                <TableRow
+                  key={row.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Xem chi tiết lương của ${row.name}`}
+                  className="cursor-pointer hover:bg-indigo-50/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500"
+                  onClick={() => onSelect(row.id)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      onSelect(row.id);
+                    }
+                  }}
+                >
+                  <TableCell className="text-slate-500">{row.id}</TableCell>
+                  <TableCell className="font-semibold text-slate-900">{row.name}</TableCell>
+                  <TableCell>{row.position}</TableCell>
+                  <TableCell className="text-right font-bold text-indigo-600">{formatVND(row.total)}</TableCell>
+                  <TableCell><SalaryStatusBadge status={row.status} /></TableCell>
+                  <TableCell><Button size="sm" variant="outline">Chi tiết</Button></TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
-
-        <Tabs defaultValue="teacher">
-          <TabsList>
-            <TabsTrigger value="teacher">Giáo viên ({teachers.length})</TabsTrigger>
-            <TabsTrigger value="staff">Học vụ ({staff.length})</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="teacher" className="mt-3">
-            <Table>
-              <TableHeader><TableRow>
-                <TableHead>Tên</TableHead>
-                <TableHead>Vị trí</TableHead>
-                <TableHead className="text-right">Tổng lương</TableHead>
-                <TableHead>Trạng thái</TableHead>
-              </TableRow></TableHeader>
-              <TableBody>
-                {teachers.map((t) => {
-                  const { total } = calcTeacherSalary(t, rateA, rateB, rateStudent);
-                  return (
-                    <TableRow key={t.id} className="cursor-pointer hover:bg-slate-50" onClick={() => setOpenTeacher(t)}>
-                      <TableCell className="font-medium">{t.name}</TableCell>
-                      <TableCell>{t.position}</TableCell>
-                      <TableCell className="text-right font-semibold">{formatVND(total)}</TableCell>
-                      <TableCell><StatusBadge status={t.status} /></TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </TabsContent>
-
-          <TabsContent value="staff" className="mt-3">
-            <Table>
-              <TableHeader><TableRow>
-                <TableHead>Tên</TableHead>
-                <TableHead>Vị trí</TableHead>
-                <TableHead className="text-right">Tổng lương</TableHead>
-                <TableHead>Trạng thái</TableHead>
-              </TableRow></TableHeader>
-              <TableBody>
-                {staff.map((s) => {
-                  const { total } = calcStaffSalary(s);
-                  return (
-                    <TableRow key={s.id} className="cursor-pointer hover:bg-slate-50" onClick={() => setOpenStaff(s)}>
-                      <TableCell className="font-medium">{s.name}</TableCell>
-                      <TableCell>{s.position}</TableCell>
-                      <TableCell className="text-right font-semibold">{formatVND(total)}</TableCell>
-                      <TableCell><StatusBadge status={s.status} /></TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </TabsContent>
-        </Tabs>
       </CardContent>
-
-      {/* Teacher breakdown popup */}
-      <Dialog open={!!openTeacher} onOpenChange={(o) => !o && setOpenTeacher(null)}>
-        <DialogContent className="max-w-2xl">
-          {openTeacher && (() => {
-            const t = openTeacher;
-            const rA = t.rateA ?? rateA;
-            const rB = t.rateB ?? rateB;
-            const rS = t.rateStudent ?? rateStudent;
-            const { a, b, s, total } = calcTeacherSalary(t, rateA, rateB, rateStudent);
-            return (
-              <>
-                <DialogHeader>
-                  <DialogTitle>{t.name} — {t.position}</DialogTitle>
-                  <DialogDescription>Chi tiết các khoản lương. Có thể chỉnh sửa trực tiếp.</DialogDescription>
-                </DialogHeader>
-                <div className="space-y-3 text-sm">
-                  <BreakdownRow label={`Buổi có GV nước ngoài: ${t.sessionsWithForeign} × ${formatVND(rA)}`} value={a}>
-                    <Input type="number" className="h-8 w-24" value={t.sessionsWithForeign}
-                      onChange={(e) => updateTeacher(t.id, { sessionsWithForeign: Number(e.target.value) })} />
-                  </BreakdownRow>
-                  <BreakdownRow label={`Buổi không có GV nước ngoài: ${t.sessionsWithoutForeign} × ${formatVND(rB)}`} value={b}>
-                    <Input type="number" className="h-8 w-24" value={t.sessionsWithoutForeign}
-                      onChange={(e) => updateTeacher(t.id, { sessionsWithoutForeign: Number(e.target.value) })} />
-                  </BreakdownRow>
-                  <BreakdownRow label="Phụ cấp hỗ trợ" value={t.allowance}>
-                    <Input type="number" className="h-8 w-32" value={t.allowance}
-                      onChange={(e) => updateTeacher(t.id, { allowance: Number(e.target.value) })} />
-                  </BreakdownRow>
-                  <BreakdownRow label="Tiền gửi xe" value={t.parking}>
-                    <Input type="number" className="h-8 w-32" value={t.parking}
-                      onChange={(e) => updateTeacher(t.id, { parking: Number(e.target.value) })} />
-                  </BreakdownRow>
-                  <BreakdownRow label={`Học sinh phụ trách: ${t.students} × ${formatVND(rS)}`} value={s}>
-                    <Input type="number" className="h-8 w-24" value={t.students}
-                      onChange={(e) => updateTeacher(t.id, { students: Number(e.target.value) })} />
-                  </BreakdownRow>
-                  <div className="flex items-center justify-between border-t pt-3 text-base font-semibold">
-                    <span>Tổng lương</span>
-                    <span className="text-emerald-600">{formatVND(total)}</span>
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setOpenTeacher(null)}>Đóng</Button>
-                  <Button onClick={() => { toast.success("Đã lưu (demo)"); setOpenTeacher(null); }}>Lưu</Button>
-                </DialogFooter>
-              </>
-            );
-          })()}
-        </DialogContent>
-      </Dialog>
-
-      {/* Staff breakdown popup */}
-      <Dialog open={!!openStaff} onOpenChange={(o) => !o && setOpenStaff(null)}>
-        <DialogContent className="max-w-2xl">
-          {openStaff && (() => {
-            const s = openStaff;
-            const c = calcStaffSalary(s);
-            return (
-              <>
-                <DialogHeader>
-                  <DialogTitle>{s.name} — {s.position}</DialogTitle>
-                  <DialogDescription>Chi tiết các khoản lương. Có thể chỉnh sửa trực tiếp.</DialogDescription>
-                </DialogHeader>
-                <div className="space-y-3 text-sm">
-                  <BreakdownRow label="Lương cứng" value={s.baseSalary}>
-                    <Input type="number" className="h-8 w-36" value={s.baseSalary}
-                      onChange={(e) => updateStaff(s.id, { baseSalary: Number(e.target.value) })} />
-                  </BreakdownRow>
-                  <div className="rounded-md border p-3 space-y-2">
-                    <div className="text-xs font-semibold text-slate-600">Lương doanh số ({(c.revPct * 100).toFixed(1)}%)</div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div><Label className="text-xs">Doanh số (VNĐ)</Label>
-                        <Input type="number" className="h-8 mt-1" value={s.revenue}
-                          onChange={(e) => updateStaff(s.id, { revenue: Number(e.target.value) })} /></div>
-                      <div><Label className="text-xs">Số HS chốt</Label>
-                        <Input type="number" className="h-8 mt-1" value={s.closedStudents}
-                          onChange={(e) => updateStaff(s.id, { closedStudents: Number(e.target.value) })} /></div>
-                    </div>
-                    <div className="text-right text-sm font-semibold">{formatVND(c.revenueSalary)}</div>
-                    <div className="text-[11px] text-slate-500">1-16 HS: 3% · từ 17 HS: 5%</div>
-                  </div>
-                  <div className="rounded-md border p-3 space-y-2">
-                    <div className="text-xs font-semibold text-slate-600">Lương tái tục ({(c.renewPct * 100).toFixed(1)}%)</div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div><Label className="text-xs">Doanh số tái tục</Label>
-                        <Input type="number" className="h-8 mt-1" value={s.renewalBase}
-                          onChange={(e) => updateStaff(s.id, { renewalBase: Number(e.target.value) })} /></div>
-                      <div><Label className="text-xs">Số HS nghỉ</Label>
-                        <Input type="number" className="h-8 mt-1" value={s.absentStudents}
-                          onChange={(e) => updateStaff(s.id, { absentStudents: Number(e.target.value) })} /></div>
-                    </div>
-                    <div className="text-right text-sm font-semibold">{formatVND(c.renewalSalary)}</div>
-                    <div className="text-[11px] text-slate-500">0 HS nghỉ: 1% · 1: 0.8% · 2: 0.5% · ≥3: 0%</div>
-                  </div>
-                  <div className="rounded-md border p-3 space-y-2">
-                    <div className="text-xs font-semibold text-slate-600">Thưởng KPI</div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div><Label className="text-xs">Định mức KPI</Label>
-                        <Input type="number" className="h-8 mt-1" value={s.kpiTarget}
-                          onChange={(e) => updateStaff(s.id, { kpiTarget: Number(e.target.value) })} /></div>
-                      <div><Label className="text-xs">% Đạt được</Label>
-                        <Input type="number" className="h-8 mt-1" value={s.kpiPercent}
-                          onChange={(e) => updateStaff(s.id, { kpiPercent: Number(e.target.value) })} /></div>
-                    </div>
-                    <div className="text-right text-sm font-semibold">{formatVND(c.kpiBonus)}</div>
-                  </div>
-                  <div className="flex items-center justify-between border-t pt-3 text-base font-semibold">
-                    <span>Tổng lương</span>
-                    <span className="text-emerald-600">{formatVND(c.total)}</span>
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setOpenStaff(null)}>Đóng</Button>
-                  <Button onClick={() => { toast.success("Đã lưu (demo)"); setOpenStaff(null); }}>Lưu</Button>
-                </DialogFooter>
-              </>
-            );
-          })()}
-        </DialogContent>
-      </Dialog>
     </Card>
   );
 }
 
-function BreakdownRow({ label, value, children }: { label: string; value: number; children?: React.ReactNode }) {
+function SalaryBreakdownRow({ label, formula, value }: { label: string; formula?: string; value: number }) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-md border px-3 py-2">
-      <div className="text-sm flex-1">{label}</div>
-      {children}
-      <div className="w-32 text-right font-semibold">{formatVND(value)}</div>
+    <div className="flex items-start justify-between gap-4 border-b py-3 last:border-0">
+      <div><div className="font-medium text-slate-800">{label}</div>{formula && <div className="mt-0.5 text-xs text-slate-500">{formula}</div>}</div>
+      <div className="shrink-0 font-semibold">{formatVND(value)}</div>
     </div>
+  );
+}
+
+function TeacherSalaryDetail({
+  person,
+  settings,
+  onChange,
+}: {
+  person: TeacherSalary;
+  settings: TeacherSalarySettings;
+  onChange: (patch: Partial<TeacherSalary>) => void;
+}) {
+  const calculation = calculateTeacherSalary(person, settings);
+  return (
+    <>
+      <DialogHeader className="border-b bg-slate-50 px-6 py-5">
+        <DialogTitle>Chi tiết lương · {person.name}</DialogTitle>
+        <DialogDescription>{person.position} · Chỉnh thông số để tự động tính lại tổng lương.</DialogDescription>
+      </DialogHeader>
+      <div className="grid gap-6 px-6 pb-6 lg:grid-cols-[1.2fr_1fr]">
+        <div className="grid content-start gap-3 grid-cols-1 xl:grid-cols-2">
+          <SalaryMoneyInput label="Số buổi có GV nước ngoài" value={person.foreignSessions} onChange={(foreignSessions) => onChange({ foreignSessions })} />
+          <SalaryMoneyInput label="Đơn giá A" value={calculation.rateA} onChange={(rateA) => onChange({ rateA })} />
+          <SalaryMoneyInput label="Số buổi không có GV nước ngoài" value={person.localSessions} onChange={(localSessions) => onChange({ localSessions })} />
+          <SalaryMoneyInput label="Đơn giá B" value={calculation.rateB} onChange={(rateB) => onChange({ rateB })} />
+          <SalaryMoneyInput label="Phụ cấp hỗ trợ" value={person.supportAllowance} onChange={(supportAllowance) => onChange({ supportAllowance })} />
+          <SalaryMoneyInput label="Tiền gửi xe" value={person.parkingAllowance} onChange={(parkingAllowance) => onChange({ parkingAllowance })} />
+          <SalaryMoneyInput label="Thưởng" value={person.bonus} onChange={(bonus) => onChange({ bonus })} />
+          <SalaryMoneyInput label="Tổng học sinh phụ trách" value={person.studentCount} onChange={(studentCount) => onChange({ studentCount })} />
+          <SalaryMoneyInput label="Đơn giá / học sinh" value={calculation.studentRate} onChange={(studentRate) => onChange({ studentRate })} />
+        </div>
+        <div className="rounded-xl border bg-white p-4 shadow-sm">
+          <div className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">Breakdown</div>
+          <SalaryBreakdownRow label="Buổi có GV nước ngoài" formula={`${person.foreignSessions} × ${formatVND(calculation.rateA)}`} value={calculation.foreignSalary} />
+          <SalaryBreakdownRow label="Buổi không có GV nước ngoài" formula={`${person.localSessions} × ${formatVND(calculation.rateB)}`} value={calculation.localSalary} />
+          <SalaryBreakdownRow label="Phụ cấp hỗ trợ" value={person.supportAllowance} />
+          <SalaryBreakdownRow label="Tiền gửi xe" value={person.parkingAllowance} />
+          <SalaryBreakdownRow label="Thưởng" value={person.bonus} />
+          <SalaryBreakdownRow label="Phụ cấp học sinh" formula={`${person.studentCount} × ${formatVND(calculation.studentRate)}`} value={calculation.studentSalary} />
+          <div className="mt-3 flex items-center justify-between px-4 py-3">
+            <span className="font-semibold">Tổng lương</span>
+            <span className="text-2xl font-extrabold text-indigo-700">{formatVND(calculation.total)}</span>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function AcademicSalaryDetail({
+  person,
+  onChange,
+}: {
+  person: AcademicSalary;
+  onChange: (patch: Partial<AcademicSalary>) => void;
+}) {
+  const calculation = calculateAcademicSalary(person);
+  return (
+    <>
+      <DialogHeader className="border-b bg-slate-50 px-6 py-5">
+        <DialogTitle>Chi tiết lương · {person.name}</DialogTitle>
+        <DialogDescription>{person.position} · Các khoản thưởng được tính lại ngay khi thay đổi.</DialogDescription>
+      </DialogHeader>
+      <div className="grid gap-6 px-6 pb-6 lg:grid-cols-[1.2fr_1fr]">
+        <div className="grid content-start gap-3 grid-cols-1 xl:grid-cols-2">
+          <SalaryMoneyInput label="Lương cứng" value={person.baseSalary} onChange={(baseSalary) => onChange({ baseSalary })} />
+          <SalaryMoneyInput label="Số học sinh chốt được tự động từ CRM (tuyển sinh)" value={person.closedStudents} disabled onChange={() => {}} />
+          <SalaryMoneyInput label="Doanh số chốt mới" value={person.salesRevenue} disabled onChange={() => {}} />
+          <SalaryMoneyInput label="Doanh thu tái tục" value={person.renewalRevenue} disabled onChange={() => {}} />
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label className="text-xs text-slate-600">Danh sách lớp tái tục</Label>
+            <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-700">
+              <div className="grid grid-cols-[1.5fr_1fr_1fr] gap-3 border-b border-slate-200 bg-slate-100 px-3 py-2 text-xs uppercase tracking-[0.15em] text-slate-500">
+                <span>Lớp</span>
+                <span>Tỷ lệ tái tục</span>
+                <span className="text-right">Số tiền</span>
+              </div>
+              {person.renewalClasses.length > 0 ? (
+                <div className="divide-y divide-slate-200">
+                  {person.renewalClasses.map((cls) => {
+                    if (typeof cls === "string") {
+                      return (
+                        <div key={cls} className="grid grid-cols-[1.5fr_1fr_1fr] items-center gap-3 px-3 py-3">
+                          <div>{cls}</div>
+                          <div>—</div>
+                          <div className="text-right font-semibold">—</div>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div key={cls.name} className="grid grid-cols-[1.5fr_1fr_1fr] items-center gap-3 px-3 py-3">
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-medium text-slate-900">{cls.name}</div>
+                          {cls.note ? <div className="text-xs text-slate-500">{cls.note}</div> : null}
+                        </div>
+                        <div>{Number.isFinite(cls.renewalRate) ? `${(cls.renewalRate * 100).toFixed(1)}%` : "—"}</div>
+                        <div className="text-right font-semibold">{Number.isFinite(cls.amount) ? formatVND(cls.amount) : "—"}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="px-3 py-3">Chưa có lớp tái tục</div>
+              )}
+            </div>
+          </div>
+          <SalaryMoneyInput label="Định mức tiền KPI" value={person.kpiBudget} disabled onChange={() => {}} />
+          <SalaryMoneyInput label="Thưởng" value={person.bonus} disabled onChange={() => {}} />
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label className="text-xs text-slate-600">% KPI đạt được tự động từ CRM (giao việc)</Label>
+            <div className="flex items-center gap-3">
+              <Input type="text" inputMode="numeric" value={person.kpiPercent.toString()} disabled className="!bg-slate-100" />
+              <span className="font-semibold text-slate-600">%</span>
+            </div>
+          </div>
+        </div>
+        <div className="rounded-xl border bg-white p-4 shadow-sm">
+          <div className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">Breakdown</div>
+          <SalaryBreakdownRow label="Lương cứng" value={person.baseSalary} />
+          <SalaryBreakdownRow label="Lương doanh số" formula={`${person.closedStudents} học sinh · ${(calculation.salesRate * 100).toFixed(0)}% × ${formatVND(person.salesRevenue)}`} value={calculation.salesSalary} />
+          <SalaryBreakdownRow
+            label="Doanh thu tái tục"
+            formula={`Các lớp: ${person.renewalClasses.map((cls) => cls.name).join(", ")}`}
+            value={calculation.renewalSalary}
+          />
+          <SalaryBreakdownRow label="Thưởng KPI" formula={`${formatVND(person.kpiBudget)} × ${person.kpiPercent}%`} value={calculation.kpiSalary} />
+          <SalaryBreakdownRow label="Thưởng" value={person.bonus} />
+          <div className="mt-3 flex items-center justify-between px-4 py-4">
+            <span className="font-semibold">Tổng lương</span>
+            <span className="text-2xl font-extrabold text-indigo-700">{formatVND(calculation.total)}</span>
+          </div>
+        </div>
+      </div>
+    </>
   );
 }
 
