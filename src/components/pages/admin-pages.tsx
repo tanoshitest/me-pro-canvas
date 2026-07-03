@@ -6362,6 +6362,7 @@ type LeadActivity = {
   action: string;
   note: string;
   attachment?: string;
+  step?: 1 | 2 | 3;   // ghi chú thuộc bước nào (để hiện log riêng từng bước)
 };
 type Lead = {
   id: string;
@@ -6403,6 +6404,9 @@ type Lead = {
   care3Date?: string; care3Note?: string;
   managerChecked?: boolean;
   failReason?: string;
+  failCategory?: string;     // loại lý do Fail (để tracking/thống kê)
+  blocker1?: string; blocker2?: string; blocker3?: string;  // vướng mắc riêng từng bước (vì sao kẹt)
+  statusSince?: string;      // ngày vào trạng thái hiện tại (dd/mm/yyyy) — tính số ngày kẹt
   activities?: LeadActivity[];
 };
 
@@ -6575,6 +6579,9 @@ const STATUS_STEP: Record<LeadStatus, 1 | 2 | 3> = {
 const ALL_STATUSES: LeadStatus[] = [...LEAD_JOURNEY.map((j) => j.status), ...CROSS_STATUSES.map((c) => c.status)];
 // Trạng thái dùng để rải seed demo (ít hơn để không quá nhiều lead)
 const SEED_STATUSES: LeadStatus[] = ALL_STATUSES;
+// Loại lý do Fail (chọn nhanh + thống kê)
+const FAIL_REASONS = ["Học phí cao", "Ở xa", "Chọn trung tâm khác", "Không phản hồi", "Chưa có nhu cầu", "Lịch không phù hợp", "Con chưa sẵn sàng", "Khác"];
+const STUCK_DAYS = 5; // ở 1 trạng thái ≥ số ngày này bị coi là "kẹt"
 const SOURCES = ["Chị Liên", "Vãng lai", "Page", "Zalo OA", "Giới thiệu", "Tiktok"];
 const FIRST_NAMES = ["Bảo An", "Gia Hưng", "Khánh Linh", "Minh Khôi", "Ngọc Mai", "Tuấn Kiệt", "Thảo Vy", "Hà My", "Quang Minh", "Tú Anh", "Đức Anh", "Phương Linh", "Hải Đăng", "Nhật Minh", "Bảo Châu", "Khôi Nguyên", "Thanh Trúc", "Gia Bảo", "Hoàng Long", "Thùy Dương"];
 const LASTNAMES = ["Nguyễn", "Trần", "Lê", "Phạm", "Hoàng", "Vũ", "Đỗ", "Bùi", "Đặng", "Ngô"];
@@ -6594,6 +6601,24 @@ const parseAdmissionDate = (value?: string) => {
   const date = new Date(year, month - 1, day);
   return Number.isNaN(date.getTime()) ? undefined : date;
 };
+// Số ngày lead đã ở trạng thái hiện tại + cờ "kẹt"
+function daysInStatus(lead: Lead): number {
+  const d = parseAdmissionDate(lead.statusSince);
+  if (!d) return 0;
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  d.setHours(0, 0, 0, 0);
+  return Math.max(0, Math.round((now.getTime() - d.getTime()) / 86400000));
+}
+function isStuck(lead: Lead): boolean {
+  if (lead.status === "Đã nhập học" || lead.status === "Fail") return false;
+  return daysInStatus(lead) >= STUCK_DAYS;
+}
+// Vướng mắc của bước hiện tại
+const blockerKey = (step: 1 | 2 | 3) => (`blocker${step}`) as "blocker1" | "blocker2" | "blocker3";
+function leadBlocker(lead: Lead): string | undefined {
+  return lead[blockerKey((lead.step as 1 | 2 | 3) || 1)];
+}
 
 function generateLeads(): Lead[] {
   const leads: Lead[] = [];
@@ -6645,6 +6670,15 @@ function generateLeads(): Lead[] {
           base.feeStatus = status === "Đã nhập học" ? "Đã thu đủ" : status === "Chờ đóng học phí" ? "Chưa thu" : "Thu một phần";
           base.paymentNote = "Đã xác nhận tình trạng học phí với phụ huynh.";
         }
+        // tracking: ngày vào trạng thái (rải để có lead mới & lead kẹt) + lý do Fail + vướng mắc
+        base.statusSince = formatAdmissionDate(new Date(Date.now() - (seed % 14) * 86400000));
+        if (status === "Fail") {
+          base.failCategory = FAIL_REASONS[seed % FAIL_REASONS.length];
+          base.failReason = `PH phản hồi: ${base.failCategory.toLowerCase()}.`;
+        }
+        if ((status.startsWith("Chờ") || status === "Đang liên hệ") && seed % 3 === 0) {
+          base[blockerKey(step)] = seed % 2 === 0 ? "PH chưa chốt lịch, cần gọi lại" : "Chờ mở lớp phù hợp khung giờ";
+        }
         base.activities = [
           {
             id: `activity-${base.id}`,
@@ -6687,6 +6721,7 @@ function generateUnassignedLeads(): Lead[] {
       facility: FACILITIES[i % FACILITIES.length],
       step: 1,
       testResult: "Pending",
+      statusSince: formatAdmissionDate(new Date(Date.now() - (i % 8) * 86400000)),
     });
   }
   return leads;
@@ -6696,7 +6731,7 @@ const INITIAL_LEADS: Lead[] = [...generateUnassignedLeads(), ...generateLeads()]
 
 const STAGES: { key: 1 | 2 | 3 | 0; title: string; statuses: LeadStatus[]; color: string; ring: string; chip: string; dot: string }[] = [
   { key: 0, title: "Lead mới", statuses: ["Lead mới"], color: "bg-slate-50", ring: "border-slate-200", chip: "bg-slate-100 text-slate-700 border-slate-200", dot: "bg-slate-400" },
-  { key: 1, title: "Bước 1: Tham vấn", statuses: ["Đang liên hệ", "Đang tham vấn", "Pending", "Fail"], color: "bg-orange-50/60", ring: "border-orange-200", chip: "bg-orange-100 text-orange-700 border-orange-200", dot: "bg-orange-500" },
+  { key: 1, title: "Bước 1: Tham vấn", statuses: ["Đang liên hệ", "Đang tham vấn"], color: "bg-orange-50/60", ring: "border-orange-200", chip: "bg-orange-100 text-orange-700 border-orange-200", dot: "bg-orange-500" },
   { key: 2, title: "Bước 2: Test & Học thử", statuses: ["Chờ test", "Đã test chờ tư vấn", "Chờ học thử", "Đã học thử chờ tư vấn"], color: "bg-amber-50/60", ring: "border-amber-200", chip: "bg-amber-100 text-amber-800 border-amber-200", dot: "bg-amber-500" },
   { key: 3, title: "Bước 3: Xếp lớp & Học phí", statuses: ["Chờ xếp lớp", "Xếp lớp chờ", "Xếp lớp cụ thể", "Chờ đóng học phí", "Đã nhập học"], color: "bg-teal-50/60", ring: "border-teal-200", chip: "bg-teal-100 text-teal-700 border-teal-200", dot: "bg-teal-500" },
 ];
@@ -6778,6 +6813,7 @@ export function AdminAdmissions() {
   ) as Record<string, number>, [assigneeCountBase]);
 
   const unassignedCount = assigneeCountBase.filter((lead) => !lead.assignedTo).length;
+  const stuckCount = React.useMemo(() => statusCountBase.filter(isStuck).length, [statusCountBase]);
 
   const openNew = () => {
     setEditing({ ...EMPTY_LEAD, id: String(Date.now()) });
@@ -6866,21 +6902,6 @@ export function AdminAdmissions() {
             <ListIcon className="h-4 w-4" /> Danh sách
           </button>
         </div>
-        {view === "list" && (
-          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as LeadStatus | "all")}>
-            <SelectTrigger className="h-9 w-[210px]">
-              <SelectValue placeholder="Trạng thái" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all"><FilterOptionCount label="Tất cả trạng thái" count={statusCountBase.length} /></SelectItem>
-              {ALL_STATUSES.map((status) => (
-                <SelectItem key={status} value={status}>
-                  <FilterOptionCount label={status} count={statusCounts[status]} />
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
         {view === "list" && mode === "admin" && (
           <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
             <SelectTrigger className="h-9 w-[250px]">
@@ -6904,6 +6925,22 @@ export function AdminAdmissions() {
         )}
         <div className="ml-auto flex items-center gap-2">
           <Badge variant="secondary" className="gap-1"><Users className="h-3 w-3" /> {filtered.length} lead</Badge>
+          {stuckCount > 0 && (
+            <Badge variant="outline" className="gap-1 border-rose-300 bg-rose-50 text-rose-700">
+              <AlertTriangle className="h-3 w-3" /> Kẹt: {stuckCount}
+            </Badge>
+          )}
+          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as LeadStatus | "all")}>
+            <SelectTrigger className="h-9 w-[240px]"><SelectValue placeholder="Lọc trạng thái" /></SelectTrigger>
+            <SelectContent className="max-h-[70vh]">
+              <SelectItem value="all"><FilterOptionCount label="Tất cả trạng thái" count={statusCountBase.length} /></SelectItem>
+              {ALL_STATUSES.map((status) => (
+                <SelectItem key={status} value={status}>
+                  <FilterOptionCount label={status} count={statusCounts[status] ?? 0} />
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           {mode === "admin" && (
             <Button onClick={openNew} className="bg-teal-600 hover:bg-teal-700 text-white gap-1.5">
               <Plus className="h-4 w-4" /> Tạo Lead Mới
@@ -6913,6 +6950,7 @@ export function AdminAdmissions() {
       </div>
 
       {view === "kanban" ? (
+        <div className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
           {STAGES.map((stage) => {
             const items = byStage(stage.key);
@@ -6939,7 +6977,25 @@ export function AdminAdmissions() {
                       <div className="mt-1.5 space-y-1 text-xs text-slate-600">
                         <div className="flex items-center gap-1.5"><Phone className="h-3 w-3 text-slate-400" /> {l.phone} <span className="text-slate-400">·</span> {l.parentName}</div>
                         <div className="flex items-center gap-1.5"><SchoolIcon className="h-3 w-3 text-slate-400" /> {l.grade} <span className="text-slate-400">·</span> {l.school}</div>
-                        <div className="flex items-center gap-1.5"><MapPin className="h-3 w-3 text-slate-400" /> Cơ sở {l.facility}</div>
+                        <div className="flex items-center gap-1.5">
+                          <Clock className="h-3 w-3 text-slate-400" />
+                          {isStuck(l)
+                            ? <span className="text-rose-600 font-medium">Kẹt {daysInStatus(l)} ngày</span>
+                            : <span>{daysInStatus(l)} ngày ở trạng thái này</span>}
+                          <span className="text-slate-400">·</span> Cơ sở {l.facility}
+                        </div>
+                        {l.status === "Fail" && l.failCategory && (
+                          <div className="flex items-start gap-1.5 text-rose-600">
+                            <XCircle className="h-3 w-3 mt-0.5 shrink-0" />
+                            <span className="line-clamp-2">{l.failCategory}{l.failReason ? ` — ${l.failReason}` : ""}</span>
+                          </div>
+                        )}
+                        {leadBlocker(l) && l.status !== "Fail" && (
+                          <div className="flex items-start gap-1.5 text-amber-600">
+                            <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
+                            <span className="line-clamp-2">Vướng: {leadBlocker(l)}</span>
+                          </div>
+                        )}
                         <div className="flex items-center gap-1.5 pt-1 border-t border-slate-100 mt-1.5">
                           <Users className="h-3 w-3 text-slate-400" />
                           <span className={cn("font-medium", l.assignedTo ? "text-slate-700" : "text-rose-500")}>
@@ -6957,49 +7013,77 @@ export function AdminAdmissions() {
             );
           })}
         </div>
+
+        {/* Ngoài hành trình chính: Pending / Fail */}
+        <div>
+          <div className="text-xs font-semibold uppercase text-slate-400 mb-2">Ngoài hành trình chính</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {(["Pending", "Fail"] as LeadStatus[]).map((st) => {
+              const items = filtered.filter((l) => l.status === st);
+              const isFail = st === "Fail";
+              return (
+                <div key={st} className={cn("rounded-lg border flex flex-col", isFail ? "border-rose-200 bg-rose-50/40" : "border-yellow-200 bg-yellow-50/40")}>
+                  <div className="px-3.5 py-3 flex items-center gap-2 border-b border-slate-200/70">
+                    <span className={cn("h-2 w-2 rounded-full", isFail ? "bg-rose-500" : "bg-yellow-500")} />
+                    <div className="font-semibold text-sm text-slate-800 flex-1">{isFail ? "Fail — khách từ chối" : "Pending — đang do dự"}</div>
+                    <Badge variant="outline" className={cn("h-5 px-1.5 text-[11px]", STATUS_BADGE[st])}>{items.length}</Badge>
+                  </div>
+                  <div className="p-2.5 grid sm:grid-cols-2 gap-2.5 max-h-[42vh] overflow-y-auto">
+                    {items.map((l) => (
+                      <button key={l.id} onClick={() => openEdit(l)} className="text-left bg-white rounded-md border border-slate-200 p-2.5 hover:border-teal-400 hover:shadow-sm transition-all">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="font-semibold text-sm text-slate-900 line-clamp-1">{l.studentName}</div>
+                          <span className="text-[10px] text-slate-400 shrink-0">{daysInStatus(l)} ngày</span>
+                        </div>
+                        <div className="text-xs text-slate-500 mt-0.5 line-clamp-1">{l.phone} · {staffName(l.assignedTo)}</div>
+                        {isFail && l.failCategory && <div className="text-xs text-rose-600 mt-1 line-clamp-2"><span className="font-medium">{l.failCategory}</span>{l.failReason ? ` — ${l.failReason}` : ""}</div>}
+                        {!isFail && leadBlocker(l) && <div className="text-xs text-amber-600 mt-1 line-clamp-2">Vướng: {leadBlocker(l)}</div>}
+                      </button>
+                    ))}
+                    {items.length === 0 && <div className="sm:col-span-2 text-center text-xs text-slate-400 py-6">Không có</div>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        </div>
       ) : (
         <Card>
-          <CardContent className="p-0">
+          <CardContent className="p-0 overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Học viên</TableHead>
-                  <TableHead>PHHS</TableHead>
-                  <TableHead>SĐT</TableHead>
-                  <TableHead>Lớp</TableHead>
-                  <TableHead>Trường</TableHead>
-                  <TableHead>Cơ sở</TableHead>
+                  <TableHead>Liên hệ</TableHead>
+                  <TableHead>Lớp / Trường</TableHead>
                   <TableHead>Trạng thái</TableHead>
+                  <TableHead>Thời gian</TableHead>
+                  <TableHead>Vướng mắc / Lý do Fail</TableHead>
                   <TableHead>Phụ trách</TableHead>
                   <TableHead className="text-right">Hành động</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.map((l) => (
-                  <TableRow key={l.id} className="cursor-pointer" onClick={() => openEdit(l)}>
+                  <TableRow key={l.id} className="cursor-pointer hover:bg-slate-50" onClick={() => openEdit(l)}>
                     <TableCell className="font-medium">{l.studentName}</TableCell>
-                    <TableCell>{l.parentName}</TableCell>
-                    <TableCell>{l.phone}</TableCell>
-                    <TableCell>{l.grade}</TableCell>
-                    <TableCell>{l.school}</TableCell>
-                    <TableCell>{l.facility}</TableCell>
+                    <TableCell className="text-sm">{l.phone}<div className="text-xs text-slate-500">{l.parentName}</div></TableCell>
+                    <TableCell className="text-sm">{l.grade}<div className="text-xs text-slate-500">{l.school} · CS {l.facility}</div></TableCell>
                     <TableCell><Badge variant="outline" className={cn("text-[10px] font-medium", STATUS_BADGE[l.status])}>{l.status}</Badge></TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()}>
-                      {mode === "admin" ? (
-                        <Select value={l.assignedTo ?? ""} onValueChange={(v) => assignLead(l.id, v)}>
-                          <SelectTrigger className="h-8 w-[170px] text-xs">
-                            <SelectValue placeholder="Chưa phân" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {STAFF.map((s) => (
-                              <SelectItem key={s.id} value={s.id} className="text-xs">{s.name} <span className="text-slate-400">· {s.facility}</span></SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <span className="text-xs">{staffName(l.assignedTo)}</span>
-                      )}
+                    <TableCell className="text-xs whitespace-nowrap">
+                      {isStuck(l)
+                        ? <span className="text-rose-600 font-medium">Kẹt {daysInStatus(l)} ngày</span>
+                        : <span className="text-slate-500">{daysInStatus(l)} ngày</span>}
                     </TableCell>
+                    <TableCell className="text-xs max-w-[260px]">
+                      {l.status === "Fail" && l.failCategory
+                        ? <span className="text-rose-600"><span className="font-medium">{l.failCategory}</span>{l.failReason ? ` — ${l.failReason}` : ""}</span>
+                        : leadBlocker(l)
+                          ? <span className="text-amber-600">{leadBlocker(l)}</span>
+                          : <span className="text-slate-300">—</span>}
+                    </TableCell>
+                    <TableCell className={cn("text-sm whitespace-nowrap", l.assignedTo ? "" : "text-rose-500")}>{l.assignedTo ? staffName(l.assignedTo) : "Chưa phân"}</TableCell>
                     <TableCell className="text-right">
                       <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); openEdit(l); }}>
                         <Pencil className="h-3.5 w-3.5" />
@@ -7008,7 +7092,7 @@ export function AdminAdmissions() {
                   </TableRow>
                 ))}
                 {filtered.length === 0 && (
-                  <TableRow><TableCell colSpan={9} className="text-center text-slate-400 py-8">Không có lead phù hợp</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={8} className="text-center text-slate-400 py-8">Không có lead phù hợp</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
@@ -7297,7 +7381,7 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
     setActivityNote("");
   }, [lead.id]);
 
-  const withActivity = (current: Lead, action: string, note: string, attachment?: string): Lead => ({
+  const withActivity = (current: Lead, action: string, note: string, attachment?: string, step?: 1 | 2 | 3): Lead => ({
     ...current,
     activities: [
       {
@@ -7307,6 +7391,7 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
         action,
         note,
         attachment,
+        step,
       },
       ...(current.activities ?? []),
     ],
@@ -7316,7 +7401,11 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
   const changeStatus = (s: LeadStatus) => {
     if (s === lead.status) return;
     const step = s === "Pending" || s === "Fail" ? lead.step : STATUS_STEP[s];
-    const next = withActivity({ ...lead, status: s, step }, "Đổi trạng thái", `Chuyển sang "${s}".`);
+    const next = withActivity(
+      { ...lead, status: s, step, statusSince: formatAdmissionDate(new Date()) },
+      "Đổi trạng thái",
+      `Chuyển sang "${s}".`,
+    );
     onSave(next, `Đã chuyển: ${s}`);
     setActiveStep(step);
   };
@@ -7339,23 +7428,6 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
     );
     onSave(next, "Đã sang Bước 2");
     setActiveStep(2);
-  };
-
-  const markFail = () => {
-    if (activeStep === 3 || lead.step === 3) {
-      toast.error("Lead đã sang bước Học phí & Chăm sóc nên không thể đánh dấu Fail");
-      return;
-    }
-    if (!lead.failReason?.trim()) {
-      toast.error("Vui lòng nhập lý do Fail");
-      return;
-    }
-    const next = withActivity(
-      { ...lead, status: "Fail" },
-      "Đánh dấu Fail",
-      lead.failReason.trim(),
-    );
-    onSave(next, "Đã đánh dấu Fail");
   };
 
   const goStep3 = () => {
@@ -7428,94 +7500,84 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
                 {isEmpty ? "Điền thông tin để bắt đầu quy trình tuyển sinh" : `${lead.parentName} · ${lead.phone}`}
               </DialogDescription>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <Badge variant="outline" className={cn("text-[11px] font-medium", STATUS_BADGE[lead.status])}>{lead.status}</Badge>
-              <div className="flex flex-col items-end">
-                <span className="text-[10px] text-slate-500 mb-0.5">Chuyển trạng thái</span>
+          </div>
+
+          {/* Phụ trách + Trạng thái (gộp cùng hàng) */}
+          <div className="mt-2 flex items-center gap-x-3 gap-y-2 text-xs flex-wrap">
+            <div className="flex items-center gap-2">
+              <Users className="h-3.5 w-3.5 text-slate-500" />
+              <span className="text-slate-500">Phụ trách:</span>
+              {canAssign ? (
+                <Select value={lead.assignedTo ?? ""} onValueChange={(v) => update("assignedTo", v)}>
+                  <SelectTrigger className="h-7 w-[200px] text-xs">
+                    <SelectValue placeholder="Chưa phân" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {staff.map((s) => (
+                      <SelectItem key={s.id} value={s.id} className="text-xs">{s.name} <span className="text-slate-400">· {s.facility}</span></SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <span className="font-medium text-slate-700">{staff.find((s) => s.id === lead.assignedTo)?.name ?? "Chưa phân"}</span>
+              )}
+            </div>
+            {!isEmpty && (
+              <div className="flex items-center gap-2 pl-3 border-l border-slate-200 flex-wrap">
+                <span className="text-slate-500">Trạng thái:</span>
+                <Badge variant="outline" className={cn("text-[11px] font-medium", STATUS_BADGE[lead.status])}>{lead.status}</Badge>
                 <Select value={lead.status} onValueChange={(v) => changeStatus(v as LeadStatus)}>
-                  <SelectTrigger className="h-8 w-[230px] text-xs"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-7 w-[210px] text-xs"><SelectValue /></SelectTrigger>
                   <SelectContent className="max-h-[70vh]">
                     <SelectGroup>
-                      <SelectLabel>Bước 1 · Tham vấn</SelectLabel>
-                      {LEAD_JOURNEY.filter((j) => j.step === 1).map((j) => (
-                        <SelectItem key={j.status} value={j.status} className="text-xs">{j.status}</SelectItem>
-                      ))}
+                      <SelectLabel>Tham vấn</SelectLabel>
+                      {LEAD_JOURNEY.filter((j) => j.step === 1).map((j) => (<SelectItem key={j.status} value={j.status} className="text-xs">{j.status}</SelectItem>))}
                     </SelectGroup>
                     <SelectGroup>
-                      <SelectLabel>Bước 2 · Test & Học thử</SelectLabel>
-                      {LEAD_JOURNEY.filter((j) => j.step === 2).map((j) => (
-                        <SelectItem key={j.status} value={j.status} className="text-xs">{j.status}</SelectItem>
-                      ))}
+                      <SelectLabel>Test & Học thử</SelectLabel>
+                      {LEAD_JOURNEY.filter((j) => j.step === 2).map((j) => (<SelectItem key={j.status} value={j.status} className="text-xs">{j.status}</SelectItem>))}
                     </SelectGroup>
                     <SelectGroup>
-                      <SelectLabel>Bước 3 · Xếp lớp & Học phí</SelectLabel>
-                      {LEAD_JOURNEY.filter((j) => j.step === 3).map((j) => (
-                        <SelectItem key={j.status} value={j.status} className="text-xs">{j.status}</SelectItem>
-                      ))}
+                      <SelectLabel>Xếp lớp & Học phí</SelectLabel>
+                      {LEAD_JOURNEY.filter((j) => j.step === 3).map((j) => (<SelectItem key={j.status} value={j.status} className="text-xs">{j.status}</SelectItem>))}
                     </SelectGroup>
                     <SelectGroup>
                       <SelectLabel>Khác</SelectLabel>
-                      {CROSS_STATUSES.map((c) => (
-                        <SelectItem key={c.status} value={c.status} className="text-xs">{c.status}</SelectItem>
-                      ))}
+                      {CROSS_STATUSES.map((c) => (<SelectItem key={c.status} value={c.status} className="text-xs">{c.status}</SelectItem>))}
                     </SelectGroup>
                   </SelectContent>
                 </Select>
+                <span className={cn("inline-flex items-center gap-1", isStuck(lead) ? "text-rose-600 font-medium" : "text-slate-500")}>
+                  <Clock className="h-3 w-3" />
+                  {isStuck(lead) ? `Kẹt ${daysInStatus(lead)} ngày` : `${daysInStatus(lead)} ngày`}
+                </span>
               </div>
-            </div>
-          </div>
-
-          {/* Assignment */}
-          <div className="mt-2 flex items-center gap-2 text-xs">
-            <Users className="h-3.5 w-3.5 text-slate-500" />
-            <span className="text-slate-500">Phụ trách:</span>
-            {canAssign ? (
-              <Select value={lead.assignedTo ?? ""} onValueChange={(v) => update("assignedTo", v)}>
-                <SelectTrigger className="h-7 w-[220px] text-xs">
-                  <SelectValue placeholder="Chưa phân" />
-                </SelectTrigger>
-                <SelectContent>
-                  {staff.map((s) => (
-                    <SelectItem key={s.id} value={s.id} className="text-xs">{s.name} <span className="text-slate-400">· {s.facility}</span></SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : (
-              <span className="font-medium text-slate-700">{staff.find((s) => s.id === lead.assignedTo)?.name ?? "Chưa phân"}</span>
             )}
-          </div>
-
-          {/* Stepper */}
-          <div className="mt-3 flex items-center gap-2">
-            {[1, 2, 3].map((s, idx) => {
-              const reached = lead.step >= s || activeStep >= s;
-              const active = activeStep === s;
-              return (
-                <React.Fragment key={s}>
-                  <div className={cn("flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-medium transition-colors",
-                    active ? "bg-teal-600 text-white" : reached ? "bg-teal-100 text-teal-700" : "bg-slate-100 text-slate-500")}
-                  >
-                    <span className={cn("h-5 w-5 rounded-full grid place-content-center text-[11px] font-bold",
-                      active ? "bg-white text-teal-700" : reached ? "bg-teal-600 text-white" : "bg-slate-300 text-white")}>{s}</span>
-                    {s === 1 ? "Tham vấn" : s === 2 ? "Test & Học thử" : "Xếp lớp & Học phí"}
-                  </div>
-                  {idx < 2 && <div className={cn("flex-1 h-0.5 rounded", reached && (lead.step > s || activeStep > s) ? "bg-teal-400" : "bg-slate-200")} />}
-                </React.Fragment>
-              );
-            })}
           </div>
         </DialogHeader>
 
         <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px] overflow-hidden">
         <Tabs value={String(activeStep)} onValueChange={(v) => setActiveStep(Number(v) as 1 | 2 | 3)} className="min-w-0 flex flex-col overflow-hidden">
           <TabsList className="mx-4 mt-3 grid grid-cols-3 w-auto">
-            <TabsTrigger value="1">Bước 1</TabsTrigger>
-            <TabsTrigger value="2">Bước 2</TabsTrigger>
-            <TabsTrigger value="3">Bước 3</TabsTrigger>
+            <TabsTrigger value="1" className="gap-1.5"><span className="h-4 w-4 rounded-full bg-current/10 grid place-content-center text-[10px] font-bold">1</span> Tham vấn</TabsTrigger>
+            <TabsTrigger value="2" className="gap-1.5"><span className="h-4 w-4 rounded-full bg-current/10 grid place-content-center text-[10px] font-bold">2</span> Test & Học thử</TabsTrigger>
+            <TabsTrigger value="3" className="gap-1.5"><span className="h-4 w-4 rounded-full bg-current/10 grid place-content-center text-[10px] font-bold">3</span> Xếp lớp & Học phí</TabsTrigger>
           </TabsList>
 
           {/* TAB 1 */}
           <TabsContent value="1" className="flex-1 overflow-y-auto px-4 py-2 mt-0 space-y-2.5 [&_input]:h-8 [&_button[role=combobox]]:h-8 [&_label]:text-xs [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+            {!isEmpty && (
+              <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50/60 px-2.5 py-1.5">
+                <span className="text-xs text-amber-600 shrink-0 inline-flex items-center gap-1"><AlertTriangle className="h-3.5 w-3.5" /> Vướng mắc bước này:</span>
+                <Input
+                  value={lead.blocker1 ?? ""}
+                  onChange={(e) => update("blocker1", e.target.value)}
+                  onBlur={() => onSave(lead)}
+                  placeholder="Đang tắc ở đâu? Cần gì để đẩy tiếp..."
+                  className="bg-white h-8 flex-1"
+                />
+              </div>
+            )}
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <div className="h-1.5 w-1.5 rounded-full bg-orange-500" />
@@ -7577,6 +7639,18 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
 
           {/* TAB 2 */}
           <TabsContent value="2" className="flex-1 overflow-y-auto px-4 py-3 mt-0 space-y-3 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+            {!isEmpty && (
+              <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50/60 px-2.5 py-1.5">
+                <span className="text-xs text-amber-600 shrink-0 inline-flex items-center gap-1"><AlertTriangle className="h-3.5 w-3.5" /> Vướng mắc bước này:</span>
+                <Input
+                  value={lead.blocker2 ?? ""}
+                  onChange={(e) => update("blocker2", e.target.value)}
+                  onBlur={() => onSave(lead)}
+                  placeholder="Đang tắc ở đâu? Cần gì để đẩy tiếp..."
+                  className="bg-white h-8 flex-1"
+                />
+              </div>
+            )}
             <section className="rounded-lg border border-orange-200 bg-orange-50/40 p-2.5 space-y-2.5">
               <div className="flex items-center justify-between gap-3">
                 <div>
@@ -7701,6 +7775,18 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
 
           {/* TAB 3 */}
           <TabsContent value="3" className="flex-1 overflow-y-auto px-4 py-3 mt-0 space-y-3 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+            {!isEmpty && (
+              <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50/60 px-2.5 py-1.5">
+                <span className="text-xs text-amber-600 shrink-0 inline-flex items-center gap-1"><AlertTriangle className="h-3.5 w-3.5" /> Vướng mắc bước này:</span>
+                <Input
+                  value={lead.blocker3 ?? ""}
+                  onChange={(e) => update("blocker3", e.target.value)}
+                  onBlur={() => onSave(lead)}
+                  placeholder="Đang tắc ở đâu? Cần gì để đẩy tiếp..."
+                  className="bg-white h-8 flex-1"
+                />
+              </div>
+            )}
             <section className="rounded-lg border border-teal-200 bg-teal-50/40 p-3 space-y-3">
               <div>
                 <h3 className="text-sm font-semibold text-slate-800">Chốt lớp</h3>
@@ -7790,17 +7876,22 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
         <LeadActivityPanel activities={lead.activities} note={activityNote} setNote={setActivityNote} onAdd={addManualActivity} />
         </div>
 
-        {activeStep !== 3 && lead.step !== 3 && (
+        {!isEmpty && lead.status === "Fail" && (
           <div className="px-5 py-2 border-t border-rose-100 bg-rose-50/50 flex items-center gap-2">
+            <span className="text-xs text-rose-600 shrink-0 inline-flex items-center gap-1 w-[110px]"><XCircle className="h-3.5 w-3.5" /> Lý do Fail:</span>
+            <Select value={lead.failCategory ?? ""} onValueChange={(v) => onSave({ ...lead, failCategory: v }, "Đã cập nhật lý do Fail")}>
+              <SelectTrigger className="h-8 w-[190px] text-xs bg-white shrink-0"><SelectValue placeholder="Chọn loại lý do" /></SelectTrigger>
+              <SelectContent>
+                {FAIL_REASONS.map((r) => <SelectItem key={r} value={r} className="text-xs">{r}</SelectItem>)}
+              </SelectContent>
+            </Select>
             <Input
               value={lead.failReason ?? ""}
               onChange={(e) => update("failReason", e.target.value)}
-              placeholder="Nhập lý do nếu lead không tiếp tục..."
-              className="bg-white"
+              onBlur={() => onSave(lead)}
+              placeholder="Ghi chú chi tiết lý do Fail..."
+              className="bg-white h-8"
             />
-            <Button type="button" variant="outline" onClick={markFail} className="shrink-0 border-rose-300 text-rose-600 hover:bg-rose-100 hover:text-rose-700">
-              <XCircle className="h-4 w-4 mr-1.5" /> Đánh dấu Fail
-            </Button>
           </div>
         )}
 
