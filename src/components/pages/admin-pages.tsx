@@ -36,7 +36,7 @@ import {
   Clock, DoorOpen, BookOpen, Tag, Hash, ArrowLeft,
   Layers, FileText, ClipboardCheck, BarChart3, ExternalLink, Link2, Plus, Pencil, Copy, Trash2, Download, FileSpreadsheet, ListChecks, Target, ChevronRight, ChevronLeft, ChevronDown,
   CalendarIcon, Upload, History, FileCheck, Lock,
-  Search, LayoutGrid, List as ListIcon, Phone, School as SchoolIcon, MapPin,
+  Search, LayoutGrid, List as ListIcon, Phone, School as SchoolIcon, MapPin, ArrowUpDown,
 } from "lucide-react";
 
 /* ============== DASHBOARD ============== */
@@ -6353,7 +6353,7 @@ function AcademicSalaryDetail({
 type LeadStatus =
   | "Lead mới" | "Đang liên hệ" | "Đang tham vấn"
   | "Chờ test" | "Đã test chờ tư vấn" | "Chờ học thử" | "Đã học thử chờ tư vấn"
-  | "Chờ xếp lớp" | "Xếp lớp chờ" | "Xếp lớp cụ thể" | "Chờ đóng học phí" | "Đã nhập học"
+  | "Chờ xếp lớp" | "Xếp lớp chờ" | "Xếp lớp cụ thể chờ đóng học phí" | "Đã nhập học"
   | "Pending" | "Fail";
 type LeadActivity = {
   id: string;
@@ -6391,7 +6391,10 @@ type Lead = {
   testNote?: string;
   // step 2
   trialClass?: string;
+  trialDate?: string;
   trialNote?: string;
+  testScheduleLogged?: string;   // chữ ký lịch test đã ghi log (tránh log trùng)
+  trialScheduleLogged?: string;  // chữ ký lịch học thử đã ghi log
   placementType?: "existing" | "waitlist";
   closedClass?: string;
   waitlistNote?: string;
@@ -6562,8 +6565,7 @@ const LEAD_JOURNEY: { status: LeadStatus; step: 1 | 2 | 3; hint: string }[] = [
   { status: "Đã học thử chờ tư vấn", step: 2, hint: "Khách đã học thử xong, chờ học vụ trao đổi cảm nhận và chốt." },
   { status: "Chờ xếp lớp", step: 3, hint: "Khách quyết định theo học, đang chờ trung tâm sắp lớp phù hợp." },
   { status: "Xếp lớp chờ", step: 3, hint: "Chưa có lớp đúng ý ngay, khách được giữ chỗ trong lớp chờ." },
-  { status: "Xếp lớp cụ thể", step: 3, hint: "Đã có lớp chính thức cho khách." },
-  { status: "Chờ đóng học phí", step: 3, hint: "Đã có lớp, chỉ còn chờ khách hoàn tất học phí." },
+  { status: "Xếp lớp cụ thể chờ đóng học phí", step: 3, hint: "Đã có lớp chính thức, đang chờ khách hoàn tất học phí." },
   { status: "Đã nhập học", step: 3, hint: "Khách đã đóng phí và chính thức vào học. Hành trình hoàn tất." },
 ];
 const CROSS_STATUSES: { status: LeadStatus; hint: string }[] = [
@@ -6573,7 +6575,7 @@ const CROSS_STATUSES: { status: LeadStatus; hint: string }[] = [
 const STATUS_STEP: Record<LeadStatus, 1 | 2 | 3> = {
   "Lead mới": 1, "Đang liên hệ": 1, "Đang tham vấn": 1,
   "Chờ test": 2, "Đã test chờ tư vấn": 2, "Chờ học thử": 2, "Đã học thử chờ tư vấn": 2,
-  "Chờ xếp lớp": 3, "Xếp lớp chờ": 3, "Xếp lớp cụ thể": 3, "Chờ đóng học phí": 3, "Đã nhập học": 3,
+  "Chờ xếp lớp": 3, "Xếp lớp chờ": 3, "Xếp lớp cụ thể chờ đóng học phí": 3, "Đã nhập học": 3,
   "Pending": 1, "Fail": 1,
 };
 const ALL_STATUSES: LeadStatus[] = [...LEAD_JOURNEY.map((j) => j.status), ...CROSS_STATUSES.map((c) => c.status)];
@@ -6613,6 +6615,58 @@ function daysInStatus(lead: Lead): number {
 function isStuck(lead: Lead): boolean {
   if (lead.status === "Đã nhập học" || lead.status === "Fail") return false;
   return daysInStatus(lead) >= STUCK_DAYS;
+}
+// Mã cơ sở -> tên trung tâm đầy đủ (dùng cho log & hiển thị lịch học thử)
+const FACILITY_LABEL: Record<string, string> = { "ĐC": "Đội Cấn", "NH": "Ngọc Hà", "HHT": "Hoàng Hoa Thám" };
+const facilityLabel = (code?: string) => (code && FACILITY_LABEL[code]) || code || "";
+// Các trạng thái thuộc pha test / học thử để hiện lịch & lọc "sắp tới"
+const TEST_PHASE_STATUSES: LeadStatus[] = ["Chờ test", "Đã test chờ tư vấn"];
+const TRIAL_PHASE_STATUSES: LeadStatus[] = ["Chờ học thử", "Đã học thử chờ tư vấn"];
+type LeadSchedule = { kind: "test" | "trial"; label: string; date?: string; center: string; done?: boolean };
+function leadSchedule(lead: Lead): LeadSchedule | null {
+  if (TEST_PHASE_STATUSES.includes(lead.status)) {
+    return { kind: "test", label: "Test", date: lead.testDate, center: lead.testCenter ?? facilityLabel(lead.facility) };
+  }
+  if (TRIAL_PHASE_STATUSES.includes(lead.status)) {
+    return { kind: "trial", label: "Học thử", date: lead.trialDate, center: facilityLabel(lead.facility) };
+  }
+  // Từ bước xếp lớp trở đi: đã test/học thử xong -> hiện lại lịch đã diễn ra (done)
+  if (STATUS_STEP[lead.status] === 3) {
+    if (lead.consultationDecision === "test" && (lead.testDate || lead.testCenter)) {
+      return { kind: "test", label: "Đã test", date: lead.testDate, center: lead.testCenter ?? facilityLabel(lead.facility), done: true };
+    }
+    if (lead.trialDate) {
+      return { kind: "trial", label: "Đã học thử", date: lead.trialDate, center: facilityLabel(lead.facility), done: true };
+    }
+  }
+  return null;
+}
+// Thông tin xếp lớp (hiện ở Danh sách khi lead đã xếp lớp cụ thể)
+function leadPlacement(lead: Lead): { className: string; branch: string } | null {
+  if (lead.status === "Xếp lớp cụ thể chờ đóng học phí") {
+    return { className: lead.closedClass || "Chưa chọn lớp", branch: facilityLabel(lead.facility) };
+  }
+  return null;
+}
+// Số ngày còn lại đến 1 mốc (âm = đã quá hạn, null = chưa có ngày)
+function daysUntil(dateStr?: string): number | null {
+  const d = parseAdmissionDate(dateStr);
+  if (!d) return null;
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  d.setHours(0, 0, 0, 0);
+  return Math.round((d.getTime() - now.getTime()) / 86400000);
+}
+type ScheduleFilter = "all" | "overdue" | "today" | "3days" | "7days";
+function matchesScheduleFilter(lead: Lead, filter: ScheduleFilter): boolean {
+  if (filter === "all") return true;
+  const sch = leadSchedule(lead);
+  const du = daysUntil(sch?.date);
+  if (du === null) return false;
+  if (filter === "overdue") return du < 0;
+  if (filter === "today") return du === 0;
+  if (filter === "3days") return du >= 0 && du <= 3;
+  return du >= 0 && du <= 7; // 7days
 }
 // Vướng mắc của bước hiện tại
 const blockerKey = (step: 1 | 2 | 3) => (`blocker${step}`) as "blocker1" | "blocker2" | "blocker3";
@@ -6655,19 +6709,22 @@ function generateLeads(): Lead[] {
         if (step >= 2) {
           base.consultationDecision = seed % 2 === 0 ? "test" : "no-test";
           if (base.consultationDecision === "test") {
-            base.testDate = `${String(((seed * 3) % 27) + 1).padStart(2, "0")}/05/2026`;
+            // Rải ngày test quanh hôm nay (-6 .. +13 ngày) để minh hoạ bộ lọc "sắp tới"
+            base.testDate = formatAdmissionDate(new Date(Date.now() + (((seed * 3) % 20) - 6) * 86400000));
             base.testCenter = seed % 3 === 0 ? "Đội Cấn" : seed % 3 === 1 ? "Hoàng Hoa Thám" : "Ngọc Hà";
             base.testFileName = `de-test-${base.id}.pdf`;
             base.testNote = "Đã hoàn thành bài test đầu vào.";
           }
           base.trialClass = TRIAL_CLASSES[seed % TRIAL_CLASSES.length];
+          // Rải ngày học thử quanh hôm nay (-4 .. +13 ngày)
+          base.trialDate = formatAdmissionDate(new Date(Date.now() + (((seed * 5) % 18) - 4) * 86400000));
           base.trialNote = "Học viên tham gia tốt, phù hợp với lớp.";
           base.tuition = TUITIONS[seed % TUITIONS.length];
         }
         if (step === 3) {
           base.placementType = status === "Xếp lớp chờ" ? "waitlist" : "existing";
           base.closedClass = base.placementType === "existing" ? base.trialClass : undefined;
-          base.feeStatus = status === "Đã nhập học" ? "Đã thu đủ" : status === "Chờ đóng học phí" ? "Chưa thu" : "Thu một phần";
+          base.feeStatus = status === "Đã nhập học" ? "Đã thu đủ" : status === "Xếp lớp cụ thể chờ đóng học phí" ? "Chưa thu" : "Thu một phần";
           base.paymentNote = "Đã xác nhận tình trạng học phí với phụ huynh.";
         }
         // tracking: ngày vào trạng thái (rải để có lead mới & lead kẹt) + lý do Fail + vướng mắc
@@ -6733,7 +6790,7 @@ const STAGES: { key: 1 | 2 | 3 | 0; title: string; statuses: LeadStatus[]; color
   { key: 0, title: "Lead mới", statuses: ["Lead mới"], color: "bg-slate-50", ring: "border-slate-200", chip: "bg-slate-100 text-slate-700 border-slate-200", dot: "bg-slate-400" },
   { key: 1, title: "Bước 1: Tham vấn", statuses: ["Đang liên hệ", "Đang tham vấn"], color: "bg-orange-50/60", ring: "border-orange-200", chip: "bg-orange-100 text-orange-700 border-orange-200", dot: "bg-orange-500" },
   { key: 2, title: "Bước 2: Test & Học thử", statuses: ["Chờ test", "Đã test chờ tư vấn", "Chờ học thử", "Đã học thử chờ tư vấn"], color: "bg-amber-50/60", ring: "border-amber-200", chip: "bg-amber-100 text-amber-800 border-amber-200", dot: "bg-amber-500" },
-  { key: 3, title: "Bước 3: Xếp lớp & Học phí", statuses: ["Chờ xếp lớp", "Xếp lớp chờ", "Xếp lớp cụ thể", "Chờ đóng học phí", "Đã nhập học"], color: "bg-teal-50/60", ring: "border-teal-200", chip: "bg-teal-100 text-teal-700 border-teal-200", dot: "bg-teal-500" },
+  { key: 3, title: "Bước 3: Xếp lớp & Học phí", statuses: ["Chờ xếp lớp", "Xếp lớp chờ", "Xếp lớp cụ thể chờ đóng học phí", "Đã nhập học"], color: "bg-teal-50/60", ring: "border-teal-200", chip: "bg-teal-100 text-teal-700 border-teal-200", dot: "bg-teal-500" },
 ];
 
 const STATUS_BADGE: Record<LeadStatus, string> = {
@@ -6746,8 +6803,7 @@ const STATUS_BADGE: Record<LeadStatus, string> = {
   "Đã học thử chờ tư vấn": "bg-green-100 text-green-700 border-green-200",
   "Chờ xếp lớp": "bg-teal-100 text-teal-700 border-teal-200",
   "Xếp lớp chờ": "bg-cyan-100 text-cyan-700 border-cyan-200",
-  "Xếp lớp cụ thể": "bg-indigo-100 text-indigo-700 border-indigo-200",
-  "Chờ đóng học phí": "bg-violet-100 text-violet-700 border-violet-200",
+  "Xếp lớp cụ thể chờ đóng học phí": "bg-indigo-100 text-indigo-700 border-indigo-200",
   "Đã nhập học": "bg-emerald-100 text-emerald-700 border-emerald-200",
   "Pending": "bg-yellow-100 text-yellow-700 border-yellow-200",
   "Fail": "bg-rose-100 text-rose-700 border-rose-200",
@@ -6760,10 +6816,16 @@ const EMPTY_LEAD: Lead = {
 
 export function AdminAdmissions() {
   const [leads, setLeads] = React.useState<Lead[]>(INITIAL_LEADS);
-  const [view, setView] = React.useState<"kanban" | "list">("kanban");
+  // Tạm ẩn chế độ xem Kanban: đổi thành true để bật lại
+  const SHOW_KANBAN = false;
+  const [view, setView] = React.useState<"kanban" | "list">(SHOW_KANBAN ? "kanban" : "list");
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState<LeadStatus | "all">("all");
+  const [scheduleFilter, setScheduleFilter] = React.useState<ScheduleFilter>("all");
+  const [scheduleCenter, setScheduleCenter] = React.useState<string>("all");
+  const [scheduleSort, setScheduleSort] = React.useState<"none" | "asc" | "desc">("none");
   const [assigneeFilter, setAssigneeFilter] = React.useState<string>("all");
+  const [branchFilter, setBranchFilter] = React.useState<string>("all"); // "all" | "ĐC" | "NH" | "HHT" | "unassigned"
   const [open, setOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<Lead>(EMPTY_LEAD);
   const [activeStep, setActiveStep] = React.useState<1 | 2 | 3>(1);
@@ -6775,13 +6837,55 @@ export function AdminAdmissions() {
     return leads.filter((l) => {
       if (mode === "staff" && l.assignedTo !== currentStaffId) return false;
       if (statusFilter !== "all" && l.status !== statusFilter) return false;
+      if (branchFilter !== "all") {
+        if (branchFilter === "unassigned" ? !!l.assignedTo : l.facility !== branchFilter) return false;
+      }
+      if (!matchesScheduleFilter(l, scheduleFilter)) return false;
+      if (scheduleCenter !== "all" && leadSchedule(l)?.center !== scheduleCenter) return false;
       if (mode === "admin" && assigneeFilter !== "all") {
         if (assigneeFilter === "unassigned" ? !!l.assignedTo : l.assignedTo !== assigneeFilter) return false;
       }
       if (!q) return true;
       return l.studentName.toLowerCase().includes(q) || l.phone.includes(q) || l.parentName.toLowerCase().includes(q);
     });
-  }, [leads, search, statusFilter, assigneeFilter, mode, currentStaffId]);
+  }, [leads, search, statusFilter, branchFilter, scheduleFilter, scheduleCenter, assigneeFilter, mode, currentStaffId]);
+
+  // Danh sách đã sắp xếp theo ngày test/học thử (chỉ áp dụng cho bảng Danh sách)
+  const listRows = React.useMemo(() => {
+    if (scheduleSort === "none") return filtered;
+    const scheduleTime = (l: Lead) => parseAdmissionDate(leadSchedule(l)?.date)?.getTime() ?? null;
+    return [...filtered].sort((a, b) => {
+      const ta = scheduleTime(a);
+      const tb = scheduleTime(b);
+      if (ta === null && tb === null) return 0;
+      if (ta === null) return 1;   // lead chưa có ngày hẹn -> xuống cuối
+      if (tb === null) return -1;
+      return scheduleSort === "asc" ? ta - tb : tb - ta;
+    });
+  }, [filtered, scheduleSort]);
+
+  // Bộ lọc lịch chỉ dùng cho 2 trạng thái test/học thử — rời khỏi thì reset để không lọc ẩn
+  const showScheduleFilters = view === "list" && (statusFilter === "Chờ test" || statusFilter === "Chờ học thử");
+  const scheduleKindLabel = statusFilter === "Chờ học thử" ? "học thử" : "test"; // dùng cho nhãn bộ lọc lịch
+  // Tiêu đề 2 cột lịch đổi theo trạng thái đang lọc cho rõ ràng
+  const isTestPhaseFilter = statusFilter === "Chờ test" || statusFilter === "Đã test chờ tư vấn";
+  const isTrialPhaseFilter = statusFilter === "Chờ học thử" || statusFilter === "Đã học thử chờ tư vấn";
+  const isPlacementFilter = statusFilter === "Xếp lớp cụ thể chờ đóng học phí";
+  const dateColHead = isPlacementFilter ? "Lớp đã xếp"
+    : isTestPhaseFilter ? "Ngày test"
+    : isTrialPhaseFilter ? "Ngày học thử"
+    : "Ngày test / học thử";
+  const centerColHead = isPlacementFilter ? "Chi nhánh"
+    : isTestPhaseFilter ? "Cơ sở test"
+    : isTrialPhaseFilter ? "Cơ sở học thử"
+    : "Cơ sở test / học thử";
+  React.useEffect(() => {
+    if (statusFilter !== "Chờ test" && statusFilter !== "Chờ học thử") {
+      setScheduleFilter("all");
+      setScheduleCenter("all");
+      setScheduleSort("none");
+    }
+  }, [statusFilter]);
 
   const matchesSearch = React.useCallback((lead: Lead) => {
     const q = search.trim().toLowerCase();
@@ -6814,6 +6918,25 @@ export function AdminAdmissions() {
 
   const unassignedCount = assigneeCountBase.filter((lead) => !lead.assignedTo).length;
   const stuckCount = React.useMemo(() => statusCountBase.filter(isStuck).length, [statusCountBase]);
+
+  // Đếm cho bộ lọc chi nhánh (tôn trọng các bộ lọc khác, trừ chính nó)
+  const branchCountBase = React.useMemo(() => leads.filter((lead) => {
+    if (mode === "staff" && lead.assignedTo !== currentStaffId) return false;
+    if (statusFilter !== "all" && lead.status !== statusFilter) return false;
+    if (mode === "admin" && assigneeFilter !== "all") {
+      if (assigneeFilter === "unassigned" ? !!lead.assignedTo : lead.assignedTo !== assigneeFilter) return false;
+    }
+    return matchesSearch(lead);
+  }), [leads, mode, currentStaffId, statusFilter, assigneeFilter, matchesSearch]);
+
+  const branchCounts = React.useMemo(() => {
+    const counts: Record<string, number> = { "ĐC": 0, "NH": 0, "HHT": 0, unassigned: 0 };
+    branchCountBase.forEach((lead) => {
+      if (counts[lead.facility] !== undefined) counts[lead.facility]++;
+      if (!lead.assignedTo) counts.unassigned++;
+    });
+    return counts;
+  }, [branchCountBase]);
 
   const openNew = () => {
     setEditing({ ...EMPTY_LEAD, id: String(Date.now()) });
@@ -6878,8 +7001,10 @@ export function AdminAdmissions() {
       </Tabs>
 
       {/* Top bar */}
-      <div className="flex flex-wrap items-center gap-3 bg-white border border-slate-200 rounded-lg px-4 py-3">
-        <div className="relative flex-1 min-w-[260px] max-w-md">
+      <div className="bg-white border border-slate-200 rounded-lg px-4 py-3 space-y-3">
+        {/* Hàng 1: ô tìm kiếm + toàn bộ bộ lọc */}
+        <div className="flex flex-wrap items-center gap-2">
+        <div className="relative flex-1 min-w-[180px] max-w-[280px]">
           <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <Input
             value={search}
@@ -6888,23 +7013,26 @@ export function AdminAdmissions() {
             className="pl-9 h-9"
           />
         </div>
-        <div className="inline-flex rounded-md border border-slate-200 bg-slate-50 p-0.5">
-          <button
-            onClick={() => setView("kanban")}
-            className={cn("px-3 h-8 rounded-[5px] text-sm flex items-center gap-1.5 transition-colors", view === "kanban" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}
-          >
-            <LayoutGrid className="h-4 w-4" /> Kanban
-          </button>
-          <button
-            onClick={() => setView("list")}
-            className={cn("px-3 h-8 rounded-[5px] text-sm flex items-center gap-1.5 transition-colors", view === "list" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}
-          >
-            <ListIcon className="h-4 w-4" /> Danh sách
-          </button>
-        </div>
+        {SHOW_KANBAN && (
+          <div className="inline-flex rounded-md border border-slate-200 bg-slate-50 p-0.5">
+            <button
+              onClick={() => setView("kanban")}
+              className={cn("px-3 h-8 rounded-[5px] text-sm flex items-center gap-1.5 transition-colors", view === "kanban" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}
+            >
+              <LayoutGrid className="h-4 w-4" /> Kanban
+            </button>
+            <button
+              onClick={() => setView("list")}
+              className={cn("px-3 h-8 rounded-[5px] text-sm flex items-center gap-1.5 transition-colors", view === "list" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}
+            >
+              <ListIcon className="h-4 w-4" /> Danh sách
+            </button>
+          </div>
+        )}
+        <div className="flex-1 min-w-[8px]" />
         {view === "list" && mode === "admin" && (
           <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
-            <SelectTrigger className="h-9 w-[250px]">
+            <SelectTrigger className="h-9 w-[184px] text-xs">
               <SelectValue placeholder="Phụ trách" />
             </SelectTrigger>
             <SelectContent>
@@ -6923,15 +7051,65 @@ export function AdminAdmissions() {
             </SelectContent>
           </Select>
         )}
-        <div className="ml-auto flex items-center gap-2">
-          <Badge variant="secondary" className="gap-1"><Users className="h-3 w-3" /> {filtered.length} lead</Badge>
-          {stuckCount > 0 && (
-            <Badge variant="outline" className="gap-1 border-rose-300 bg-rose-50 text-rose-700">
-              <AlertTriangle className="h-3 w-3" /> Kẹt: {stuckCount}
-            </Badge>
+          {view === "list" && (
+            <Select value={branchFilter} onValueChange={setBranchFilter}>
+              <SelectTrigger className="h-9 w-[176px] text-xs">
+                <MapPin className="h-3.5 w-3.5 text-slate-400" />
+                <SelectValue placeholder="Chi nhánh" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all"><FilterOptionCount label="Tất cả chi nhánh" count={branchCountBase.length} /></SelectItem>
+                <SelectItem value="ĐC"><FilterOptionCount label="Chi nhánh ĐC" count={branchCounts["ĐC"]} /></SelectItem>
+                <SelectItem value="NH"><FilterOptionCount label="Chi nhánh NH" count={branchCounts["NH"]} /></SelectItem>
+                <SelectItem value="HHT"><FilterOptionCount label="Chi nhánh HHT" count={branchCounts["HHT"]} /></SelectItem>
+                <SelectItem value="unassigned"><FilterOptionCount label="Chưa phân công" count={branchCounts.unassigned} /></SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+          {showScheduleFilters && (
+            <Select value={scheduleFilter} onValueChange={(v) => setScheduleFilter(v as ScheduleFilter)}>
+              <SelectTrigger className="h-9 w-[172px] text-xs">
+                <CalendarIcon className="h-3.5 w-3.5 text-slate-400" />
+                <SelectValue placeholder="Lịch sắp tới" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{`Lịch ${scheduleKindLabel} tới hạn`}</SelectItem>
+                <SelectItem value="overdue">Đã quá ngày hẹn</SelectItem>
+                <SelectItem value="today">Hẹn hôm nay</SelectItem>
+                <SelectItem value="3days">Trong 3 ngày tới</SelectItem>
+                <SelectItem value="7days">Trong 7 ngày tới</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+          {showScheduleFilters && (
+            <Select value={scheduleCenter} onValueChange={setScheduleCenter}>
+              <SelectTrigger className="h-9 w-[150px] text-xs">
+                <MapPin className="h-3.5 w-3.5 text-slate-400" />
+                <SelectValue placeholder="Cơ sở test" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tất cả cơ sở</SelectItem>
+                <SelectItem value="Đội Cấn">Đội Cấn</SelectItem>
+                <SelectItem value="Hoàng Hoa Thám">Hoàng Hoa Thám</SelectItem>
+                <SelectItem value="Ngọc Hà">Ngọc Hà</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+          {showScheduleFilters && (
+            <Select value={scheduleSort} onValueChange={(v) => setScheduleSort(v as "none" | "asc" | "desc")}>
+              <SelectTrigger className="h-9 w-[158px] text-xs">
+                <ArrowUpDown className="h-3.5 w-3.5 text-slate-400" />
+                <SelectValue placeholder="Sắp xếp ngày" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Không sắp xếp ngày</SelectItem>
+                <SelectItem value="asc">Ngày gần → xa</SelectItem>
+                <SelectItem value="desc">Ngày xa → gần</SelectItem>
+              </SelectContent>
+            </Select>
           )}
           <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as LeadStatus | "all")}>
-            <SelectTrigger className="h-9 w-[240px]"><SelectValue placeholder="Lọc trạng thái" /></SelectTrigger>
+            <SelectTrigger className="h-9 w-[184px] text-xs"><SelectValue placeholder="Lọc trạng thái" /></SelectTrigger>
             <SelectContent className="max-h-[70vh]">
               <SelectItem value="all"><FilterOptionCount label="Tất cả trạng thái" count={statusCountBase.length} /></SelectItem>
               {ALL_STATUSES.map((status) => (
@@ -6942,9 +7120,18 @@ export function AdminAdmissions() {
             </SelectContent>
           </Select>
           {mode === "admin" && (
-            <Button onClick={openNew} className="bg-teal-600 hover:bg-teal-700 text-white gap-1.5">
+            <Button onClick={openNew} className="h-9 px-3 text-sm bg-teal-600 hover:bg-teal-700 text-white gap-1.5 whitespace-nowrap">
               <Plus className="h-4 w-4" /> Tạo Lead Mới
             </Button>
+          )}
+        </div>
+        {/* Hàng 2: tag thống kê (số lead + kẹt) */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="secondary" className="gap-1"><Users className="h-3 w-3" /> {filtered.length} lead</Badge>
+          {stuckCount > 0 && (
+            <Badge variant="outline" className="gap-1 border-rose-300 bg-rose-50 text-rose-700">
+              <AlertTriangle className="h-3 w-3" /> Kẹt: {stuckCount}
+            </Badge>
           )}
         </div>
       </div>
@@ -6984,6 +7171,31 @@ export function AdminAdmissions() {
                             : <span>{daysInStatus(l)} ngày ở trạng thái này</span>}
                           <span className="text-slate-400">·</span> Cơ sở {l.facility}
                         </div>
+                        {(() => {
+                          const sch = leadSchedule(l);
+                          if (!sch) return null;
+                          const du = daysUntil(sch.date);
+                          return (
+                            <div className="flex items-center gap-1.5">
+                              <CalendarIcon className="h-3 w-3 text-slate-400" />
+                              <span className="text-slate-500">{sch.label} · {sch.center}:</span>
+                              {sch.date ? (
+                                <span className={cn(
+                                  "font-medium",
+                                  du === null ? "text-slate-700"
+                                    : du < 0 ? "text-rose-600"
+                                    : du === 0 ? "text-amber-600"
+                                    : du <= 3 ? "text-orange-500"
+                                    : "text-slate-700",
+                                )}>
+                                  {sch.date}{du !== null && (du < 0 ? ` (quá ${-du}n)` : du === 0 ? " (hôm nay)" : ` (còn ${du}n)`)}
+                                </span>
+                              ) : (
+                                <span className="text-slate-400">chưa hẹn</span>
+                              )}
+                            </div>
+                          );
+                        })()}
                         {l.status === "Fail" && l.failCategory && (
                           <div className="flex items-start gap-1.5 text-rose-600">
                             <XCircle className="h-3 w-3 mt-0.5 shrink-0" />
@@ -7059,13 +7271,15 @@ export function AdminAdmissions() {
                   <TableHead>Lớp / Trường</TableHead>
                   <TableHead>Trạng thái</TableHead>
                   <TableHead>Thời gian</TableHead>
+                  <TableHead>{dateColHead}</TableHead>
+                  <TableHead>{centerColHead}</TableHead>
                   <TableHead>Vướng mắc / Lý do Fail</TableHead>
                   <TableHead>Phụ trách</TableHead>
                   <TableHead className="text-right">Hành động</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((l) => (
+                {listRows.map((l) => (
                   <TableRow key={l.id} className="cursor-pointer hover:bg-slate-50" onClick={() => openEdit(l)}>
                     <TableCell className="font-medium">{l.studentName}</TableCell>
                     <TableCell className="text-sm">{l.phone}<div className="text-xs text-slate-500">{l.parentName}</div></TableCell>
@@ -7075,6 +7289,75 @@ export function AdminAdmissions() {
                       {isStuck(l)
                         ? <span className="text-rose-600 font-medium">Kẹt {daysInStatus(l)} ngày</span>
                         : <span className="text-slate-500">{daysInStatus(l)} ngày</span>}
+                    </TableCell>
+                    <TableCell className="text-xs whitespace-nowrap">
+                      {(() => {
+                        const pl = leadPlacement(l);
+                        if (pl) {
+                          return (
+                            <div className="flex flex-col leading-tight">
+                              <span className="text-[10px] uppercase tracking-wide text-slate-400">Lớp</span>
+                              <span className="font-medium text-teal-700">{pl.className}</span>
+                            </div>
+                          );
+                        }
+                        const sch = leadSchedule(l);
+                        if (!sch) return <span className="text-slate-300">—</span>;
+                        if (!sch.date) return <span className="text-slate-300">Chưa hẹn ngày</span>;
+                        // Lịch đã diễn ra (bước xếp lớp trở đi): chỉ hiện ngày, không đếm ngược
+                        if (sch.done) {
+                          return (
+                            <div className="flex flex-col leading-tight">
+                              <span className="font-medium text-slate-700">{sch.date}</span>
+                              <span className="text-[11px] text-emerald-600">đã xong</span>
+                            </div>
+                          );
+                        }
+                        const du = daysUntil(sch.date);
+                        return (
+                          <div className="flex flex-col leading-tight">
+                            <span className={cn(
+                              "font-medium",
+                              du === null ? "text-slate-700"
+                                : du < 0 ? "text-rose-600"
+                                : du === 0 ? "text-amber-600"
+                                : du <= 3 ? "text-orange-500"
+                                : "text-slate-700",
+                            )}>
+                              {sch.date}
+                            </span>
+                            {du !== null && (
+                              <span className={cn(
+                                "text-[11px]",
+                                du < 0 ? "text-rose-500" : du === 0 ? "text-amber-600" : du <= 3 ? "text-orange-500" : "text-slate-400",
+                              )}>
+                                {du < 0 ? `quá ${-du} ngày` : du === 0 ? "hôm nay" : `còn ${du} ngày`}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </TableCell>
+                    <TableCell className="text-xs whitespace-nowrap">
+                      {(() => {
+                        const pl = leadPlacement(l);
+                        if (pl) {
+                          return (
+                            <div className="flex flex-col leading-tight">
+                              <span className="text-[10px] uppercase tracking-wide text-slate-400">Chi nhánh</span>
+                              <span className="font-medium text-slate-700">{pl.branch || "—"}</span>
+                            </div>
+                          );
+                        }
+                        const sch = leadSchedule(l);
+                        if (!sch) return <span className="text-slate-300">—</span>;
+                        return (
+                          <div className="flex flex-col leading-tight">
+                            <span className="text-[10px] uppercase tracking-wide text-slate-400">{sch.label}</span>
+                            <span className="font-medium text-slate-700">{sch.center || "—"}</span>
+                          </div>
+                        );
+                      })()}
                     </TableCell>
                     <TableCell className="text-xs max-w-[260px]">
                       {l.status === "Fail" && l.failCategory
@@ -7092,7 +7375,7 @@ export function AdminAdmissions() {
                   </TableRow>
                 ))}
                 {filtered.length === 0 && (
-                  <TableRow><TableCell colSpan={8} className="text-center text-slate-400 py-8">Không có lead phù hợp</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={10} className="text-center text-slate-400 py-8">Không có lead phù hợp</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
@@ -7430,6 +7713,33 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
     setActiveStep(2);
   };
 
+  // Lưu Bước 2: tự động ghi log lịch test / học thử khi có thay đổi
+  const saveStep2 = () => {
+    let next = lead;
+    const testSig = lead.testDate && lead.testCenter ? `${lead.testDate}|${lead.testCenter}` : "";
+    if (testSig && testSig !== lead.testScheduleLogged) {
+      next = withActivity(
+        { ...next, testScheduleLogged: testSig },
+        "Lịch test",
+        `Ngày ${lead.testDate} hẹn test ở ${lead.testCenter}.`,
+        undefined,
+        2,
+      );
+    }
+    const trialCenter = facilityLabel(lead.facility);
+    const trialSig = lead.trialDate ? `${lead.trialDate}|${lead.facility}|${lead.trialClass ?? ""}` : "";
+    if (trialSig && trialSig !== lead.trialScheduleLogged) {
+      next = withActivity(
+        { ...next, trialScheduleLogged: trialSig },
+        "Lịch học thử",
+        `Ngày ${lead.trialDate} học thử tại ${trialCenter}${lead.trialClass ? ` · lớp ${lead.trialClass}` : ""}.`,
+        undefined,
+        2,
+      );
+    }
+    onSave(next, "Đã lưu");
+  };
+
   const goStep3 = () => {
     const next = withActivity(
       { ...lead, step: 3, status: lead.step >= 3 ? lead.status : "Chờ xếp lớp" },
@@ -7449,7 +7759,7 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
       toast.error("Vui lòng chọn lớp chính thức");
       return;
     }
-    const status: LeadStatus = lead.placementType === "existing" ? "Xếp lớp cụ thể" : "Xếp lớp chờ";
+    const status: LeadStatus = lead.placementType === "existing" ? "Xếp lớp cụ thể chờ đóng học phí" : "Xếp lớp chờ";
     const placementNote = lead.placementType === "existing"
       ? `Đã gán vào lớp ${lead.closedClass}.`
       : `Đã đưa vào danh sách chờ. ${lead.waitlistNote || ""}`.trim();
@@ -7682,7 +7992,8 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
               </div>
 
               {lead.consultationDecision === "test" && (
-                <div className="grid grid-cols-5 gap-2 border-t border-orange-200 pt-2.5">
+                <div className="space-y-2.5 border-t border-orange-200 pt-2.5">
+                  <div className="grid grid-cols-4 gap-2">
                   <Field label="Ngày test">
                     <Popover>
                       <PopoverTrigger asChild>
@@ -7735,8 +8046,9 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
                       </SelectContent>
                     </Select>
                   </Field>
+                  </div>
                   <Field label="Ghi chú kết quả">
-                    <Input value={lead.testNote ?? ""} onChange={(e) => update("testNote", e.target.value)} placeholder="Nhận xét năng lực, trình độ phù hợp..." />
+                    <Textarea rows={3} value={lead.testNote ?? ""} onChange={(e) => update("testNote", e.target.value)} placeholder="Nhận xét năng lực, trình độ phù hợp..." />
                   </Field>
                 </div>
               )}
@@ -7745,6 +8057,28 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
             <section className="rounded-lg border border-amber-200 bg-amber-50/40 p-3 space-y-3">
               <h3 className="text-sm font-semibold text-slate-800">Học thử</h3>
               <div className="grid grid-cols-2 gap-3">
+                <Field label="Ngày học thử">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className={cn("w-full justify-start bg-white font-normal", !lead.trialDate && "text-muted-foreground")}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {lead.trialDate || "Chọn ngày học thử"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarUI
+                        mode="single"
+                        selected={parseAdmissionDate(lead.trialDate)}
+                        onSelect={(date) => update("trialDate", date ? formatAdmissionDate(date) : "")}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </Field>
                 <Field label="Lớp học thử">
                   <Select value={lead.trialClass ?? ""} onValueChange={(v) => update("trialClass", v)}>
                     <SelectTrigger><SelectValue placeholder="Chọn lớp học thử" /></SelectTrigger>
@@ -7914,7 +8248,7 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
                 <ArrowLeft className="h-4 w-4" /> Quay lại Bước 1
               </Button>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => onSave(lead, "Đã lưu")}>Lưu</Button>
+                <Button variant="outline" onClick={saveStep2}>Lưu</Button>
                 <Button className="bg-teal-600 hover:bg-teal-700 text-white gap-1.5" onClick={goStep3}>
                   Sang Bước 3 · Xếp lớp & Học phí <ArrowRight className="h-4 w-4" />
                 </Button>
