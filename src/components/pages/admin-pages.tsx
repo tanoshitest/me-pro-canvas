@@ -6409,6 +6409,17 @@ type Lead = {
   failReason?: string;
   failCategory?: string;     // loại lý do Fail (để tracking/thống kê)
   blocker1?: string; blocker2?: string; blocker3?: string;  // vướng mắc riêng từng bước (vì sao kẹt)
+  blocker1Logged?: string; blocker2Logged?: string; blocker3Logged?: string;  // chữ ký vướng mắc đã ghi log
+  studentInfoLogged?: string;
+  assignedToLogged?: string;
+  consultationDecisionLogged?: string;
+  testDetailsLogged?: string;
+  trialNoteLogged?: string;
+  placementLogged?: string;
+  feeLogged?: string;
+  careLogged?: string;
+  managerCheckedLogged?: string;
+  failLogged?: string;
   statusSince?: string;      // ngày vào trạng thái hiện tại (dd/mm/yyyy) — tính số ngày kẹt
   activities?: LeadActivity[];
 };
@@ -6578,6 +6589,9 @@ const STATUS_STEP: Record<LeadStatus, 1 | 2 | 3> = {
   "Chờ xếp lớp": 3, "Xếp lớp chờ": 3, "Xếp lớp cụ thể chờ đóng học phí": 3, "Đã nhập học": 3,
   "Pending": 1, "Fail": 1,
 };
+/** Khi lead đã nhập học thì học phí phải là đã thu đủ. */
+const applyEnrolledFeeStatus = (lead: Lead, status: LeadStatus): Lead =>
+  status === "Đã nhập học" ? { ...lead, feeStatus: "Đã thu đủ" } : lead;
 const ALL_STATUSES: LeadStatus[] = [...LEAD_JOURNEY.map((j) => j.status), ...CROSS_STATUSES.map((c) => c.status)];
 // Trạng thái dùng để rải seed demo (ít hơn để không quá nhiều lead)
 const SEED_STATUSES: LeadStatus[] = ALL_STATUSES;
@@ -6672,6 +6686,41 @@ function matchesScheduleFilter(lead: Lead, filter: ScheduleFilter): boolean {
 const blockerKey = (step: 1 | 2 | 3) => (`blocker${step}`) as "blocker1" | "blocker2" | "blocker3";
 function leadBlocker(lead: Lead): string | undefined {
   return lead[blockerKey((lead.step as 1 | 2 | 3) || 1)];
+}
+
+const leadSigPart = (v?: string | boolean) => (v ?? "").toString().trim();
+const studentInfoSig = (l: Lead) =>
+  [l.source, l.parentName, l.phone, l.studentName, l.dob, l.grade, l.school, l.feature].map(leadSigPart).join("|");
+const testDetailsSig = (l: Lead) => [l.testResult, l.testFileName, l.testNote].map(leadSigPart).join("|");
+const testScheduleSig = (l: Lead) => (l.testDate && l.testCenter ? `${l.testDate}|${l.testCenter}` : "");
+const trialScheduleSig = (l: Lead) => (l.trialDate ? `${l.trialDate}|${l.facility}|${l.trialClass ?? ""}` : "");
+const placementSig = (l: Lead) => [l.placementType, l.closedClass, l.waitlistNote].map(leadSigPart).join("|");
+const feeSig = (l: Lead) => [l.feeStatus, l.tuition, l.paymentNote].map(leadSigPart).join("|");
+const careSig = (l: Lead) =>
+  [l.care1Date, l.care1Note, l.care2Date, l.care2Note, l.care3Date, l.care3Note].map(leadSigPart).join("|");
+const failSig = (l: Lead) => [l.failCategory, l.failReason].map(leadSigPart).join("|");
+const sigHasContent = (sig: string) => sig.replace(/\|/g, "").length > 0;
+
+/** Khởi tạo chữ ký đã log để tránh ghi trùng khi mở lead cũ. */
+function initLeadLogState(l: Lead): Lead {
+  return {
+    ...l,
+    blocker1Logged: l.blocker1Logged ?? leadSigPart(l.blocker1),
+    blocker2Logged: l.blocker2Logged ?? leadSigPart(l.blocker2),
+    blocker3Logged: l.blocker3Logged ?? leadSigPart(l.blocker3),
+    studentInfoLogged: l.studentInfoLogged ?? studentInfoSig(l),
+    assignedToLogged: l.assignedToLogged ?? leadSigPart(l.assignedTo),
+    consultationDecisionLogged: l.consultationDecisionLogged ?? leadSigPart(l.consultationDecision),
+    testDetailsLogged: l.testDetailsLogged ?? testDetailsSig(l),
+    trialNoteLogged: l.trialNoteLogged ?? leadSigPart(l.trialNote),
+    placementLogged: l.placementLogged ?? placementSig(l),
+    feeLogged: l.feeLogged ?? feeSig(l),
+    careLogged: l.careLogged ?? careSig(l),
+    managerCheckedLogged: l.managerCheckedLogged ?? (l.managerChecked ? "true" : "false"),
+    failLogged: l.failLogged ?? failSig(l),
+    testScheduleLogged: l.testScheduleLogged ?? testScheduleSig(l),
+    trialScheduleLogged: l.trialScheduleLogged ?? trialScheduleSig(l),
+  };
 }
 
 function generateLeads(): Lead[] {
@@ -6827,6 +6876,7 @@ export function AdminAdmissions() {
   const [assigneeFilter, setAssigneeFilter] = React.useState<string>("all");
   const [branchFilter, setBranchFilter] = React.useState<string>("all"); // "all" | "ĐC" | "NH" | "HHT" | "unassigned"
   const [open, setOpen] = React.useState(false);
+  const [isNewLead, setIsNewLead] = React.useState(false);
   const [editing, setEditing] = React.useState<Lead>(EMPTY_LEAD);
   const [activeStep, setActiveStep] = React.useState<1 | 2 | 3>(1);
   const [mode, setMode] = React.useState<"admin" | "staff">("admin");
@@ -6879,6 +6929,8 @@ export function AdminAdmissions() {
     : isTestPhaseFilter ? "Cơ sở test"
     : isTrialPhaseFilter ? "Cơ sở học thử"
     : "Cơ sở test / học thử";
+  // Ẩn 2 cột lịch khi lọc các trạng thái chưa qua test/học thử (Lead mới, Đang liên hệ, Đang tham vấn, Pending, Fail)
+  const showScheduleCols = statusFilter === "all" || STATUS_STEP[statusFilter] >= 2;
   React.useEffect(() => {
     if (statusFilter !== "Chờ test" && statusFilter !== "Chờ học thử") {
       setScheduleFilter("all");
@@ -6939,12 +6991,14 @@ export function AdminAdmissions() {
   }, [branchCountBase]);
 
   const openNew = () => {
-    setEditing({ ...EMPTY_LEAD, id: String(Date.now()) });
+    setIsNewLead(true);
+    setEditing(initLeadLogState({ ...EMPTY_LEAD, id: String(Date.now()) }));
     setActiveStep(1);
     setOpen(true);
   };
   const openEdit = (l: Lead) => {
-    setEditing({ ...l });
+    setIsNewLead(false);
+    setEditing(initLeadLogState(l));
     setActiveStep(l.step);
     setOpen(true);
   };
@@ -6967,7 +7021,8 @@ export function AdminAdmissions() {
   };
 
   return (
-    <div className="space-y-5 animate-fade-in">
+    <div className="flex flex-col gap-5 animate-fade-in h-[calc(100dvh-7rem)] -m-6 p-6 overflow-hidden">
+      <div className="shrink-0 space-y-5">
       {/* Mode tabs */}
       <Tabs value={mode} onValueChange={(v) => setMode(v as "admin" | "staff")}>
         <div className="flex flex-wrap items-center gap-3">
@@ -7001,59 +7056,58 @@ export function AdminAdmissions() {
       </Tabs>
 
       {/* Top bar */}
-      <div className="bg-white border border-slate-200 rounded-lg px-4 py-3 space-y-3">
-        {/* Hàng 1: ô tìm kiếm + toàn bộ bộ lọc */}
-        <div className="flex flex-wrap items-center gap-2">
-        <div className="relative flex-1 min-w-[180px] max-w-[280px]">
-          <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={mode === "staff" ? "Tìm trong lead của tôi..." : "Tìm theo tên học viên hoặc số điện thoại..."}
-            className="pl-9 h-9"
-          />
-        </div>
-        {SHOW_KANBAN && (
-          <div className="inline-flex rounded-md border border-slate-200 bg-slate-50 p-0.5">
-            <button
-              onClick={() => setView("kanban")}
-              className={cn("px-3 h-8 rounded-[5px] text-sm flex items-center gap-1.5 transition-colors", view === "kanban" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}
-            >
-              <LayoutGrid className="h-4 w-4" /> Kanban
-            </button>
-            <button
-              onClick={() => setView("list")}
-              className={cn("px-3 h-8 rounded-[5px] text-sm flex items-center gap-1.5 transition-colors", view === "list" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}
-            >
-              <ListIcon className="h-4 w-4" /> Danh sách
-            </button>
+      <div className="bg-white border border-slate-200 rounded-lg px-3 py-2.5">
+        <div className="flex items-center gap-2 min-h-9">
+          <div className="relative shrink-0 w-[min(220px,28vw)]">
+            <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={mode === "staff" ? "Tìm lead của tôi..." : "Tìm tên hoặc SĐT..."}
+              className="pl-9 h-9 text-xs"
+            />
           </div>
-        )}
-        <div className="flex-1 min-w-[8px]" />
-        {view === "list" && mode === "admin" && (
-          <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
-            <SelectTrigger className="h-9 w-[184px] text-xs">
-              <SelectValue placeholder="Phụ trách" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all"><FilterOptionCount label="Tất cả phụ trách" count={assigneeCountBase.length} /></SelectItem>
-              <SelectItem value="unassigned"><FilterOptionCount label="Chưa phân" count={unassignedCount} /></SelectItem>
-              {["ĐC", "NH", "HHT"].map((fac) => (
-                <React.Fragment key={fac}>
-                  <div className="px-2 py-1 text-[11px] font-semibold uppercase text-slate-400">Cơ sở {fac}</div>
-                  {STAFF.filter((s) => s.facility === fac).map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      <FilterOptionCount label={s.name} count={assigneeCounts[s.id] ?? 0} />
-                    </SelectItem>
-                  ))}
-                </React.Fragment>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
+          {SHOW_KANBAN && (
+            <div className="inline-flex shrink-0 rounded-md border border-slate-200 bg-slate-50 p-0.5">
+              <button
+                onClick={() => setView("kanban")}
+                className={cn("px-3 h-8 rounded-[5px] text-sm flex items-center gap-1.5 transition-colors", view === "kanban" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}
+              >
+                <LayoutGrid className="h-4 w-4" /> Kanban
+              </button>
+              <button
+                onClick={() => setView("list")}
+                className={cn("px-3 h-8 rounded-[5px] text-sm flex items-center gap-1.5 transition-colors", view === "list" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}
+              >
+                <ListIcon className="h-4 w-4" /> Danh sách
+              </button>
+            </div>
+          )}
+          <div className="flex flex-1 items-center gap-1.5 min-w-0 overflow-x-auto scrollbar-none">
+          {view === "list" && mode === "admin" && (
+            <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
+              <SelectTrigger className="h-9 w-[148px] shrink-0 text-xs">
+                <SelectValue placeholder="Phụ trách" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all"><FilterOptionCount label="Tất cả phụ trách" count={assigneeCountBase.length} /></SelectItem>
+                <SelectItem value="unassigned"><FilterOptionCount label="Chưa phân" count={unassignedCount} /></SelectItem>
+                {["ĐC", "NH", "HHT"].map((fac) => (
+                  <React.Fragment key={fac}>
+                    <div className="px-2 py-1 text-[11px] font-semibold uppercase text-slate-400">Cơ sở {fac}</div>
+                    {STAFF.filter((s) => s.facility === fac).map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        <FilterOptionCount label={s.name} count={assigneeCounts[s.id] ?? 0} />
+                      </SelectItem>
+                    ))}
+                  </React.Fragment>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           {view === "list" && (
             <Select value={branchFilter} onValueChange={setBranchFilter}>
-              <SelectTrigger className="h-9 w-[176px] text-xs">
+              <SelectTrigger className="h-9 w-[140px] shrink-0 text-xs">
                 <MapPin className="h-3.5 w-3.5 text-slate-400" />
                 <SelectValue placeholder="Chi nhánh" />
               </SelectTrigger>
@@ -7068,7 +7122,7 @@ export function AdminAdmissions() {
           )}
           {showScheduleFilters && (
             <Select value={scheduleFilter} onValueChange={(v) => setScheduleFilter(v as ScheduleFilter)}>
-              <SelectTrigger className="h-9 w-[172px] text-xs">
+              <SelectTrigger className="h-9 w-[148px] shrink-0 text-xs">
                 <CalendarIcon className="h-3.5 w-3.5 text-slate-400" />
                 <SelectValue placeholder="Lịch sắp tới" />
               </SelectTrigger>
@@ -7083,7 +7137,7 @@ export function AdminAdmissions() {
           )}
           {showScheduleFilters && (
             <Select value={scheduleCenter} onValueChange={setScheduleCenter}>
-              <SelectTrigger className="h-9 w-[150px] text-xs">
+              <SelectTrigger className="h-9 w-[128px] shrink-0 text-xs">
                 <MapPin className="h-3.5 w-3.5 text-slate-400" />
                 <SelectValue placeholder="Cơ sở test" />
               </SelectTrigger>
@@ -7097,7 +7151,7 @@ export function AdminAdmissions() {
           )}
           {showScheduleFilters && (
             <Select value={scheduleSort} onValueChange={(v) => setScheduleSort(v as "none" | "asc" | "desc")}>
-              <SelectTrigger className="h-9 w-[158px] text-xs">
+              <SelectTrigger className="h-9 w-[136px] shrink-0 text-xs">
                 <ArrowUpDown className="h-3.5 w-3.5 text-slate-400" />
                 <SelectValue placeholder="Sắp xếp ngày" />
               </SelectTrigger>
@@ -7109,7 +7163,7 @@ export function AdminAdmissions() {
             </Select>
           )}
           <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as LeadStatus | "all")}>
-            <SelectTrigger className="h-9 w-[184px] text-xs"><SelectValue placeholder="Lọc trạng thái" /></SelectTrigger>
+            <SelectTrigger className="h-9 w-[148px] shrink-0 text-xs"><SelectValue placeholder="Lọc trạng thái" /></SelectTrigger>
             <SelectContent className="max-h-[70vh]">
               <SelectItem value="all"><FilterOptionCount label="Tất cả trạng thái" count={statusCountBase.length} /></SelectItem>
               {ALL_STATUSES.map((status) => (
@@ -7119,25 +7173,35 @@ export function AdminAdmissions() {
               ))}
             </SelectContent>
           </Select>
-          {mode === "admin" && (
-            <Button onClick={openNew} className="h-9 px-3 text-sm bg-teal-600 hover:bg-teal-700 text-white gap-1.5 whitespace-nowrap">
-              <Plus className="h-4 w-4" /> Tạo Lead Mới
-            </Button>
-          )}
+          </div>
+          <div className="flex shrink-0 items-center gap-1.5 pl-1 border-l border-slate-200">
+            <Badge variant="secondary" className="gap-1 h-7 shrink-0"><Users className="h-3 w-3" /> {filtered.length} lead</Badge>
+            {stuckCount > 0 && (
+              <Badge variant="outline" className="gap-1 h-7 shrink-0 border-rose-300 bg-rose-50 text-rose-700">
+                <AlertTriangle className="h-3 w-3" /> Kẹt: {stuckCount}
+              </Badge>
+            )}
+            {mode === "admin" && (
+              <>
+                <Button
+                  variant="outline"
+                  className="h-9 px-3 text-sm gap-1.5 whitespace-nowrap shrink-0"
+                  onClick={() => toast.info("Upload Excel — tính năng demo, sẽ có trong bản tiếp theo")}
+                >
+                  <FileSpreadsheet className="h-4 w-4" /> Upload Excel
+                </Button>
+                <Button onClick={openNew} className="h-9 px-3 text-sm bg-teal-600 hover:bg-teal-700 text-white gap-1.5 whitespace-nowrap shrink-0">
+                  <Plus className="h-4 w-4" /> Tạo Lead Mới
+                </Button>
+              </>
+            )}
+          </div>
         </div>
-        {/* Hàng 2: tag thống kê (số lead + kẹt) */}
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="secondary" className="gap-1"><Users className="h-3 w-3" /> {filtered.length} lead</Badge>
-          {stuckCount > 0 && (
-            <Badge variant="outline" className="gap-1 border-rose-300 bg-rose-50 text-rose-700">
-              <AlertTriangle className="h-3 w-3" /> Kẹt: {stuckCount}
-            </Badge>
-          )}
-        </div>
+      </div>
       </div>
 
       {view === "kanban" ? (
-        <div className="space-y-4">
+        <div className="flex-1 min-h-0 overflow-y-auto space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
           {STAGES.map((stage) => {
             const items = byStage(stage.key);
@@ -7261,21 +7325,22 @@ export function AdminAdmissions() {
         </div>
         </div>
       ) : (
-        <Card>
-          <CardContent className="p-0 overflow-x-auto">
+        <Card className="flex-1 flex flex-col overflow-hidden min-h-0">
+          <CardContent className="flex-1 min-h-0 p-0 overflow-hidden">
+            <div className="h-full overflow-auto [&>div]:overflow-visible">
             <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Học viên</TableHead>
-                  <TableHead>Liên hệ</TableHead>
-                  <TableHead>Lớp / Trường</TableHead>
-                  <TableHead>Trạng thái</TableHead>
-                  <TableHead>Thời gian</TableHead>
-                  <TableHead>{dateColHead}</TableHead>
-                  <TableHead>{centerColHead}</TableHead>
-                  <TableHead>Vướng mắc / Lý do Fail</TableHead>
-                  <TableHead>Phụ trách</TableHead>
-                  <TableHead className="text-right">Hành động</TableHead>
+              <TableHeader className="sticky top-0 z-10 bg-white shadow-sm">
+                <TableRow className="bg-white hover:bg-white">
+                  <TableHead className="bg-white">Học viên</TableHead>
+                  <TableHead className="bg-white">Liên hệ</TableHead>
+                  <TableHead className="bg-white">Lớp / Trường</TableHead>
+                  <TableHead className="bg-white">Trạng thái</TableHead>
+                  <TableHead className="bg-white">Thời gian</TableHead>
+                  {showScheduleCols && <TableHead className="bg-white">{dateColHead}</TableHead>}
+                  {showScheduleCols && <TableHead className="bg-white">{centerColHead}</TableHead>}
+                  <TableHead className="bg-white">Vướng mắc / Lý do Fail</TableHead>
+                  <TableHead className="bg-white">Phụ trách</TableHead>
+                  <TableHead className="text-right bg-white">Hành động</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -7290,6 +7355,7 @@ export function AdminAdmissions() {
                         ? <span className="text-rose-600 font-medium">Kẹt {daysInStatus(l)} ngày</span>
                         : <span className="text-slate-500">{daysInStatus(l)} ngày</span>}
                     </TableCell>
+                    {showScheduleCols && (<>
                     <TableCell className="text-xs whitespace-nowrap">
                       {(() => {
                         const pl = leadPlacement(l);
@@ -7359,6 +7425,7 @@ export function AdminAdmissions() {
                         );
                       })()}
                     </TableCell>
+                    </>)}
                     <TableCell className="text-xs max-w-[260px]">
                       {l.status === "Fail" && l.failCategory
                         ? <span className="text-rose-600"><span className="font-medium">{l.failCategory}</span>{l.failReason ? ` — ${l.failReason}` : ""}</span>
@@ -7375,10 +7442,11 @@ export function AdminAdmissions() {
                   </TableRow>
                 ))}
                 {filtered.length === 0 && (
-                  <TableRow><TableCell colSpan={10} className="text-center text-slate-400 py-8">Không có lead phù hợp</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={showScheduleCols ? 10 : 8} className="text-center text-slate-400 py-8">Không có lead phù hợp</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -7386,7 +7454,7 @@ export function AdminAdmissions() {
       {/* Dialog */}
       <LeadDialog
         open={open}
-        onOpenChange={setOpen}
+        onOpenChange={(v) => { setOpen(v); if (!v) setIsNewLead(false); }}
         lead={editing}
         setLead={setEditing}
         activeStep={activeStep}
@@ -7394,6 +7462,7 @@ export function AdminAdmissions() {
         onSave={handleSave}
         staff={STAFF}
         canAssign={mode === "admin"}
+        isNewLead={isNewLead}
       />
     </div>
   );
@@ -7645,7 +7714,7 @@ function FilterOptionCount({ label, count }: { label: string; count: number }) {
   );
 }
 
-function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveStep, onSave, staff, canAssign }: {
+function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveStep, onSave, staff, canAssign, isNewLead }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   lead: Lead;
@@ -7655,6 +7724,7 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
   onSave: (l: Lead, msg?: string) => void;
   staff: Staff[];
   canAssign: boolean;
+  isNewLead: boolean;
 }) {
   const update = <K extends keyof Lead>(k: K, v: Lead[K]) => setLead({ ...lead, [k]: v });
   const isEmpty = !lead.studentName && !lead.parentName;
@@ -7685,7 +7755,10 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
     if (s === lead.status) return;
     const step = s === "Pending" || s === "Fail" ? lead.step : STATUS_STEP[s];
     const next = withActivity(
-      { ...lead, status: s, step, statusSince: formatAdmissionDate(new Date()) },
+      applyEnrolledFeeStatus(
+        { ...lead, status: s, step, statusSince: formatAdmissionDate(new Date()) },
+        s,
+      ),
       "Đổi trạng thái",
       `Chuyển sang "${s}".`,
     );
@@ -7703,6 +7776,227 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
     onSave(next, "Đã thêm ghi chú");
   };
 
+  const BLOCKER_STEP_LABELS: Record<1 | 2 | 3, string> = {
+    1: "Bước 1 · Tham vấn",
+    2: "Bước 2 · Test & Học thử",
+    3: "Bước 3 · Xếp lớp & Học phí",
+  };
+  const blockerLoggedKey = (step: 1 | 2 | 3) => (`blocker${step}Logged`) as "blocker1Logged" | "blocker2Logged" | "blocker3Logged";
+
+  const appendAllSaveLogs = (current: Lead): Lead => {
+    let next = current;
+
+    // Bước 1 — thông tin học viên
+    const siSig = studentInfoSig(next);
+    const siLogged = next.studentInfoLogged ?? "";
+    if (siSig !== siLogged && sigHasContent(siSig)) {
+      const note = [
+        next.studentName && `HV: ${next.studentName}`,
+        next.parentName && `PH: ${next.parentName}`,
+        next.phone && `SĐT: ${next.phone}`,
+        next.grade && `Lớp: ${next.grade}`,
+        next.school && `Trường: ${next.school}`,
+        next.source && `Nguồn: ${next.source}`,
+      ].filter(Boolean).join(" · ");
+      next = { ...withActivity(next, "Cập nhật thông tin", note || "Đã cập nhật thông tin học viên.", undefined, 1), studentInfoLogged: siSig };
+    } else if (siSig !== siLogged) {
+      next = { ...next, studentInfoLogged: siSig };
+    }
+
+    // Phụ trách
+    const assigneeSig = leadSigPart(next.assignedTo);
+    const assigneeLogged = next.assignedToLogged ?? "";
+    if (assigneeSig !== assigneeLogged && (assigneeSig || assigneeLogged)) {
+      next = {
+        ...withActivity(
+          next,
+          "Phụ trách",
+          assigneeSig ? `Phân cho ${staffName(assigneeSig)}.` : "Đã gỡ phụ trách.",
+          undefined,
+          next.step,
+        ),
+        assignedToLogged: assigneeSig,
+      };
+    } else if (assigneeSig !== assigneeLogged) {
+      next = { ...next, assignedToLogged: assigneeSig };
+    }
+
+    // Vướng mắc (3 bước)
+    ([1, 2, 3] as const).forEach((step) => {
+      const value = leadSigPart(next[blockerKey(step)]);
+      const logged = leadSigPart(next[blockerLoggedKey(step)]);
+      if (value === logged) return;
+      next = withActivity(
+        next,
+        value ? "Vướng mắc" : "Gỡ vướng mắc",
+        value ? `${BLOCKER_STEP_LABELS[step]}: ${value}` : `${BLOCKER_STEP_LABELS[step]}: đã xóa ghi chú vướng mắc.`,
+        undefined,
+        step,
+      );
+      next = { ...next, [blockerLoggedKey(step)]: value };
+    });
+
+    // Bước 2 — quyết định test
+    const decisionSig = leadSigPart(next.consultationDecision);
+    const decisionLogged = next.consultationDecisionLogged ?? "";
+    if (decisionSig !== decisionLogged && decisionSig) {
+      next = {
+        ...withActivity(
+          next,
+          "Quyết định tham vấn",
+          decisionSig === "test" ? "Quyết định: có test đầu vào." : "Quyết định: không test, chuyển thẳng học thử.",
+          undefined,
+          2,
+        ),
+        consultationDecisionLogged: decisionSig,
+      };
+    } else if (decisionSig !== decisionLogged) {
+      next = { ...next, consultationDecisionLogged: decisionSig };
+    }
+
+    // Bước 2 — lịch test
+    const testSchedSig = testScheduleSig(next);
+    if (testSchedSig && testSchedSig !== (next.testScheduleLogged ?? "")) {
+      next = {
+        ...withActivity(
+          { ...next, testScheduleLogged: testSchedSig },
+          "Lịch test",
+          `Ngày ${next.testDate} hẹn test ở ${next.testCenter}.`,
+          undefined,
+          2,
+        ),
+        testScheduleLogged: testSchedSig,
+      };
+    }
+
+    // Bước 2 — kết quả test
+    const tdSig = testDetailsSig(next);
+    const tdLogged = next.testDetailsLogged ?? "";
+    if (next.consultationDecision === "test" && tdSig !== tdLogged && sigHasContent(tdSig)) {
+      const parts = [
+        next.testResult && `KQ: ${next.testResult === "Thành công" ? "Đã trả KQ" : "Chờ kết quả"}`,
+        next.testFileName && `File: ${next.testFileName}`,
+        next.testNote,
+      ].filter(Boolean);
+      next = {
+        ...withActivity(next, "Kết quả test", parts.join(" · ") || "Cập nhật kết quả test.", next.testFileName, 2),
+        testDetailsLogged: tdSig,
+      };
+    } else if (tdSig !== tdLogged) {
+      next = { ...next, testDetailsLogged: tdSig };
+    }
+
+    // Bước 2 — lịch học thử
+    const trialSchedSig = trialScheduleSig(next);
+    if (trialSchedSig && trialSchedSig !== (next.trialScheduleLogged ?? "")) {
+      const trialCenter = facilityLabel(next.facility);
+      next = {
+        ...withActivity(
+          { ...next, trialScheduleLogged: trialSchedSig },
+          "Lịch học thử",
+          `Ngày ${next.trialDate} học thử tại ${trialCenter}${next.trialClass ? ` · lớp ${next.trialClass}` : ""}.`,
+          undefined,
+          2,
+        ),
+        trialScheduleLogged: trialSchedSig,
+      };
+    }
+
+    // Bước 2 — ghi chú học thử
+    const trialNoteSig = leadSigPart(next.trialNote);
+    const trialNoteLogged = next.trialNoteLogged ?? "";
+    if (trialNoteSig !== trialNoteLogged && trialNoteSig) {
+      next = {
+        ...withActivity(next, "Ghi chú học thử", trialNoteSig, undefined, 2),
+        trialNoteLogged: trialNoteSig,
+      };
+    } else if (trialNoteSig !== trialNoteLogged) {
+      next = { ...next, trialNoteLogged: trialNoteSig };
+    }
+
+    // Bước 3 — xếp lớp
+    const plSig = placementSig(next);
+    const plLogged = next.placementLogged ?? "";
+    if (plSig !== plLogged && sigHasContent(plSig)) {
+      const note = next.placementType === "existing"
+        ? `Gán lớp ${next.closedClass || "—"}.`
+        : next.placementType === "waitlist"
+          ? `Danh sách chờ${next.waitlistNote ? `: ${next.waitlistNote}` : "."}`
+          : "Cập nhật thông tin xếp lớp.";
+      next = { ...withActivity(next, "Xếp lớp", note, undefined, 3), placementLogged: plSig };
+    } else if (plSig !== plLogged) {
+      next = { ...next, placementLogged: plSig };
+    }
+
+    // Bước 3 — học phí
+    const fSig = feeSig(next);
+    const fLogged = next.feeLogged ?? "";
+    if (fSig !== fLogged && sigHasContent(fSig)) {
+      const amount = next.tuition ? formatVND(Number(next.tuition.replace(/\D/g, ""))) : "";
+      const note = [
+        next.feeStatus && `Trạng thái: ${next.feeStatus}`,
+        amount && `Số tiền: ${amount}`,
+        next.paymentNote,
+      ].filter(Boolean).join(" · ");
+      next = { ...withActivity(next, "Thu học phí", note || "Cập nhật tình trạng học phí.", undefined, 3), feeLogged: fSig };
+    } else if (fSig !== fLogged) {
+      next = { ...next, feeLogged: fSig };
+    }
+
+    // Bước 3 — chăm sóc sau ghi danh
+    const cSig = careSig(next);
+    const cLogged = next.careLogged ?? "";
+    if (cSig !== cLogged && sigHasContent(cSig)) {
+      const rows = ([1, 2, 3] as const).map((n) => {
+        const d = leadSigPart(next[`care${n}Date` as "care1Date" | "care2Date" | "care3Date"]);
+        const t = leadSigPart(next[`care${n}Note` as "care1Note" | "care2Note" | "care3Note"]);
+        if (!d && !t) return "";
+        return `Lần ${n}${d ? ` · ${d}` : ""}${t ? `: ${t}` : ""}`;
+      }).filter(Boolean);
+      next = {
+        ...withActivity(next, "Chăm sóc sau ghi danh", rows.join(" | ") || "Cập nhật chăm sóc.", undefined, 3),
+        careLogged: cSig,
+      };
+    } else if (cSig !== cLogged) {
+      next = { ...next, careLogged: cSig };
+    }
+
+    // Bước 3 — quản lý check
+    const mgrSig = next.managerChecked ? "true" : "false";
+    const mgrLogged = next.managerCheckedLogged ?? "false";
+    if (mgrSig !== mgrLogged) {
+      next = {
+        ...withActivity(
+          next,
+          "Quản lý check",
+          mgrSig === "true" ? "Đã rà soát đầy đủ nhật ký chăm sóc." : "Đã bỏ xác nhận quản lý check.",
+          undefined,
+          3,
+        ),
+        managerCheckedLogged: mgrSig,
+      };
+    }
+
+    // Lý do Fail
+    const flSig = failSig(next);
+    const flLogged = next.failLogged ?? "";
+    if (flSig !== flLogged && sigHasContent(flSig)) {
+      const note = [
+        next.failCategory && `Loại: ${next.failCategory}`,
+        next.failReason,
+      ].filter(Boolean).join(" · ");
+      next = { ...withActivity(next, "Lý do Fail", note || "Cập nhật lý do Fail.", undefined, next.step), failLogged: flSig };
+    } else if (flSig !== flLogged) {
+      next = { ...next, failLogged: flSig };
+    }
+
+    return next;
+  };
+
+  const saveLead = (msg = "Đã lưu thay đổi") => {
+    onSave(appendAllSaveLogs(lead), msg);
+  };
+
   const goStep2 = () => {
     const next = withActivity(
       { ...lead, step: 2, status: lead.step >= 2 ? lead.status : "Chờ test" },
@@ -7713,33 +8007,6 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
     setActiveStep(2);
   };
 
-  // Lưu Bước 2: tự động ghi log lịch test / học thử khi có thay đổi
-  const saveStep2 = () => {
-    let next = lead;
-    const testSig = lead.testDate && lead.testCenter ? `${lead.testDate}|${lead.testCenter}` : "";
-    if (testSig && testSig !== lead.testScheduleLogged) {
-      next = withActivity(
-        { ...next, testScheduleLogged: testSig },
-        "Lịch test",
-        `Ngày ${lead.testDate} hẹn test ở ${lead.testCenter}.`,
-        undefined,
-        2,
-      );
-    }
-    const trialCenter = facilityLabel(lead.facility);
-    const trialSig = lead.trialDate ? `${lead.trialDate}|${lead.facility}|${lead.trialClass ?? ""}` : "";
-    if (trialSig && trialSig !== lead.trialScheduleLogged) {
-      next = withActivity(
-        { ...next, trialScheduleLogged: trialSig },
-        "Lịch học thử",
-        `Ngày ${lead.trialDate} học thử tại ${trialCenter}${lead.trialClass ? ` · lớp ${lead.trialClass}` : ""}.`,
-        undefined,
-        2,
-      );
-    }
-    onSave(next, "Đã lưu");
-  };
-
   const goStep3 = () => {
     const next = withActivity(
       { ...lead, step: 3, status: lead.step >= 3 ? lead.status : "Chờ xếp lớp" },
@@ -7748,37 +8015,6 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
     );
     onSave(next, "Đã sang Bước 3");
     setActiveStep(3);
-  };
-
-  const confirmPlacement = () => {
-    if (!lead.placementType) {
-      toast.error("Vui lòng chọn gán lớp có sẵn hoặc danh sách chờ");
-      return;
-    }
-    if (lead.placementType === "existing" && !lead.closedClass) {
-      toast.error("Vui lòng chọn lớp chính thức");
-      return;
-    }
-    const status: LeadStatus = lead.placementType === "existing" ? "Xếp lớp cụ thể chờ đóng học phí" : "Xếp lớp chờ";
-    const placementNote = lead.placementType === "existing"
-      ? `Đã gán vào lớp ${lead.closedClass}.`
-      : `Đã đưa vào danh sách chờ. ${lead.waitlistNote || ""}`.trim();
-    const next = withActivity(
-      { ...lead, step: 3, status, feeStatus: lead.feeStatus ?? "Chưa thu" },
-      "Xếp lớp",
-      placementNote,
-    );
-    onSave(next, "Đã xếp lớp");
-    setActiveStep(3);
-  };
-
-  const finishEnroll = () => {
-    const next = withActivity(
-      { ...lead, step: 3, status: "Đã nhập học" },
-      "Nhập học",
-      `Khách đã hoàn tất học phí và chính thức vào học. ${lead.paymentNote || ""}`.trim(),
-    );
-    onSave(next, "Đã nhập học");
   };
 
   const recordPayment = () => {
@@ -7794,9 +8030,71 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
     onSave(next, "Đã ghi nhận thu học phí");
   };
 
+  const handleHeaderSave = () => {
+    if (isNewLead) {
+      if (!lead.studentName.trim() && !lead.parentName.trim()) {
+        toast.error("Vui lòng nhập tên học viên hoặc phụ huynh");
+        return;
+      }
+      if (!lead.phone.trim()) {
+        toast.error("Vui lòng nhập SĐT");
+        return;
+      }
+      let next = appendAllSaveLogs({
+        ...lead,
+        statusSince: lead.statusSince || formatAdmissionDate(new Date()),
+      });
+      if (!next.activities?.some((a) => a.action === "Tiếp nhận lead")) {
+        next = withActivity(
+          next,
+          "Tiếp nhận lead",
+          `Lead mới · ${[next.studentName, next.parentName, next.phone].filter(Boolean).join(" · ")}.`,
+          undefined,
+          1,
+        );
+      }
+      onSave(next, "Đã tạo lead mới");
+      onOpenChange(false);
+      return;
+    }
+    saveLead();
+  };
+
+  const studentInfoFields = (
+    <div className="grid grid-cols-4 gap-x-2.5 gap-y-2">
+      <Field label="Nguồn data">
+        <Select value={lead.source} onValueChange={(v) => update("source", v)}>
+          <SelectTrigger><SelectValue placeholder="Chọn nguồn" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="Chị Liên">Chị Liên</SelectItem>
+            <SelectItem value="Page">Page</SelectItem>
+            <SelectItem value="Vãng lai">Vãng lai</SelectItem>
+          </SelectContent>
+        </Select>
+      </Field>
+      <Field label="Họ tên PHHS"><Input value={lead.parentName} onChange={(e) => update("parentName", e.target.value)} placeholder="VD: Mẹ An" /></Field>
+      <Field label="SĐT"><Input value={lead.phone} onChange={(e) => update("phone", e.target.value)} placeholder="09xxxxxxxx" /></Field>
+      <Field label="Họ tên học sinh"><Input value={lead.studentName} onChange={(e) => update("studentName", e.target.value)} /></Field>
+      <Field label="Ngày sinh"><Input type="text" value={lead.dob} onChange={(e) => update("dob", e.target.value)} placeholder="dd/mm/yyyy" /></Field>
+      <Field label="Lớp">
+        <Select value={lead.grade} onValueChange={(v) => update("grade", v)}>
+          <SelectTrigger><SelectValue placeholder="Chọn lớp" /></SelectTrigger>
+          <SelectContent>
+            {["Mầm non","Lớp 1","Lớp 2","Lớp 3","Lớp 4","Lớp 5","Lớp 6","Lớp 7","Lớp 8","Lớp 9"].map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </Field>
+      <Field label="Trường"><Input value={lead.school} onChange={(e) => update("school", e.target.value)} /></Field>
+      <Field label="Đặc điểm"><Input value={lead.feature} onChange={(e) => update("feature", e.target.value)} placeholder="Ghi chú ngắn..." /></Field>
+    </div>
+  );
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[96vw] max-w-[1500px] h-[96vh] max-h-[96vh] p-0 gap-0 overflow-hidden flex flex-col [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+      <DialogContent className={cn(
+        "w-[96vw] p-0 gap-0 overflow-hidden flex flex-col [&::-webkit-scrollbar]:hidden [scrollbar-width:none]",
+        isNewLead ? "max-w-3xl h-auto max-h-[90vh]" : "max-w-[1500px] h-[96vh] max-h-[96vh]",
+      )}>
         <DialogHeader className="px-5 py-3 border-b border-slate-200 bg-slate-50/60">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-lg bg-teal-100 text-teal-700 grid place-content-center font-bold">
@@ -7804,68 +8102,88 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
             </div>
             <div className="flex-1 min-w-0">
               <DialogTitle className="text-base">
-                {isEmpty ? "Thêm Lead Mới" : lead.studentName}
+                {isNewLead ? "Thêm Lead Mới" : isEmpty ? "Lead" : lead.studentName}
               </DialogTitle>
               <DialogDescription className="text-xs">
-                {isEmpty ? "Điền thông tin để bắt đầu quy trình tuyển sinh" : `${lead.parentName} · ${lead.phone}`}
+                {isNewLead ? "Điền thông tin để bắt đầu quy trình tuyển sinh" : isEmpty ? "—" : `${lead.parentName} · ${lead.phone}`}
               </DialogDescription>
             </div>
           </div>
 
-          {/* Phụ trách + Trạng thái (gộp cùng hàng) */}
-          <div className="mt-2 flex items-center gap-x-3 gap-y-2 text-xs flex-wrap">
-            <div className="flex items-center gap-2">
-              <Users className="h-3.5 w-3.5 text-slate-500" />
-              <span className="text-slate-500">Phụ trách:</span>
-              {canAssign ? (
-                <Select value={lead.assignedTo ?? ""} onValueChange={(v) => update("assignedTo", v)}>
-                  <SelectTrigger className="h-7 w-[200px] text-xs">
-                    <SelectValue placeholder="Chưa phân" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {staff.map((s) => (
-                      <SelectItem key={s.id} value={s.id} className="text-xs">{s.name} <span className="text-slate-400">· {s.facility}</span></SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <span className="font-medium text-slate-700">{staff.find((s) => s.id === lead.assignedTo)?.name ?? "Chưa phân"}</span>
-              )}
-            </div>
-            {!isEmpty && (
-              <div className="flex items-center gap-2 pl-3 border-l border-slate-200 flex-wrap">
-                <span className="text-slate-500">Trạng thái:</span>
-                <Badge variant="outline" className={cn("text-[11px] font-medium", STATUS_BADGE[lead.status])}>{lead.status}</Badge>
-                <Select value={lead.status} onValueChange={(v) => changeStatus(v as LeadStatus)}>
-                  <SelectTrigger className="h-7 w-[210px] text-xs"><SelectValue /></SelectTrigger>
-                  <SelectContent className="max-h-[70vh]">
-                    <SelectGroup>
-                      <SelectLabel>Tham vấn</SelectLabel>
-                      {LEAD_JOURNEY.filter((j) => j.step === 1).map((j) => (<SelectItem key={j.status} value={j.status} className="text-xs">{j.status}</SelectItem>))}
-                    </SelectGroup>
-                    <SelectGroup>
-                      <SelectLabel>Test & Học thử</SelectLabel>
-                      {LEAD_JOURNEY.filter((j) => j.step === 2).map((j) => (<SelectItem key={j.status} value={j.status} className="text-xs">{j.status}</SelectItem>))}
-                    </SelectGroup>
-                    <SelectGroup>
-                      <SelectLabel>Xếp lớp & Học phí</SelectLabel>
-                      {LEAD_JOURNEY.filter((j) => j.step === 3).map((j) => (<SelectItem key={j.status} value={j.status} className="text-xs">{j.status}</SelectItem>))}
-                    </SelectGroup>
-                    <SelectGroup>
-                      <SelectLabel>Khác</SelectLabel>
-                      {CROSS_STATUSES.map((c) => (<SelectItem key={c.status} value={c.status} className="text-xs">{c.status}</SelectItem>))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-                <span className={cn("inline-flex items-center gap-1", isStuck(lead) ? "text-rose-600 font-medium" : "text-slate-500")}>
-                  <Clock className="h-3 w-3" />
-                  {isStuck(lead) ? `Kẹt ${daysInStatus(lead)} ngày` : `${daysInStatus(lead)} ngày`}
-                </span>
+          {/* Phụ trách + Trạng thái + Lưu */}
+          <div className={cn("mt-2 text-xs", isNewLead ? "flex items-center gap-x-3" : "grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px] gap-2")}>
+            <div className="flex items-center gap-x-3 gap-y-2 min-w-0">
+              <div className="flex flex-1 min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
+              <div className="flex items-center gap-2">
+                <Users className="h-3.5 w-3.5 text-slate-500" />
+                <span className="text-slate-500">Phụ trách:</span>
+                {canAssign ? (
+                  <Select value={lead.assignedTo ?? ""} onValueChange={(v) => update("assignedTo", v)}>
+                    <SelectTrigger className="h-7 w-[200px] text-xs">
+                      <SelectValue placeholder="Chưa phân" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {staff.map((s) => (
+                        <SelectItem key={s.id} value={s.id} className="text-xs">{s.name} <span className="text-slate-400">· {s.facility}</span></SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <span className="font-medium text-slate-700">{staff.find((s) => s.id === lead.assignedTo)?.name ?? "Chưa phân"}</span>
+                )}
               </div>
-            )}
+              {!isNewLead && !isEmpty && (
+                <div className="flex items-center gap-2 pl-3 border-l border-slate-200 flex-wrap">
+                  <span className="text-slate-500">Trạng thái:</span>
+                  <Badge variant="outline" className={cn("text-[11px] font-medium", STATUS_BADGE[lead.status])}>{lead.status}</Badge>
+                  <Select value={lead.status} onValueChange={(v) => changeStatus(v as LeadStatus)}>
+                    <SelectTrigger className="h-7 w-[210px] text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent className="max-h-[70vh]">
+                      <SelectGroup>
+                        <SelectLabel>Tham vấn</SelectLabel>
+                        {LEAD_JOURNEY.filter((j) => j.step === 1).map((j) => (<SelectItem key={j.status} value={j.status} className="text-xs">{j.status}</SelectItem>))}
+                      </SelectGroup>
+                      <SelectGroup>
+                        <SelectLabel>Test & Học thử</SelectLabel>
+                        {LEAD_JOURNEY.filter((j) => j.step === 2).map((j) => (<SelectItem key={j.status} value={j.status} className="text-xs">{j.status}</SelectItem>))}
+                      </SelectGroup>
+                      <SelectGroup>
+                        <SelectLabel>Xếp lớp & Học phí</SelectLabel>
+                        {LEAD_JOURNEY.filter((j) => j.step === 3).map((j) => (<SelectItem key={j.status} value={j.status} className="text-xs">{j.status}</SelectItem>))}
+                      </SelectGroup>
+                      <SelectGroup>
+                        <SelectLabel>Khác</SelectLabel>
+                        {CROSS_STATUSES.map((c) => (<SelectItem key={c.status} value={c.status} className="text-xs">{c.status}</SelectItem>))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                  <span className={cn("inline-flex items-center gap-1", isStuck(lead) ? "text-rose-600 font-medium" : "text-slate-500")}>
+                    <Clock className="h-3 w-3" />
+                    {isStuck(lead) ? `Kẹt ${daysInStatus(lead)} ngày` : `${daysInStatus(lead)} ngày`}
+                  </span>
+                </div>
+              )}
+              </div>
+              <Button
+                className="h-9 shrink-0 px-4 text-sm font-medium bg-teal-600 hover:bg-teal-700 text-white shadow-sm"
+                onClick={handleHeaderSave}
+              >
+                Lưu
+              </Button>
+            </div>
           </div>
         </DialogHeader>
 
+        {isNewLead ? (
+          <div className="flex-1 overflow-y-auto px-5 py-4 [&_input]:h-8 [&_button[role=combobox]]:h-8 [&_label]:text-xs">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="h-1.5 w-1.5 rounded-full bg-orange-500" />
+              <h3 className="text-sm font-semibold text-slate-800">Thông tin học viên</h3>
+            </div>
+            {studentInfoFields}
+          </div>
+        ) : (
+        <>
         <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px] overflow-hidden">
         <Tabs value={String(activeStep)} onValueChange={(v) => setActiveStep(Number(v) as 1 | 2 | 3)} className="min-w-0 flex flex-col overflow-hidden">
           <TabsList className="mx-4 mt-3 grid grid-cols-3 w-auto">
@@ -7882,7 +8200,6 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
                 <Input
                   value={lead.blocker1 ?? ""}
                   onChange={(e) => update("blocker1", e.target.value)}
-                  onBlur={() => onSave(lead)}
                   placeholder="Đang tắc ở đâu? Cần gì để đẩy tiếp..."
                   className="bg-white h-8 flex-1"
                 />
@@ -7893,32 +8210,7 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
                 <div className="h-1.5 w-1.5 rounded-full bg-orange-500" />
                 <h3 className="text-sm font-semibold text-slate-800">Thông tin học viên</h3>
               </div>
-              <div className="grid grid-cols-4 gap-x-2.5 gap-y-2">
-                <Field label="Nguồn data">
-                  <Select value={lead.source} onValueChange={(v) => update("source", v)}>
-                    <SelectTrigger><SelectValue placeholder="Chọn nguồn" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Chị Liên">Chị Liên</SelectItem>
-                      <SelectItem value="Page">Page</SelectItem>
-                      <SelectItem value="Vãng lai">Vãng lai</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field label="Họ tên PHHS"><Input value={lead.parentName} onChange={(e) => update("parentName", e.target.value)} placeholder="VD: Mẹ An" /></Field>
-                <Field label="SĐT"><Input value={lead.phone} onChange={(e) => update("phone", e.target.value)} placeholder="09xxxxxxxx" /></Field>
-                <Field label="Họ tên học sinh"><Input value={lead.studentName} onChange={(e) => update("studentName", e.target.value)} /></Field>
-                <Field label="Ngày sinh"><Input type="text" value={lead.dob} onChange={(e) => update("dob", e.target.value)} placeholder="dd/mm/yyyy" /></Field>
-                <Field label="Lớp">
-                  <Select value={lead.grade} onValueChange={(v) => update("grade", v)}>
-                    <SelectTrigger><SelectValue placeholder="Chọn lớp" /></SelectTrigger>
-                    <SelectContent>
-                      {["Mầm non","Lớp 1","Lớp 2","Lớp 3","Lớp 4","Lớp 5","Lớp 6","Lớp 7","Lớp 8","Lớp 9"].map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field label="Trường"><Input value={lead.school} onChange={(e) => update("school", e.target.value)} /></Field>
-                <Field label="Đặc điểm"><Input value={lead.feature} onChange={(e) => update("feature", e.target.value)} placeholder="Ghi chú ngắn..." /></Field>
-              </div>
+              {studentInfoFields}
             </div>
 
             <section className="rounded-lg border border-orange-200 bg-orange-50/40 p-3">
@@ -7948,261 +8240,262 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
           </TabsContent>
 
           {/* TAB 2 */}
-          <TabsContent value="2" className="flex-1 overflow-y-auto px-4 py-3 mt-0 space-y-3 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+          <TabsContent value="2" className="flex-1 min-h-0 overflow-hidden flex flex-col gap-2 px-4 py-2 mt-0 [&_input]:h-8 [&_button[role=combobox]]:h-8 [&_label]:text-xs">
             {!isEmpty && (
-              <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50/60 px-2.5 py-1.5">
+              <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50/60 px-2 py-1 shrink-0">
                 <span className="text-xs text-amber-600 shrink-0 inline-flex items-center gap-1"><AlertTriangle className="h-3.5 w-3.5" /> Vướng mắc bước này:</span>
                 <Input
                   value={lead.blocker2 ?? ""}
                   onChange={(e) => update("blocker2", e.target.value)}
-                  onBlur={() => onSave(lead)}
                   placeholder="Đang tắc ở đâu? Cần gì để đẩy tiếp..."
                   className="bg-white h-8 flex-1"
                 />
               </div>
             )}
-            <section className="rounded-lg border border-orange-200 bg-orange-50/40 p-2.5 space-y-2.5">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <h3 className="text-sm font-semibold text-slate-800">Quyết định sau tham vấn</h3>
-                  <p className="text-[11px] text-slate-500">Chọn test đầu vào hoặc chuyển thẳng sang học thử.</p>
+            <div className="flex-1 min-h-0 grid grid-cols-2 gap-2 overflow-hidden">
+              <section className="rounded-lg border border-orange-200 bg-orange-50/40 p-2 flex flex-col gap-2 min-h-0 overflow-hidden">
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  <h3 className="text-sm font-semibold text-slate-800 shrink-0">Test đầu vào</h3>
+                  <button
+                    type="button"
+                    onClick={() => update("consultationDecision", "test")}
+                    className={cn(
+                      "rounded-md border bg-white px-2.5 py-1 text-xs font-medium transition-colors",
+                      lead.consultationDecision === "test" ? "border-teal-500 ring-1 ring-teal-500 text-teal-700" : "border-slate-200 text-slate-600 hover:border-slate-300",
+                    )}
+                  >
+                    Có test
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => update("consultationDecision", "no-test")}
+                    className={cn(
+                      "rounded-md border bg-white px-2.5 py-1 text-xs font-medium transition-colors",
+                      lead.consultationDecision === "no-test" ? "border-teal-500 ring-1 ring-teal-500 text-teal-700" : "border-slate-200 text-slate-600 hover:border-slate-300",
+                    )}
+                  >
+                    Không test
+                  </button>
                 </div>
-              <div className="grid w-[480px] grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => update("consultationDecision", "test")}
-                  className={cn(
-                    "rounded-md border px-3 py-1.5 text-left transition-colors",
-                    lead.consultationDecision === "test" ? "border-teal-500 bg-white ring-1 ring-teal-500" : "border-slate-200 bg-white hover:border-slate-300",
-                  )}
-                >
-                  <div className="font-medium text-sm">Test đầu vào</div>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => update("consultationDecision", "no-test")}
-                  className={cn(
-                    "rounded-md border px-3 py-1.5 text-left transition-colors",
-                    lead.consultationDecision === "no-test" ? "border-teal-500 bg-white ring-1 ring-teal-500" : "border-slate-200 bg-white hover:border-slate-300",
-                  )}
-                >
-                  <div className="font-medium text-sm">Không test</div>
-                </button>
-              </div>
-              </div>
+                {lead.consultationDecision === "test" ? (
+                  <div className="flex flex-col gap-2 min-h-0">
+                    <div className="grid grid-cols-2 gap-2">
+                      <Field label="Ngày test">
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className={cn("h-8 w-full justify-start bg-white font-normal text-xs", !lead.testDate && "text-muted-foreground")}
+                            >
+                              <CalendarIcon className="mr-1.5 h-3.5 w-3.5" />
+                              {lead.testDate || "Chọn ngày"}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <CalendarUI
+                              mode="single"
+                              selected={parseAdmissionDate(lead.testDate)}
+                              onSelect={(date) => update("testDate", date ? formatAdmissionDate(date) : "")}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </Field>
+                      <Field label="Trung tâm test">
+                        <Select value={lead.testCenter ?? ""} onValueChange={(v) => update("testCenter", v as Lead["testCenter"])}>
+                          <SelectTrigger className="h-8"><SelectValue placeholder="Chọn TT" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Đội Cấn">Đội Cấn</SelectItem>
+                            <SelectItem value="Hoàng Hoa Thám">Hoàng Hoa Thám</SelectItem>
+                            <SelectItem value="Ngọc Hà">Ngọc Hà</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </Field>
+                      <Field label="Kết quả test">
+                        <label className="flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2 text-xs hover:bg-slate-50">
+                          <Upload className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+                          <span className="truncate">{lead.testFileName || "Chọn file"}</span>
+                          <input
+                            type="file"
+                            className="hidden"
+                            onChange={(e) => update("testFileName", e.target.files?.[0]?.name ?? "")}
+                          />
+                        </label>
+                      </Field>
+                      <Field label="Trạng thái">
+                        <Select value={lead.testResult ?? "Pending"} onValueChange={(v) => update("testResult", v as Lead["testResult"])}>
+                          <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Pending">Chờ kết quả</SelectItem>
+                            <SelectItem value="Thành công">Đã trả KQ</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </Field>
+                    </div>
+                    <Field label="Ghi chú kết quả">
+                      <Input
+                        value={lead.testNote ?? ""}
+                        onChange={(e) => update("testNote", e.target.value)}
+                        placeholder="Nhận xét năng lực, trình độ phù hợp..."
+                        className="bg-white h-8"
+                      />
+                    </Field>
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    {lead.consultationDecision === "no-test"
+                      ? "Lead chuyển thẳng sang học thử, bỏ qua test đầu vào."
+                      : "Chọn có test hoặc không test để tiếp tục."}
+                  </p>
+                )}
+              </section>
 
-              {lead.consultationDecision === "test" && (
-                <div className="space-y-2.5 border-t border-orange-200 pt-2.5">
-                  <div className="grid grid-cols-4 gap-2">
-                  <Field label="Ngày test">
+              <section className="rounded-lg border border-amber-200 bg-amber-50/40 p-2 flex flex-col gap-2 min-h-0 overflow-hidden">
+                <h3 className="text-sm font-semibold text-slate-800 shrink-0">Học thử</h3>
+                <div className="grid grid-cols-2 gap-2">
+                  <Field label="Ngày học thử">
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button
                           type="button"
                           variant="outline"
-                          className={cn("w-full justify-start bg-white font-normal", !lead.testDate && "text-muted-foreground")}
+                          className={cn("h-8 w-full justify-start bg-white font-normal text-xs", !lead.trialDate && "text-muted-foreground")}
                         >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {lead.testDate || "Chọn ngày test"}
+                          <CalendarIcon className="mr-1.5 h-3.5 w-3.5" />
+                          {lead.trialDate || "Chọn ngày"}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
                         <CalendarUI
                           mode="single"
-                          selected={parseAdmissionDate(lead.testDate)}
-                          onSelect={(date) => update("testDate", date ? formatAdmissionDate(date) : "")}
+                          selected={parseAdmissionDate(lead.trialDate)}
+                          onSelect={(date) => update("trialDate", date ? formatAdmissionDate(date) : "")}
                           initialFocus
                         />
                       </PopoverContent>
                     </Popover>
                   </Field>
-                  <Field label="Trung tâm test">
-                    <Select value={lead.testCenter ?? ""} onValueChange={(v) => update("testCenter", v as Lead["testCenter"])}>
-                      <SelectTrigger><SelectValue placeholder="Chọn trung tâm" /></SelectTrigger>
+                  <Field label="Cơ sở">
+                    <Select value={lead.facility} onValueChange={(v) => update("facility", v)}>
+                      <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Đội Cấn">Đội Cấn</SelectItem>
-                        <SelectItem value="Hoàng Hoa Thám">Hoàng Hoa Thám</SelectItem>
-                        <SelectItem value="Ngọc Hà">Ngọc Hà</SelectItem>
+                        <SelectItem value="ĐC">ĐC</SelectItem>
+                        <SelectItem value="NH">NH</SelectItem>
+                        <SelectItem value="HHT">HHT</SelectItem>
                       </SelectContent>
                     </Select>
                   </Field>
-                  <Field label="Kết quả test">
-                    <label className="flex h-9 cursor-pointer items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm hover:bg-slate-50">
-                      <Upload className="h-4 w-4 text-slate-500" />
-                      <span className="truncate">{lead.testFileName || "Chọn file kết quả test"}</span>
-                      <input
-                        type="file"
-                        className="hidden"
-                        onChange={(e) => update("testFileName", e.target.files?.[0]?.name ?? "")}
-                      />
-                    </label>
-                  </Field>
-                  <Field label="Trạng thái">
-                    <Select value={lead.testResult ?? "Pending"} onValueChange={(v) => update("testResult", v as Lead["testResult"])}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                  <Field label="Lớp học thử" className="col-span-2">
+                    <Select value={lead.trialClass ?? ""} onValueChange={(v) => update("trialClass", v)}>
+                      <SelectTrigger className="h-8"><SelectValue placeholder="Chọn lớp học thử" /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Pending">Đang chờ kết quả</SelectItem>
-                        <SelectItem value="Thành công">Đã trả kết quả</SelectItem>
+                        {CLASSES.map((c) => <SelectItem key={c.id} value={c.name}>{c.name} · {c.branch}</SelectItem>)}
                       </SelectContent>
                     </Select>
-                  </Field>
-                  </div>
-                  <Field label="Ghi chú kết quả">
-                    <Textarea rows={3} value={lead.testNote ?? ""} onChange={(e) => update("testNote", e.target.value)} placeholder="Nhận xét năng lực, trình độ phù hợp..." />
                   </Field>
                 </div>
-              )}
-            </section>
-            <div className="grid grid-cols-2 gap-3 h-full content-start">
-            <section className="rounded-lg border border-amber-200 bg-amber-50/40 p-3 space-y-3">
-              <h3 className="text-sm font-semibold text-slate-800">Học thử</h3>
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Ngày học thử">
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className={cn("w-full justify-start bg-white font-normal", !lead.trialDate && "text-muted-foreground")}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {lead.trialDate || "Chọn ngày học thử"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <CalendarUI
-                        mode="single"
-                        selected={parseAdmissionDate(lead.trialDate)}
-                        onSelect={(date) => update("trialDate", date ? formatAdmissionDate(date) : "")}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
+                <Field label="Ghi chú học thử">
+                  <Input
+                    value={lead.trialNote ?? ""}
+                    onChange={(e) => update("trialNote", e.target.value)}
+                    placeholder="Phản hồi GV, mức độ phù hợp..."
+                    className="bg-white h-8"
+                  />
                 </Field>
-                <Field label="Lớp học thử">
-                  <Select value={lead.trialClass ?? ""} onValueChange={(v) => update("trialClass", v)}>
-                    <SelectTrigger><SelectValue placeholder="Chọn lớp học thử" /></SelectTrigger>
-                    <SelectContent>
-                      {CLASSES.map((c) => <SelectItem key={c.id} value={c.name}>{c.name} · {c.branch}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field label="Cơ sở">
-                  <Select value={lead.facility} onValueChange={(v) => update("facility", v)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="ĐC">ĐC</SelectItem>
-                      <SelectItem value="NH">NH</SelectItem>
-                      <SelectItem value="HHT">HHT</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field label="Ghi chú học thử" className="col-span-2">
-                  <Textarea rows={2} value={lead.trialNote ?? ""} onChange={(e) => update("trialNote", e.target.value)} placeholder="Mức độ phù hợp, phản hồi của giáo viên và phụ huynh..." />
-                </Field>
-              </div>
-            </section>
-
+              </section>
             </div>
 
           </TabsContent>
 
           {/* TAB 3 */}
-          <TabsContent value="3" className="flex-1 overflow-y-auto px-4 py-3 mt-0 space-y-3 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+          <TabsContent value="3" className="flex-1 min-h-0 overflow-hidden flex flex-col gap-2 px-4 py-2 mt-0 [&_input]:h-8 [&_button[role=combobox]]:h-8 [&_label]:text-xs">
             {!isEmpty && (
-              <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50/60 px-2.5 py-1.5">
+              <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50/60 px-2 py-1 shrink-0">
                 <span className="text-xs text-amber-600 shrink-0 inline-flex items-center gap-1"><AlertTriangle className="h-3.5 w-3.5" /> Vướng mắc bước này:</span>
                 <Input
                   value={lead.blocker3 ?? ""}
                   onChange={(e) => update("blocker3", e.target.value)}
-                  onBlur={() => onSave(lead)}
                   placeholder="Đang tắc ở đâu? Cần gì để đẩy tiếp..."
                   className="bg-white h-8 flex-1"
                 />
               </div>
             )}
-            <section className="rounded-lg border border-teal-200 bg-teal-50/40 p-3 space-y-3">
-              <div>
-                <h3 className="text-sm font-semibold text-slate-800">Chốt lớp</h3>
-                <p className="text-xs text-slate-500 mt-1">Gán vào lớp đang có hoặc đưa lead vào danh sách chờ.</p>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
+            <section className="shrink-0 rounded-lg border border-teal-200 bg-teal-50/40 p-2 space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="text-sm font-semibold text-slate-800 shrink-0">Chốt lớp</h3>
                 <button
                   type="button"
                   onClick={() => update("placementType", "existing")}
                   className={cn(
-                    "rounded-md border bg-white px-3 py-2 text-left",
-                    lead.placementType === "existing" ? "border-teal-500 ring-1 ring-teal-500" : "border-slate-200",
+                    "rounded-md border bg-white px-2.5 py-1 text-xs font-medium transition-colors",
+                    lead.placementType === "existing" ? "border-teal-500 ring-1 ring-teal-500 text-teal-700" : "border-slate-200 text-slate-600 hover:border-slate-300",
                   )}
                 >
-                  <div className="font-medium text-sm">Gán vào lớp có sẵn</div>
-                  <div className="text-xs text-slate-500 mt-1">Chọn một lớp chính thức đang hoạt động.</div>
+                  Gán lớp có sẵn
                 </button>
                 <button
                   type="button"
                   onClick={() => update("placementType", "waitlist")}
                   className={cn(
-                    "rounded-md border bg-white px-3 py-2 text-left",
-                    lead.placementType === "waitlist" ? "border-teal-500 ring-1 ring-teal-500" : "border-slate-200",
+                    "rounded-md border bg-white px-2.5 py-1 text-xs font-medium transition-colors",
+                    lead.placementType === "waitlist" ? "border-teal-500 ring-1 ring-teal-500 text-teal-700" : "border-slate-200 text-slate-600 hover:border-slate-300",
                   )}
                 >
-                  <div className="font-medium text-sm">Danh sách chờ</div>
-                  <div className="text-xs text-slate-500 mt-1">Chờ đủ học viên hoặc mở lớp phù hợp.</div>
+                  Danh sách chờ
                 </button>
-              </div>
-              {lead.placementType === "existing" && (
-                <Field label="Lớp chính thức">
-                  <Select value={lead.closedClass ?? ""} onValueChange={(v) => update("closedClass", v)}>
-                  <SelectTrigger><SelectValue placeholder="Chọn lớp chốt" /></SelectTrigger>
-                  <SelectContent>
-                      {CLASSES.map((c) => <SelectItem key={c.id} value={c.name}>{c.name} · {c.branch}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </Field>
-              )}
-              {lead.placementType === "waitlist" && (
-                <Field label="Ghi chú danh sách chờ">
-                  <Textarea rows={2} value={lead.waitlistNote ?? ""} onChange={(e) => update("waitlistNote", e.target.value)} placeholder="Khung giờ, trình độ hoặc lớp phụ huynh mong muốn..." />
-                </Field>
-              )}
-            </section>
-            <div className="grid grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] gap-3 h-full content-start">
-            <section className="rounded-lg border border-emerald-200 bg-emerald-50/40 p-3 space-y-3">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h3 className="text-sm font-semibold text-slate-800">Tình trạng học phí</h3>
-                  <p className="text-xs text-slate-500 mt-1">Ghi nhận khoản thu và tự động thêm vào nhật ký lead.</p>
-                </div>
-                <Badge variant="outline" className="bg-white">{lead.feeStatus ?? "Chưa thu"}</Badge>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <Info2 label="Trạng thái" value={lead.feeStatus ?? "Chưa thu"} />
-                <Info2 label="Số tiền thu (VNĐ)" value={lead.tuition ? formatVND(Number(lead.tuition.replace(/\D/g, ""))) : ""} />
-              </div>
-            </section>
-
-            <section className="rounded-lg border border-slate-200 bg-white p-3">
-              <h3 className="text-sm font-semibold text-slate-800 mb-2">Chăm sóc sau ghi danh</h3>
-            <div className="relative pl-5 space-y-2.5 before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-teal-200">
-              {[1, 2, 3].map((n) => {
-                const dKey = (`care${n}Date`) as "care1Date" | "care2Date" | "care3Date";
-                const nKey = (`care${n}Note`) as "care1Note" | "care2Note" | "care3Note";
-                return (
-                  <div key={n} className="relative">
-                    <span className="absolute -left-[17px] top-1 h-3 w-3 rounded-full bg-white border-2 border-teal-500" />
-                    <div className="text-xs font-semibold text-slate-800 mb-1">Chăm sóc lần {n}</div>
-                    <div className="grid grid-cols-[140px_1fr] gap-2">
-                      <Input type="text" placeholder="dd/mm/yyyy" value={lead[dKey] ?? ""} onChange={(e) => update(dKey, e.target.value)} />
-                      <Input placeholder={`Ghi chú lần ${n}...`} value={lead[nKey] ?? ""} onChange={(e) => update(nKey, e.target.value)} />
-                    </div>
+                {lead.placementType === "existing" && (
+                  <div className="flex-1 min-w-[200px] max-w-sm">
+                    <Select value={lead.closedClass ?? ""} onValueChange={(v) => update("closedClass", v)}>
+                      <SelectTrigger className="h-8"><SelectValue placeholder="Chọn lớp chính thức" /></SelectTrigger>
+                      <SelectContent>
+                        {CLASSES.map((c) => <SelectItem key={c.id} value={c.name}>{c.name} · {c.branch}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
                   </div>
-                );
-              })}
-            </div>
-            <div className="border-t border-slate-200 pt-2 mt-3">
-              <CheckRow checked={!!lead.managerChecked} onChange={(v) => update("managerChecked", v)} label="Quản lý check — Đã rà soát đầy đủ nhật ký chăm sóc" />
-            </div>
+                )}
+              </div>
+              {lead.placementType === "waitlist" && (
+                <Input
+                  value={lead.waitlistNote ?? ""}
+                  onChange={(e) => update("waitlistNote", e.target.value)}
+                  placeholder="Ghi chú danh sách chờ: khung giờ, trình độ mong muốn..."
+                  className="bg-white h-8"
+                />
+              )}
             </section>
+            <div className="flex-1 min-h-0 grid grid-cols-2 gap-2 overflow-hidden">
+              <section className="rounded-lg border border-emerald-200 bg-emerald-50/40 p-2 flex flex-col gap-2 min-h-0">
+                <div className="flex items-center justify-between gap-2 shrink-0">
+                  <h3 className="text-sm font-semibold text-slate-800">Tình trạng học phí</h3>
+                  <Badge variant="outline" className="bg-white text-[11px] h-6">{lead.feeStatus ?? "Chưa thu"}</Badge>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Info2 label="Trạng thái" value={lead.feeStatus ?? "Chưa thu"} className="px-2 py-1.5" />
+                  <Info2 label="Số tiền thu (VNĐ)" value={lead.tuition ? formatVND(Number(lead.tuition.replace(/\D/g, ""))) : "—"} className="px-2 py-1.5" />
+                </div>
+              </section>
+
+              <section className="rounded-lg border border-slate-200 bg-white p-2 flex flex-col min-h-0 overflow-hidden">
+                <h3 className="text-sm font-semibold text-slate-800 shrink-0 mb-1.5">Chăm sóc sau ghi danh</h3>
+                <div className="space-y-1.5 flex-1 min-h-0">
+                  {[1, 2, 3].map((n) => {
+                    const dKey = (`care${n}Date`) as "care1Date" | "care2Date" | "care3Date";
+                    const nKey = (`care${n}Note`) as "care1Note" | "care2Note" | "care3Note";
+                    return (
+                      <div key={n} className="grid grid-cols-[72px_108px_1fr] gap-1.5 items-center">
+                        <span className="text-[11px] font-medium text-slate-600">Lần {n}</span>
+                        <Input type="text" placeholder="dd/mm/yyyy" value={lead[dKey] ?? ""} onChange={(e) => update(dKey, e.target.value)} className="h-8 text-xs" />
+                        <Input placeholder={`Ghi chú lần ${n}...`} value={lead[nKey] ?? ""} onChange={(e) => update(nKey, e.target.value)} className="h-8 text-xs" />
+                      </div>
+                    );
+                  })}
+                </div>
+                <label className="shrink-0 flex items-center gap-1.5 text-xs text-slate-700 cursor-pointer mt-1.5 pt-1.5 border-t border-slate-200">
+                  <input type="checkbox" checked={!!lead.managerChecked} onChange={(e) => update("managerChecked", e.target.checked)} className="h-3.5 w-3.5 rounded border-slate-300 text-teal-600 focus:ring-teal-500 cursor-pointer" />
+                  Quản lý check — đã rà soát nhật ký chăm sóc
+                </label>
+              </section>
             </div>
 
           </TabsContent>
@@ -8213,7 +8506,7 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
         {!isEmpty && lead.status === "Fail" && (
           <div className="px-5 py-2 border-t border-rose-100 bg-rose-50/50 flex items-center gap-2">
             <span className="text-xs text-rose-600 shrink-0 inline-flex items-center gap-1 w-[110px]"><XCircle className="h-3.5 w-3.5" /> Lý do Fail:</span>
-            <Select value={lead.failCategory ?? ""} onValueChange={(v) => onSave({ ...lead, failCategory: v }, "Đã cập nhật lý do Fail")}>
+            <Select value={lead.failCategory ?? ""} onValueChange={(v) => update("failCategory", v)}>
               <SelectTrigger className="h-8 w-[190px] text-xs bg-white shrink-0"><SelectValue placeholder="Chọn loại lý do" /></SelectTrigger>
               <SelectContent>
                 {FAIL_REASONS.map((r) => <SelectItem key={r} value={r} className="text-xs">{r}</SelectItem>)}
@@ -8222,7 +8515,6 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
             <Input
               value={lead.failReason ?? ""}
               onChange={(e) => update("failReason", e.target.value)}
-              onBlur={() => onSave(lead)}
               placeholder="Ghi chú chi tiết lý do Fail..."
               className="bg-white h-8"
             />
@@ -8232,14 +8524,10 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
         {/* Footer per step */}
         <DialogFooter className="px-5 py-2 border-t border-slate-200 bg-slate-50/60">
           {activeStep === 1 && (
-            <div className="flex w-full justify-between gap-2">
-              <div />
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => onSave(lead)}>Lưu</Button>
+            <div className="flex w-full justify-end gap-2">
                 <Button className="bg-teal-600 hover:bg-teal-700 text-white gap-1.5" onClick={goStep2}>
                   Sang Bước 2 · Test & Học thử <ArrowRight className="h-4 w-4" />
                 </Button>
-              </div>
             </div>
           )}
           {activeStep === 2 && (
@@ -8248,7 +8536,6 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
                 <ArrowLeft className="h-4 w-4" /> Quay lại Bước 1
               </Button>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={saveStep2}>Lưu</Button>
                 <Button className="bg-teal-600 hover:bg-teal-700 text-white gap-1.5" onClick={goStep3}>
                   Sang Bước 3 · Xếp lớp & Học phí <ArrowRight className="h-4 w-4" />
                 </Button>
@@ -8256,21 +8543,15 @@ function LeadDialog({ open, onOpenChange, lead, setLead, activeStep, setActiveSt
             </div>
           )}
           {activeStep === 3 && (
-            <div className="flex w-full justify-between gap-2 flex-wrap">
+            <div className="flex w-full justify-start gap-2 flex-wrap">
               <Button variant="ghost" onClick={() => setActiveStep(2)} className="gap-1.5">
                 <ArrowLeft className="h-4 w-4" /> Quay lại Bước 2
               </Button>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={confirmPlacement} className="gap-1.5">
-                  <CheckCircle2 className="h-4 w-4" /> Xác nhận xếp lớp
-                </Button>
-                <Button className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5" onClick={finishEnroll}>
-                  <CheckCircle2 className="h-4 w-4" /> Hoàn tất nhập học
-                </Button>
-              </div>
             </div>
           )}
         </DialogFooter>
+        </>
+        )}
       </DialogContent>
     </Dialog>
   );
