@@ -2892,18 +2892,17 @@ function SyllabusContentTree({
   const isClassMode = !!classId;
   const teacherClassView = isClassMode && role === "teacher";
   const teacherStage = stagesState[TEACHER_CURRENT_STAGE];
-  const treeStages = teacherClassView
-    ? stagesState.filter((_, i) => i === TEACHER_CURRENT_STAGE)
-    : stagesState;
-  const allowInsert = isClassMode && !teacherClassView && !readOnly;
+  const isTeacherStage = (stageId: string) => !teacherClassView || stageId === teacherStage?.id;
+  const allowInsert = isClassMode && !readOnly;
   const allowInsertInStage = (stageId: string) => {
     if (!allowInsert) return false;
     if (teacherClassView) return stageId === teacherStage?.id;
     return true;
   };
   const allowMasterTreeEdit = !readOnly && !isClassMode;
-  const sessionReadOnly = readOnly || teacherClassView;
-  const allowDeleteSession = isClassMode && !teacherClassView && !readOnly;
+  const sessionReadOnly = readOnly || (teacherClassView && !isTeacherStage(sel.stageId));
+  const allowDeleteInStage = (stageId: string) =>
+    isClassMode && !readOnly && isTeacherStage(stageId);
   const patchStages = React.useCallback(
     (updater: (prev: SyllabusStageData[]) => SyllabusStageData[]) => {
       if (classId) {
@@ -2982,6 +2981,10 @@ function SyllabusContentTree({
   };
 
   const selectSession = (stageId: string, item: SyllabusSessionData) => {
+    if (!isTeacherStage(stageId)) {
+      toast.info("Chặng này đang khoá với giáo viên.");
+      return;
+    }
     if (item.kind === "lesson") {
       setSel({ kind: "lesson", stageId, lessonId: item.lesson.id });
     } else {
@@ -3054,7 +3057,7 @@ function SyllabusContentTree({
   };
 
   const updateLesson = (stageId: string, sessionId: string, patch: Partial<SyllabusLesson>) => {
-    if (teacherClassView) return;
+    if (!isTeacherStage(stageId)) return;
     patchStages((sts) =>
       sts.map((st) =>
         st.id !== stageId
@@ -3070,7 +3073,7 @@ function SyllabusContentTree({
   };
 
   const updateBigTestSession = (stageId: string, sessionId: string, patch: Partial<{ name: string; note: string; material: string }>) => {
-    if (teacherClassView) return;
+    if (!isTeacherStage(stageId)) return;
     patchStages((sts) =>
       sts.map((st) =>
         st.id !== stageId
@@ -3128,7 +3131,7 @@ function SyllabusContentTree({
   };
 
   const deleteSession = (stageId: string, item: SyllabusSessionData) => {
-    if (teacherClassView || !allowDeleteSession) return;
+    if (!allowDeleteInStage(stageId)) return;
     const st = stagesState.find((s) => s.id === stageId);
     const idx = st ? st.sessions.findIndex((s) => s.id === item.id) : -1;
     patchStages((sts) =>
@@ -3164,9 +3167,10 @@ function SyllabusContentTree({
         </CardHeader>
         <CardContent className="pt-0">
           <div className="space-y-1 text-sm">
-            {treeStages.map((st) => {
-              const stageIndex = stagesState.findIndex((s) => s.id === st.id);
-              const locked = !teacherClassView && (readOnly || role === "teacher") && stageIndex !== TEACHER_CURRENT_STAGE;
+            {stagesState.map((st, stageIndex) => {
+              const locked = teacherClassView
+                ? stageIndex !== TEACHER_CURRENT_STAGE
+                : (readOnly || role === "teacher") && stageIndex !== TEACHER_CURRENT_STAGE;
               const open = !!openStages[st.id] && !locked;
               return (
                 <div key={st.id}>
@@ -3232,7 +3236,7 @@ function SyllabusContentTree({
                                   {date && <span className="text-slate-400"> · {date}</span>}
                                 </span>
                               </button>
-                              {allowDeleteSession && (
+                              {allowDeleteInStage(st.id) && (
                                 <button
                                   type="button"
                                   title="Xoá buổi"
