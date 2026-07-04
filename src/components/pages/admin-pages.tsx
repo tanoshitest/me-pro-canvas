@@ -3124,8 +3124,8 @@ function SyllabusContentTree({
       const date = showDates ? buildClassSessions({ totalSessions: total, startDate, sessions: scheduleDays, offDates })[sessionNo - 1]?.date : undefined;
       toast.success(`Đã thêm Buổi ${sessionNo}${date ? ` · ${date}` : ""}`, {
         description: classId
-          ? `"${name}" đã được thêm riêng cho lớp này (syllabus tổng không đổi).`
-          : `"${name}" đã được chèn vào đúng vị trí bạn chọn.`,
+          ? "Đây chỉ là thay đổi của lớp cụ thể, không ảnh hưởng lộ trình syllabus tổng."
+          : "Đây là thay đổi của syllabus tổng, thay đổi sẽ ảnh hưởng tới lộ trình của toàn bộ các lớp đang sử dụng syllabus này.",
       });
     });
   };
@@ -3453,7 +3453,21 @@ function SyllabusContentTree({
         <DialogContent className="max-w-md z-[100]">
           <DialogHeader>
             <DialogTitle>Thêm buổi mới</DialogTitle>
-            <DialogDescription>Chọn loại buổi để thêm ngay.</DialogDescription>
+            <DialogDescription asChild>
+              <div className="space-y-2 pt-1">
+                <p className={cn(
+                  "rounded-md border px-3 py-2 text-xs leading-relaxed",
+                  classId
+                    ? "border-sky-200 bg-sky-50 text-sky-900"
+                    : "border-amber-200 bg-amber-50 text-amber-900",
+                )}>
+                  {classId
+                    ? "Đây chỉ là thay đổi của lớp cụ thể, không ảnh hưởng lộ trình syllabus tổng."
+                    : "Đây là thay đổi của syllabus tổng, thay đổi sẽ ảnh hưởng tới lộ trình của toàn bộ các lớp đang sử dụng syllabus này."}
+                </p>
+                <p className="text-muted-foreground">Chọn loại buổi để thêm ngay.</p>
+              </div>
+            </DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-2 gap-3 py-2">
             <button
