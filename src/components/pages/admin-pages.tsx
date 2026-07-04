@@ -918,6 +918,76 @@ function CorrectionLinkControl({
   );
 }
 
+function HomeworkUploadControl({
+  url,
+  onSave,
+  label,
+}: {
+  url?: string;
+  onSave: (url: string) => void;
+  label?: string;
+}) {
+  const [open, setOpen] = React.useState(false);
+  const [draft, setDraft] = React.useState(url ?? "");
+
+  React.useEffect(() => {
+    if (open) setDraft(url ?? "");
+  }, [open, url]);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className={cn(
+            "h-8 gap-1 px-2 shrink-0",
+            url
+              ? "border-indigo-200 bg-indigo-50/80 text-indigo-700 hover:bg-indigo-100"
+              : "border-dashed border-indigo-300/70 bg-indigo-50/40 text-indigo-600 hover:bg-indigo-50",
+          )}
+          title={url ? "Sửa link bài nộp" : "Tải lên bài tập"}
+        >
+          {url ? <ExternalLink className="h-3.5 w-3.5" /> : <Upload className="h-3.5 w-3.5" />}
+          <span className="text-[11px] font-medium">{url ? "Đã nộp" : "Nộp bài"}</span>
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-80 space-y-3" align="center">
+        <div className="space-y-1">
+          <div className="text-sm font-medium">Nộp bài tập{label ? ` · ${label}` : ""}</div>
+          <p className="text-xs text-muted-foreground">Dán link Google Docs/Drive bài làm. Giáo viên sẽ xem và chấm trên báo cáo buổi học.</p>
+        </div>
+        <Input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          placeholder="https://docs.google.com/..."
+          className="h-9"
+        />
+        <div className="flex gap-2 justify-end">
+          {url && (
+            <Button variant="outline" size="sm" asChild>
+              <a href={normalizeSubmissionUrl(url)} target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="h-3.5 w-3.5" /> Xem
+              </a>
+            </Button>
+          )}
+          <Button
+            size="sm"
+            onClick={() => {
+              onSave(draft);
+              setOpen(false);
+              toast.success(draft.trim() ? "Đã gửi bài tập cho giáo viên chấm" : "Đã xóa link bài nộp");
+            }}
+          >
+            Lưu
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 function ClassSessionReportView({
   cls,
   students,
@@ -3717,7 +3787,7 @@ function SyllabusReportsTab({
   totalSessions?: number;
   studentView?: boolean;
 }) {
-  const { homeworkSubmissions, homeworkCorrections, setHomeworkCorrection } = useApp();
+  const { homeworkSubmissions, homeworkCorrections, setHomeworkCorrection, setHomeworkSubmission } = useApp();
   const stageList = stages ?? SYLLABUS_STAGES.map(normalizeSyllabusStage);
   const stage = stageList.find((s) => s.id === sel.stageId) ?? stageList[0];
   const selSession = stage?.sessions.find((s) =>
@@ -3968,7 +4038,18 @@ function SyllabusReportsTab({
                       {scoreColumns.map((col) => (
                         <TableCell key={col.id} className={cn(reportCell, "text-center p-1 align-top pt-2")}>
                           {studentView ? (
-                            <span className="text-sm font-medium">{r.scores[col.id] ?? "—"}</span>
+                          <div className="flex flex-col items-center gap-1.5 py-0.5 min-w-[88px]">
+                            <span className="text-sm font-medium tabular-nums">{r.scores[col.id] ?? "—"}</span>
+                            <HomeworkUploadControl
+                              label={col.label}
+                              url={homeworkSubmissions[homeworkSubmissionKey(r.id, activeSessionIdx, col.id)]}
+                              onSave={(url) => setHomeworkSubmission(r.id, activeSessionIdx, col.id, url)}
+                            />
+                            <CorrectionLinkControl
+                              url={homeworkCorrections[homeworkCorrectionKey(r.id, activeSessionIdx, col.id)]}
+                              readOnly
+                            />
+                          </div>
                           ) : (
                           <div className="flex items-center justify-center gap-1">
                             <Input
