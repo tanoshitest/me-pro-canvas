@@ -156,7 +156,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     // reset to default page for each role
     if (role === "admin") setPage("teachers");
     if (role === "teacher") setPage("my-classes");
-    if (role === "student") setPage("info");
+    if (role === "student") setPage("my-classes");
   }, [role]);
 
   return (

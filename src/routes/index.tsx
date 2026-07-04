@@ -6,9 +6,6 @@ import {
   AdminTeachers, AdminSchedule, AdminAttendanceReport, AdminSalaryReport,
   AdminFinanceReport, AdminAdmissions, AdminWorkManagement,
 } from "@/components/pages/admin-pages";
-import {
-  StudentInfo, StudentSchedule, StudentTuition, StudentResults, StudentHomework,
-} from "@/components/pages/student-pages";
 import { Toaster } from "@/components/ui/sonner";
 
 export const Route = createFileRoute("/")({
@@ -40,11 +37,7 @@ function PageRouter() {
   }
   if (role === "student") {
     switch (page) {
-      case "info": return <StudentInfo />;
-      case "schedule": return <StudentSchedule />;
-      case "homework": return <StudentHomework />;
-      case "tuition-history": return <StudentTuition />;
-      case "results": return <StudentResults />;
+      case "my-classes": return <AdminClasses />;
     }
   }
   return null;

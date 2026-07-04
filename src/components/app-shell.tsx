@@ -34,11 +34,7 @@ const NAV: Record<string, NavItem[]> = {
     { id: "my-classes", label: "Lớp học của tôi", icon: GraduationCap, done: true },
   ],
   student: [
-    { id: "info", label: "Thông tin học tập", icon: User },
-    { id: "schedule", label: "Lịch học", icon: CalendarDays },
-    { id: "homework", label: "Nộp BTVN", icon: Link2 },
-    { id: "tuition-history", label: "Học phí", icon: Wallet },
-    { id: "results", label: "Kết quả học tập", icon: BookOpen },
+    { id: "my-classes", label: "Lớp học của tôi", icon: GraduationCap, done: true },
   ],
 };
 

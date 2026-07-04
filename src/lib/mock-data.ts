@@ -76,6 +76,8 @@ export interface Receipt {
   cancelLog?: { by: string; at: string; reason: string };
 }
 
+export const DEMO_STUDENT_ID = "s_mk";
+
 export const STUDENTS: Student[] = [
   {
     id: "s1", name: "Hồng Diệp", nickname: "Kirito", branch: "Đội Cấn", classId: "c1",
@@ -170,6 +172,29 @@ export const STUDENTS: Student[] = [
     parentRelation: "Mẹ", parentEmail: "mai.nguyen@gmail.com",
     enrolledAt: "01/03/2026", syllabusProgress: 23, syllabusTotal: 24,
     avgScore: 8.2, latestComment: "Sắp hết khóa, đã nhắc PH gia hạn.",
+  },
+  {
+    id: "s_mk", name: "Minh Khôi", branch: "Đội Cấn", classId: "c1",
+    bought: 32, attended: 22, debt: 1160000, feeStatus: "debt",
+    dob: "18/04/2016", gender: "Nam", school: "Tiểu học Nguyễn Trãi",
+    address: "15 Đội Cấn, Ba Đình, Hà Nội", email: "minhkhoi@gmail.com",
+    note: "Học tập đều, cần luyện thêm Speaking.",
+    parentName: "Phạm Văn Nam", parentPhone: "0918 222 333",
+    parentRelation: "Bố", parentEmail: "nam.pham@gmail.com",
+    enrolledAt: "01/03/2026", syllabusProgress: 17, syllabusTotal: 24,
+    avgScore: 8.6, latestComment: "Con tham gia tích cực, phát âm tốt.",
+    attendanceHistory: [
+      { at: "03/03/2026", session: "Buổi 1", status: "Có mặt" },
+      { at: "06/03/2026", session: "Buổi 2", status: "Có mặt" },
+      { at: "13/03/2026", session: "Buổi 4", status: "Có mặt" },
+    ],
+    scoreHistory: [
+      { at: "13/03/2026", session: "Buổi 4", listening: 8.5, speaking: 8, reading: 9, writing: 7.5 },
+      { at: "20/03/2026", session: "Buổi 6", listening: 9, speaking: 8.5, reading: 9, writing: 8 },
+    ],
+    auditLog: [
+      { at: "01/03/2026 09:30", by: "Admin Lan", action: "Tạo hồ sơ", detail: "Khởi tạo thông tin học viên" },
+    ],
   },
 ];
 

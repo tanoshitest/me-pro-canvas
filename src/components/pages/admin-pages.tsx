@@ -22,7 +22,7 @@ import {
   SYLLABUS_STAGES, SYLLABUS_STUDENTS, SYLLABUS_GRADE_COLUMNS,
   SYLLABUS_REPORT_ROWS, DEFAULT_BTVN_COLUMNS, DEFAULT_SCORE_COLUMNS, DEFAULT_BTVN_COLUMN_ID,
   REPORT_ATTENDANCE_OPTIONS, BTVN_STATUS_OPTIONS, LEARNING_SPIRIT_OPTIONS, HOMEWORK_TASK_TYPES, homeworkSubmissionKey, homeworkCorrectionKey,
-  resolveSyllabusId, normalizeSyllabusStage,
+  resolveSyllabusId, normalizeSyllabusStage, DEMO_STUDENT_ID,
   type Syllabus, type SyllabusReportRow, type SyllabusHomeworkItem, type SyllabusLesson,
   type SyllabusStageData, type SyllabusSessionData,
   type HomeworkTaskType, type BtvnColumn, type ReportAttendance, type BtvnStatus, type LearningSpirit,
@@ -1196,9 +1196,11 @@ function ClassInfoSection({
 function ClassSyllabusSection({
   cls,
   students,
+  studentView = false,
 }: {
   cls: { id: string; totalSessions: number; startDate: string; syllabus: string; sessions?: { day: string }[]; offDates?: string[] };
   students: Student[];
+  studentView?: boolean;
 }) {
   const { getClassSyllabusStages } = useApp();
   const syllabusId = resolveSyllabusId(cls.syllabus);
@@ -1251,7 +1253,7 @@ function ClassSyllabusSection({
       </TabsContent>
 
       <TabsContent value="report">
-        <SyllabusReportsTab sel={sel} setSel={setSel} sessionDate={sessionDate} sessionIdx={sessionIdx} students={students} stages={stages} sessionOptions={sessionOptions} totalSessions={totalSlots} />
+        <SyllabusReportsTab sel={sel} setSel={setSel} sessionDate={sessionDate} sessionIdx={sessionIdx} students={students} stages={stages} sessionOptions={sessionOptions} totalSessions={totalSlots} studentView={studentView} />
       </TabsContent>
     </Tabs>
   );
@@ -1262,18 +1264,21 @@ function ClassDetailTabs({
   students,
   onTransfer,
   isTeacher = false,
+  isStudent = false,
 }: {
   cls: { id: string; totalSessions: number; startDate: string; syllabus: string; pricePerCourse: number; sessions?: { day: string }[]; offDates?: string[] };
   students: Student[];
   onTransfer: (id: string) => void;
   isTeacher?: boolean;
+  isStudent?: boolean;
 }) {
+  const learnerView = isTeacher || isStudent;
   return (
-    <Tabs defaultValue={isTeacher ? "content" : "info"} className="space-y-4">
+    <Tabs defaultValue={learnerView ? "content" : "info"} className="space-y-4">
       <TabsList className="flex-wrap h-auto">
         <TabsTrigger value="info"><Info className="h-4 w-4 mr-1" /> Thông tin lớp</TabsTrigger>
         <TabsTrigger value="content"><BookOpen className="h-4 w-4 mr-1" /> Nội dung syllabus</TabsTrigger>
-        <TabsTrigger value="report">Báo cáo học vụ</TabsTrigger>
+        {!isStudent && <TabsTrigger value="report">Báo cáo học vụ</TabsTrigger>}
       </TabsList>
 
       <TabsContent value="info" className="space-y-4">
@@ -1281,12 +1286,14 @@ function ClassDetailTabs({
       </TabsContent>
 
       <TabsContent value="content">
-        <ClassSyllabusSection cls={cls} students={students} />
+        <ClassSyllabusSection cls={cls} students={students} studentView={isStudent} />
       </TabsContent>
 
+      {!isStudent && (
       <TabsContent value="report">
         <SyllabusReportTab />
       </TabsContent>
+      )}
     </Tabs>
   );
 }
@@ -1294,14 +1301,21 @@ function ClassDetailTabs({
 export function AdminClasses() {
   const { classes, setClasses, students, role } = useApp();
   const isTeacher = role === "teacher";
+  const isStudent = role === "student";
   const demoTeacher = TEACHERS[0];
+  const demoStudent = students.find((s) => s.id === DEMO_STUDENT_ID);
   const teacherClassIds = React.useMemo(() => new Set(demoTeacher.classes), []);
-  const [selected, setSelected] = React.useState<string | null>(() => (role === "teacher" ? "c1" : null));
+  const [selected, setSelected] = React.useState<string | null>(() => {
+    if (role === "teacher") return "c1";
+    if (role === "student") return demoStudent?.classId ?? "c1";
+    return null;
+  });
   const cls = classes.find((c) => c.id === selected);
 
   React.useEffect(() => {
     if (isTeacher && !selected) setSelected("c1");
-  }, [isTeacher, selected]);
+    if (isStudent && !selected) setSelected(demoStudent?.classId ?? "c1");
+  }, [isTeacher, isStudent, selected, demoStudent?.classId]);
   const [openHoliday, setOpenHoliday] = React.useState(false);
   const [openKhoa, setOpenKhoa] = React.useState<Record<number, boolean>>({ 1: true });
   const [transferStudentId, setTransferStudentId] = React.useState<string | null>(null);
@@ -1405,6 +1419,7 @@ export function AdminClasses() {
 
   const filteredClasses = classes.filter((c) => {
     if (isTeacher && !teacherClassIds.has(c.id)) return false;
+    if (isStudent && c.id !== (demoStudent?.classId ?? "c1")) return false;
     return (filterBranch === "all" || c.branch === filterBranch) &&
       (filterClassId === "all" || c.id === filterClassId);
   });
@@ -1457,7 +1472,7 @@ export function AdminClasses() {
               <div className="text-xs text-slate-500 mt-1">{cls.branch} · {cls.teacher}</div>
             </div>
             <div className="flex items-center gap-2">
-              {!isTeacher && (
+              {!isTeacher && !isStudent && (
               <Dialog open={openHoliday} onOpenChange={setOpenHoliday}>
                 <DialogTrigger asChild>
                   <Button variant="outline" size="sm"><CalendarOff className="h-4 w-4" /> Set lịch nghỉ</Button>
@@ -1535,9 +1550,14 @@ export function AdminClasses() {
           <CardContent className="space-y-4">
             <ClassDetailTabs
               cls={cls}
-              students={students.filter((s) => s.classId === cls.id)}
+              students={
+                isStudent
+                  ? students.filter((s) => s.id === DEMO_STUDENT_ID)
+                  : students.filter((s) => s.classId === cls.id)
+              }
               onTransfer={setTransferStudentId}
               isTeacher={isTeacher}
+              isStudent={isStudent}
             />
           </CardContent>
         </Card>
@@ -1546,7 +1566,7 @@ export function AdminClasses() {
         <CardHeader>
           <div className="flex items-center justify-between gap-2">
             <CardTitle>Danh sách lớp</CardTitle>
-            {!isTeacher && (
+            {!isTeacher && !isStudent && (
             <Button size="sm" onClick={() => { setForm(emptyForm()); setOpenCreate(true); }}>
               <Plus className="h-4 w-4" /> Tạo lớp
             </Button>
@@ -2890,15 +2910,15 @@ function SyllabusContentTree({
   }, [syllabusId, ensureSyllabusStages]);
   const stagesState = classId ? getClassSyllabusStages(classId, syllabusId) : getSyllabusStages(syllabusId);
   const isClassMode = !!classId;
-  const teacherClassView = isClassMode && role === "teacher";
+  const learnerClassView = isClassMode && (role === "teacher" || role === "student");
   const teacherStage = stagesState[TEACHER_CURRENT_STAGE];
-  const isTeacherStage = (stageId: string) => !teacherClassView || stageId === teacherStage?.id;
-  const allowInsert = isClassMode && !readOnly && !teacherClassView;
+  const isTeacherStage = (stageId: string) => !learnerClassView || stageId === teacherStage?.id;
+  const allowInsert = isClassMode && !readOnly && !learnerClassView;
   const allowInsertInStage = (stageId: string) => allowInsert;
   const allowMasterTreeEdit = !readOnly && !isClassMode;
-  const sessionReadOnly = readOnly || teacherClassView;
+  const sessionReadOnly = readOnly || learnerClassView;
   const allowDeleteInStage = (stageId: string) =>
-    isClassMode && !readOnly && !teacherClassView;
+    isClassMode && !readOnly && !learnerClassView;
   const patchStages = React.useCallback(
     (updater: (prev: SyllabusStageData[]) => SyllabusStageData[]) => {
       if (classId) {
@@ -2914,7 +2934,7 @@ function SyllabusContentTree({
   );
 
   React.useEffect(() => {
-    if (!teacherClassView || !teacherStage) return;
+    if (!learnerClassView || !teacherStage) return;
     setOpenStages((o) => ({ ...o, [teacherStage.id]: true }));
     if (sel.stageId !== teacherStage.id) {
       const first = teacherStage.sessions[0];
@@ -2923,7 +2943,7 @@ function SyllabusContentTree({
         else setSel({ kind: "bigtest", stageId: teacherStage.id, sessionId: first.id });
       }
     }
-  }, [teacherClassView, teacherStage?.id]);
+  }, [learnerClassView, teacherStage?.id]);
 
   const selected = findSelectedSession(stagesState, sel);
   const stage = selected?.stage ?? stagesState.find((s) => s.id === sel.stageId)!;
@@ -2999,7 +3019,7 @@ function SyllabusContentTree({
   };
 
   const insertSessionAt = (stageId: string, insertIndex: number, name: string, type: SessionType) => {
-    if (teacherClassView) return;
+    if (learnerClassView) return;
     const newId = `${stageId}-s-${Date.now()}`;
     const newSession: SyllabusSessionData =
       type === "bigtest"
@@ -3050,7 +3070,7 @@ function SyllabusContentTree({
   };
 
   const updateLesson = (stageId: string, sessionId: string, patch: Partial<SyllabusLesson>) => {
-    if (teacherClassView) return;
+    if (learnerClassView) return;
     patchStages((sts) =>
       sts.map((st) =>
         st.id !== stageId
@@ -3066,7 +3086,7 @@ function SyllabusContentTree({
   };
 
   const updateBigTestSession = (stageId: string, sessionId: string, patch: Partial<{ name: string; note: string; material: string }>) => {
-    if (teacherClassView) return;
+    if (learnerClassView) return;
     patchStages((sts) =>
       sts.map((st) =>
         st.id !== stageId
@@ -3161,7 +3181,7 @@ function SyllabusContentTree({
         <CardContent className="pt-0">
           <div className="space-y-1 text-sm">
             {stagesState.map((st, stageIndex) => {
-              const locked = teacherClassView
+              const locked = learnerClassView
                 ? stageIndex !== TEACHER_CURRENT_STAGE
                 : (readOnly || role === "teacher") && stageIndex !== TEACHER_CURRENT_STAGE;
               const open = !!openStages[st.id] && !locked;
@@ -3685,6 +3705,7 @@ function SyllabusReportsTab({
   stages,
   sessionOptions,
   totalSessions,
+  studentView = false,
 }: {
   sel: SyllabusSel;
   setSel?: React.Dispatch<React.SetStateAction<SyllabusSel>>;
@@ -3694,6 +3715,7 @@ function SyllabusReportsTab({
   stages?: SyllabusStageData[];
   sessionOptions?: { idx: number; date?: string; label: string; sel: SyllabusSel }[];
   totalSessions?: number;
+  studentView?: boolean;
 }) {
   const { homeworkSubmissions, homeworkCorrections, setHomeworkCorrection } = useApp();
   const stageList = stages ?? SYLLABUS_STAGES.map(normalizeSyllabusStage);
@@ -3822,9 +3844,12 @@ function SyllabusReportsTab({
               </>
             )}
           </div>
+          {!studentView && (
           <Input className="h-8 w-56" placeholder="Tìm học viên..." value={q} onChange={(e) => setQ(e.target.value)} />
+          )}
         </div>
 
+        {!studentView && (
         <div className="flex gap-2 flex-wrap">
           <Button size="sm" onClick={() => toast.success("Đã lưu báo cáo buổi học")}>
             <CheckCircle2 className="h-4 w-4" /> Lưu báo cáo
@@ -3837,6 +3862,7 @@ function SyllabusReportsTab({
             <Upload className="inline h-3 w-3 text-emerald-600" /> up link chữa bài
           </span>
         </div>
+        )}
 
         <div className="border rounded-md overflow-x-auto">
           <Table className="border-collapse">
@@ -3848,6 +3874,7 @@ function SyllabusReportsTab({
                 <TableHead colSpan={btvnColumns.length} className={cn(reportTh, reportCell, "text-center text-emerald-700")}>
                   <div className="flex items-center justify-center gap-1.5">
                     <span>In class</span>
+                    {!studentView && (
                     <Button
                       type="button"
                       size="icon"
@@ -3858,6 +3885,7 @@ function SyllabusReportsTab({
                     >
                       <Plus className="h-3.5 w-3.5" />
                     </Button>
+                    )}
                   </div>
                 </TableHead>
                 <TableHead colSpan={scoreColumns.length} className={cn(reportTh, reportCell, "text-center text-emerald-700")}>After class</TableHead>
@@ -3866,6 +3894,9 @@ function SyllabusReportsTab({
               <TableRow>
                 {btvnColumns.map((col) => (
                   <TableHead key={col.id} className={cn(reportTh, reportCell, "min-w-[120px] p-1.5")}>
+                    {studentView ? (
+                      <span className="text-xs font-semibold">{col.label || "BTVN"}</span>
+                    ) : (
                     <div className="flex items-center gap-1">
                       <Input
                         value={col.label}
@@ -3886,6 +3917,7 @@ function SyllabusReportsTab({
                         </Button>
                       )}
                     </div>
+                    )}
                   </TableHead>
                 ))}
                 {scoreColumns.map((col) => (
@@ -3908,25 +3940,36 @@ function SyllabusReportsTab({
                       <TableCell className={cn(reportCell, "text-center text-muted-foreground align-top pt-3")}>{idx + 1}</TableCell>
                       <TableCell className={cn(reportCell, "font-medium align-top pt-3")}>{r.name}</TableCell>
                       <TableCell className={cn(reportCell, "text-center align-top pt-2")}>
+                        {studentView ? (
+                          <span className="text-sm">{r.attendance}</span>
+                        ) : (
                         <ColoredPillSelect
                           value={r.attendance}
                           options={REPORT_ATTENDANCE_OPTIONS}
                           onChange={(v) => update(r.id, { attendance: v as ReportAttendance })}
                           compact
                         />
+                        )}
                       </TableCell>
                       {btvnColumns.map((col) => (
                         <TableCell key={col.id} className={cn(reportCell, "text-center align-top pt-2")}>
+                          {studentView ? (
+                            <span className="text-sm">{r.btvnHw[col.id] ?? "—"}</span>
+                          ) : (
                           <ColoredPillSelect
                             value={r.btvnHw[col.id] ?? "Yes"}
                             options={BTVN_STATUS_OPTIONS}
                             onChange={(v) => updateBtvnHw(r.id, col.id, v as BtvnStatus)}
                             compact
                           />
+                          )}
                         </TableCell>
                       ))}
                       {scoreColumns.map((col) => (
                         <TableCell key={col.id} className={cn(reportCell, "text-center p-1 align-top pt-2")}>
+                          {studentView ? (
+                            <span className="text-sm font-medium">{r.scores[col.id] ?? "—"}</span>
+                          ) : (
                           <div className="flex items-center justify-center gap-1">
                             <Input
                               type="number"
@@ -3944,24 +3987,35 @@ function SyllabusReportsTab({
                               onSave={(url) => setHomeworkCorrection(r.id, activeSessionIdx, col.id, url)}
                             />
                           </div>
+                          )}
                         </TableCell>
                       ))}
                       <TableCell className={cn(reportCell, "text-center align-top pt-2")}>
+                        {studentView ? (
+                          <span className="text-sm">{r.learningSpirit}</span>
+                        ) : (
                         <ColoredPillSelect
                           value={r.learningSpirit}
                           options={LEARNING_SPIRIT_OPTIONS}
                           onChange={(v) => update(r.id, { learningSpirit: v as LearningSpirit })}
                         />
+                        )}
                       </TableCell>
                     </TableRow>
                     <TableRow className="hover:bg-transparent border-b-2 border-border">
                       <TableCell colSpan={dataColSpan} className="p-2 pb-3 bg-muted/20">
+                        {studentView ? (
+                          <div className="text-sm text-slate-700 whitespace-pre-wrap min-h-[2.5rem]">
+                            {r.teacherComment || <span className="text-slate-400 italic">Chưa có nhận xét.</span>}
+                          </div>
+                        ) : (
                         <AutoResizeTextarea
                           value={r.teacherComment}
                           onChange={(e) => update(r.id, { teacherComment: e.target.value })}
                           placeholder="Nhận xét của giáo viên..."
                           className="text-sm bg-background"
                         />
+                        )}
                       </TableCell>
                     </TableRow>
                   </React.Fragment>
