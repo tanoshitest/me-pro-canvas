@@ -1243,7 +1243,7 @@ function ClassSyllabusSection({
       </TabsList>
 
       <TabsContent value="syllabus">
-        <SyllabusContentTree syllabusId={syllabusId} sel={sel} setSel={setSel} startDate={cls.startDate} title={cls.syllabus} scheduleDays={cls.sessions} offDates={cls.offDates} readOnly />
+        <SyllabusContentTree syllabusId={syllabusId} sel={sel} setSel={setSel} startDate={cls.startDate} title={cls.syllabus} scheduleDays={cls.sessions} offDates={cls.offDates} />
       </TabsContent>
 
       <TabsContent value="report">
