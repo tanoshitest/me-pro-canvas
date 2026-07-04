@@ -23,7 +23,6 @@ import {
   SYLLABUS_REPORT_ROWS, DEFAULT_BTVN_COLUMNS, DEFAULT_SCORE_COLUMNS, DEFAULT_BTVN_COLUMN_ID,
   REPORT_ATTENDANCE_OPTIONS, BTVN_STATUS_OPTIONS, LEARNING_SPIRIT_OPTIONS, HOMEWORK_TASK_TYPES, homeworkSubmissionKey, homeworkCorrectionKey,
   resolveSyllabusId, normalizeSyllabusStage,
-  createClassSessionId, isClassAddedSession, resolveInsertAnchor, nextInsertOrder,
   type Syllabus, type SyllabusReportRow, type SyllabusHomeworkItem, type SyllabusLesson,
   type SyllabusStageData, type SyllabusSessionData,
   type HomeworkTaskType, type BtvnColumn, type ReportAttendance, type BtvnStatus, type LearningSpirit,
@@ -1262,19 +1261,15 @@ function ClassDetailTabs({
   cls,
   students,
   onTransfer,
-  teacherView = false,
+  isTeacher = false,
 }: {
   cls: { id: string; totalSessions: number; startDate: string; syllabus: string; pricePerCourse: number; sessions?: { day: string }[]; offDates?: string[] };
   students: Student[];
   onTransfer: (id: string) => void;
-  teacherView?: boolean;
+  isTeacher?: boolean;
 }) {
-  if (teacherView) {
-    return <ClassSyllabusSection cls={cls} students={students} />;
-  }
-
   return (
-    <Tabs defaultValue="info" className="space-y-4">
+    <Tabs defaultValue={isTeacher ? "content" : "info"} className="space-y-4">
       <TabsList className="flex-wrap h-auto">
         <TabsTrigger value="info"><Info className="h-4 w-4 mr-1" /> Thông tin lớp</TabsTrigger>
         <TabsTrigger value="content"><BookOpen className="h-4 w-4 mr-1" /> Nội dung syllabus</TabsTrigger>
@@ -1301,8 +1296,12 @@ export function AdminClasses() {
   const isTeacher = role === "teacher";
   const demoTeacher = TEACHERS[0];
   const teacherClassIds = React.useMemo(() => new Set(demoTeacher.classes), []);
-  const [selected, setSelected] = React.useState<string | null>(null);
+  const [selected, setSelected] = React.useState<string | null>(() => (role === "teacher" ? "c1" : null));
   const cls = classes.find((c) => c.id === selected);
+
+  React.useEffect(() => {
+    if (isTeacher && !selected) setSelected("c1");
+  }, [isTeacher, selected]);
   const [openHoliday, setOpenHoliday] = React.useState(false);
   const [openKhoa, setOpenKhoa] = React.useState<Record<number, boolean>>({ 1: true });
   const [transferStudentId, setTransferStudentId] = React.useState<string | null>(null);
@@ -1538,7 +1537,7 @@ export function AdminClasses() {
               cls={cls}
               students={students.filter((s) => s.classId === cls.id)}
               onTransfer={setTransferStudentId}
-              teacherView={isTeacher}
+              isTeacher={isTeacher}
             />
           </CardContent>
         </Card>
@@ -2884,7 +2883,7 @@ function SyllabusContentTree({
 }) {
   const {
     getSyllabusStages, setSyllabusStages, ensureSyllabusStages, role,
-    getClassSyllabusStages, getClassSyllabusExtras, setClassSyllabusExtras,
+    getClassSyllabusStages, setClassSyllabusStages,
   } = useApp();
   React.useEffect(() => {
     ensureSyllabusStages(syllabusId);
@@ -2896,21 +2895,24 @@ function SyllabusContentTree({
   const treeStages = teacherClassView
     ? stagesState.filter((_, i) => i === TEACHER_CURRENT_STAGE)
     : stagesState;
-  const canEditSession = (sessionId: string) => !isClassMode || isClassAddedSession(sessionId, classId!);
-  const allowInsert = !readOnly || isClassMode;
+  const allowInsert = isClassMode && !teacherClassView && !readOnly;
   const allowInsertInStage = (stageId: string) => {
     if (!allowInsert) return false;
     if (teacherClassView) return stageId === teacherStage?.id;
     return true;
   };
   const allowMasterTreeEdit = !readOnly && !isClassMode;
-  const sessionReadOnly = (sessionId: string) => readOnly || (isClassMode && !canEditSession(sessionId));
-  const allowDeleteSession = (sessionId: string) => allowMasterTreeEdit || (isClassMode && canEditSession(sessionId));
+  const sessionReadOnly = readOnly || teacherClassView;
+  const allowDeleteSession = isClassMode && !teacherClassView && !readOnly;
   const patchStages = React.useCallback(
     (updater: (prev: SyllabusStageData[]) => SyllabusStageData[]) => {
-      setSyllabusStages(syllabusId, updater);
+      if (classId) {
+        setClassSyllabusStages(classId, syllabusId, updater);
+      } else {
+        setSyllabusStages(syllabusId, updater);
+      }
     },
-    [syllabusId, setSyllabusStages],
+    [classId, syllabusId, setClassSyllabusStages, setSyllabusStages],
   );
   const [openStages, setOpenStages] = React.useState<Record<string, boolean>>(() =>
     Object.fromEntries(stagesState.map((s) => [s.id, false])),
@@ -3002,30 +3004,20 @@ function SyllabusContentTree({
       toast.info("Giáo viên chỉ được thêm buổi trong Chặng 2.");
       return;
     }
-    const newId = classId ? createClassSessionId(classId) : `${stageId}-s-${Date.now()}`;
+    const newId = `${stageId}-s-${Date.now()}`;
     const newSession: SyllabusSessionData =
       type === "bigtest"
         ? { id: newId, kind: "bigtest", name, note: "", material: "" }
         : { id: newId, kind: "lesson", lesson: mkEmptyLesson(newId, name) };
 
-    if (classId) {
-      const st = stagesState.find((s) => s.id === stageId);
-      const afterSessionId = resolveInsertAnchor(st?.sessions ?? [], insertIndex);
-      const extras = getClassSyllabusExtras(classId);
-      const order = nextInsertOrder(extras.inserts, stageId, afterSessionId);
-      setClassSyllabusExtras(classId, (prev) => ({
-        inserts: [...prev.inserts, { id: `ins-${Date.now()}`, stageId, afterSessionId, order, session: newSession }],
-      }));
-    } else {
-      patchStages((sts) =>
-        sts.map((st) => {
-          if (st.id !== stageId) return st;
-          const sessions = [...st.sessions];
-          sessions.splice(insertIndex, 0, newSession);
-          return { ...st, sessions };
-        }),
-      );
-    }
+    patchStages((sts) =>
+      sts.map((st) => {
+        if (st.id !== stageId) return st;
+        const sessions = [...st.sessions];
+        sessions.splice(insertIndex, 0, newSession);
+        return { ...st, sessions };
+      }),
+    );
 
     setOpenStages((o) => ({ ...o, [stageId]: true }));
     selectSession(stageId, newSession);
@@ -3062,17 +3054,7 @@ function SyllabusContentTree({
   };
 
   const updateLesson = (stageId: string, sessionId: string, patch: Partial<SyllabusLesson>) => {
-    if (classId) {
-      if (!canEditSession(sessionId)) return;
-      setClassSyllabusExtras(classId, (prev) => ({
-        inserts: prev.inserts.map((ins) =>
-          ins.session.id !== sessionId || ins.session.kind !== "lesson"
-            ? ins
-            : { ...ins, session: { ...ins.session, lesson: { ...ins.session.lesson, ...patch } } },
-        ),
-      }));
-      return;
-    }
+    if (teacherClassView) return;
     patchStages((sts) =>
       sts.map((st) =>
         st.id !== stageId
@@ -3088,17 +3070,7 @@ function SyllabusContentTree({
   };
 
   const updateBigTestSession = (stageId: string, sessionId: string, patch: Partial<{ name: string; note: string; material: string }>) => {
-    if (classId) {
-      if (!canEditSession(sessionId)) return;
-      setClassSyllabusExtras(classId, (prev) => ({
-        inserts: prev.inserts.map((ins) =>
-          ins.session.id !== sessionId || ins.session.kind !== "bigtest"
-            ? ins
-            : { ...ins, session: { ...ins.session, ...patch } },
-        ),
-      }));
-      return;
-    }
+    if (teacherClassView) return;
     patchStages((sts) =>
       sts.map((st) =>
         st.id !== stageId
@@ -3156,20 +3128,14 @@ function SyllabusContentTree({
   };
 
   const deleteSession = (stageId: string, item: SyllabusSessionData) => {
-    if (classId && !canEditSession(item.id)) return;
+    if (teacherClassView || !allowDeleteSession) return;
     const st = stagesState.find((s) => s.id === stageId);
     const idx = st ? st.sessions.findIndex((s) => s.id === item.id) : -1;
-    if (classId) {
-      setClassSyllabusExtras(classId, (prev) => ({
-        inserts: prev.inserts.filter((i) => i.session.id !== item.id),
-      }));
-    } else {
-      patchStages((sts) =>
-        sts.map((s) =>
-          s.id !== stageId ? s : { ...s, sessions: s.sessions.filter((x) => x.id !== item.id) },
-        ),
-      );
-    }
+    patchStages((sts) =>
+      sts.map((s) =>
+        s.id !== stageId ? s : { ...s, sessions: s.sessions.filter((x) => x.id !== item.id) },
+      ),
+    );
     const nextStages = stagesState.map((s) =>
       s.id !== stageId ? s : { ...s, sessions: s.sessions.filter((x) => x.id !== item.id) },
     );
@@ -3266,7 +3232,7 @@ function SyllabusContentTree({
                                   {date && <span className="text-slate-400"> · {date}</span>}
                                 </span>
                               </button>
-                              {allowDeleteSession(item.id) && (
+                              {allowDeleteSession && (
                                 <button
                                   type="button"
                                   title="Xoá buổi"
@@ -3297,9 +3263,7 @@ function SyllabusContentTree({
             <Layers className="h-3 w-3" /> {stage?.name}
           </div>
 
-          {session?.kind === "lesson" && (() => {
-            const ro = sessionReadOnly(session.id);
-            return (
+          {session?.kind === "lesson" && (
             <>
               <div className="flex items-start justify-between gap-3 flex-wrap">
                 <div className="flex-1 min-w-0">
@@ -3312,12 +3276,9 @@ function SyllabusContentTree({
                         <span>{getSessionDate(sessionGlobal)}</span>
                       </>
                     )}
-                    {isClassMode && canEditSession(session.id) && (
-                      <Badge variant="outline" className="text-[10px] h-5">Buổi thêm của lớp</Badge>
-                    )}
                   </div>
-                  <Label className="text-[11px] text-muted-foreground mt-1 block">Tên buổi{ro ? "" : " (bấm để sửa)"}</Label>
-                  {ro ? (
+                  <Label className="text-[11px] text-muted-foreground mt-1 block">Tên buổi{sessionReadOnly ? "" : " (bấm để sửa)"}</Label>
+                  {sessionReadOnly ? (
                     <div className="mt-0.5 text-lg font-bold py-1.5 px-2 text-slate-800">{session.lesson.unit || "—"}</div>
                   ) : (
                     <div className="relative mt-0.5">
@@ -3340,33 +3301,30 @@ function SyllabusContentTree({
                   <TabsTrigger value="teaching-material">TEACHING MATERIAL</TabsTrigger>
                 </TabsList>
                 <TabsContent value="in-class" className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
-                  <EditField icon={Target} label="Outcome" value={session.lesson.content} onChange={(v) => updateLesson(stage.id, session.id, { content: v })} multiline readOnly={ro} placeholder="Nội dung / mục tiêu đạt được của buổi (cột Content)..." />
-                  <EditField icon={ListChecks} label="Lesson plan" value={session.lesson.lessonPlan ?? ""} onChange={(v) => updateLesson(stage.id, session.id, { lessonPlan: v })} multiline readOnly={ro} placeholder="Các bước tiến trình dạy trên lớp (cột Process)..." />
-                  <EditField icon={GraduationCap} label="Nội dung cho giáo viên nước ngoài" value={session.lesson.foreignTeacherContent ?? ""} onChange={(v) => updateLesson(stage.id, session.id, { foreignTeacherContent: v })} multiline readOnly={ro} placeholder="Nội dung dành cho giáo viên nước ngoài..." />
-                  <EditField icon={Info} label="Hoạt động gợi ý" value={session.lesson.suggestedActivities ?? ""} onChange={(v) => updateLesson(stage.id, session.id, { suggestedActivities: v })} multiline readOnly={ro} placeholder="Hoạt động gợi ý cho buổi học..." />
+                  <EditField icon={Target} label="Outcome" value={session.lesson.content} onChange={(v) => updateLesson(stage.id, session.id, { content: v })} multiline readOnly={sessionReadOnly} placeholder="Nội dung / mục tiêu đạt được của buổi (cột Content)..." />
+                  <EditField icon={ListChecks} label="Lesson plan" value={session.lesson.lessonPlan ?? ""} onChange={(v) => updateLesson(stage.id, session.id, { lessonPlan: v })} multiline readOnly={sessionReadOnly} placeholder="Các bước tiến trình dạy trên lớp (cột Process)..." />
+                  <EditField icon={GraduationCap} label="Nội dung cho giáo viên nước ngoài" value={session.lesson.foreignTeacherContent ?? ""} onChange={(v) => updateLesson(stage.id, session.id, { foreignTeacherContent: v })} multiline readOnly={sessionReadOnly} placeholder="Nội dung dành cho giáo viên nước ngoài..." />
+                  <EditField icon={Info} label="Hoạt động gợi ý" value={session.lesson.suggestedActivities ?? ""} onChange={(v) => updateLesson(stage.id, session.id, { suggestedActivities: v })} multiline readOnly={sessionReadOnly} placeholder="Hoạt động gợi ý cho buổi học..." />
                 </TabsContent>
                 <TabsContent value="after-class" className="space-y-4">
                   <HomeworkListEditor
                     items={session.lesson.homeworks}
                     onChange={(homeworks) => updateLesson(stage.id, session.id, { homeworks })}
-                    readOnly={ro}
+                    readOnly={sessionReadOnly}
                   />
                 </TabsContent>
                 <TabsContent value="teaching-material" className="space-y-4">
                   <MaterialLinks
                     value={session.lesson.material}
                     onChange={(v) => updateLesson(stage.id, session.id, { material: v })}
-                    readOnly={ro}
+                    readOnly={sessionReadOnly}
                   />
                 </TabsContent>
               </Tabs>
             </>
-            );
-          })()}
+          )}
 
-          {session?.kind === "bigtest" && (() => {
-            const ro = sessionReadOnly(session.id);
-            return (
+          {session?.kind === "bigtest" && (
             <>
               <div className="flex items-start justify-between gap-3 flex-wrap">
                 <div className="flex-1 min-w-0">
@@ -3379,12 +3337,9 @@ function SyllabusContentTree({
                         <span>{getSessionDate(sessionGlobal)}</span>
                       </>
                     )}
-                    {isClassMode && canEditSession(session.id) && (
-                      <Badge variant="outline" className="text-[10px] h-5">Buổi thêm của lớp</Badge>
-                    )}
                   </div>
-                  <Label className="text-[11px] text-muted-foreground mt-1 block">Tên buổi{ro ? "" : " (bấm để sửa)"}</Label>
-                  {ro ? (
+                  <Label className="text-[11px] text-muted-foreground mt-1 block">Tên buổi{sessionReadOnly ? "" : " (bấm để sửa)"}</Label>
+                  {sessionReadOnly ? (
                     <div className="mt-0.5 text-lg font-bold py-1.5 px-2 text-slate-800">{session.name || "—"}</div>
                   ) : (
                     <div className="relative mt-0.5">
@@ -3400,11 +3355,10 @@ function SyllabusContentTree({
                 </div>
               </div>
 
-              <EditField icon={Info} label="Lưu ý" value={session.note} onChange={(v) => updateBigTestSession(stage.id, session.id, { note: v })} multiline readOnly={ro} placeholder="Ghi chú cho buổi Big Test..." />
-              <EditField icon={ExternalLink} label="Tài liệu (Google Drive)" value={session.material} onChange={(v) => updateBigTestSession(stage.id, session.id, { material: v })} readOnly={ro} placeholder="https://..." />
+              <EditField icon={Info} label="Lưu ý" value={session.note} onChange={(v) => updateBigTestSession(stage.id, session.id, { note: v })} multiline readOnly={sessionReadOnly} placeholder="Ghi chú cho buổi Big Test..." />
+              <EditField icon={ExternalLink} label="Tài liệu (Google Drive)" value={session.material} onChange={(v) => updateBigTestSession(stage.id, session.id, { material: v })} readOnly={sessionReadOnly} placeholder="https://..." />
             </>
-            );
-          })()}
+          )}
         </CardContent>
       </Card>
 

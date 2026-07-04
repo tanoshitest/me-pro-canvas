@@ -31,9 +31,7 @@ const NAV: Record<string, NavItem[]> = {
     { id: "work-management", label: "Quản lý công việc", icon: Briefcase, done: true },
   ],
   teacher: [
-    { id: "today", label: "Lịch dạy hôm nay", icon: CalendarDays },
-    { id: "classes", label: "Quản lý lớp học", icon: GraduationCap, done: true },
-    { id: "syllabus", label: "Syllabus & Điểm danh", icon: ClipboardList },
+    { id: "my-classes", label: "Lớp học của tôi", icon: GraduationCap, done: true },
   ],
   student: [
     { id: "info", label: "Thông tin học tập", icon: User },

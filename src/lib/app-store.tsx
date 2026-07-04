@@ -3,9 +3,8 @@ import {
   RECEIPTS_SEED, STUDENTS, CLASSES, CASH_RECEIPT_CONFIG_SEED,
   SEED_HOMEWORK_SUBMISSIONS, SEED_HOMEWORK_CORRECTIONS, homeworkSubmissionKey, homeworkCorrectionKey,
   createInitialSyllabusContents,
-  mergeClassSyllabusStages,
   type Receipt, type Student, type ClassRoom, type Role, type CashReceiptConfig, type Branch,
-  type SyllabusStageData, type ClassSyllabusExtras,
+  type SyllabusStageData,
 } from "./mock-data";
 
 export type ScheduledTeachingSession = {
@@ -42,11 +41,12 @@ type Ctx = {
     next: SyllabusStageData[] | ((prev: SyllabusStageData[]) => SyllabusStageData[]),
   ) => void;
   ensureSyllabusStages: (syllabusId: string) => void;
-  getClassSyllabusExtras: (classId: string) => ClassSyllabusExtras;
+  ensureClassSyllabus: (classId: string, syllabusId: string) => void;
   getClassSyllabusStages: (classId: string, syllabusId: string) => SyllabusStageData[];
-  setClassSyllabusExtras: (
+  setClassSyllabusStages: (
     classId: string,
-    next: ClassSyllabusExtras | ((prev: ClassSyllabusExtras) => ClassSyllabusExtras),
+    syllabusId: string,
+    next: SyllabusStageData[] | ((prev: SyllabusStageData[]) => SyllabusStageData[]),
   ) => void;
 };
 
@@ -63,7 +63,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [homeworkCorrections, setHomeworkCorrections] = React.useState<Record<string, string>>(SEED_HOMEWORK_CORRECTIONS);
   const [page, setPage] = React.useState<string>("teachers");
   const [syllabusContents, setSyllabusContents] = React.useState(createInitialSyllabusContents);
-  const [classSyllabusExtras, setClassSyllabusExtrasState] = React.useState<Record<string, ClassSyllabusExtras>>({});
+  const [classSyllabusContents, setClassSyllabusContents] = React.useState<Record<string, SyllabusStageData[]>>({});
 
   const getSyllabusStages = React.useCallback(
     (syllabusId: string) => syllabusContents[syllabusId] ?? syllabusContents._default,
@@ -89,28 +89,41 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
-  const getClassSyllabusExtras = React.useCallback(
-    (classId: string) => classSyllabusExtras[classId] ?? { inserts: [] },
-    [classSyllabusExtras],
+  const cloneStages = React.useCallback(
+    (syllabusId: string) =>
+      JSON.parse(JSON.stringify(syllabusContents[syllabusId] ?? syllabusContents._default)) as SyllabusStageData[],
+    [syllabusContents],
   );
 
   const getClassSyllabusStages = React.useCallback(
-    (classId: string, syllabusId: string) => {
-      const master = syllabusContents[syllabusId] ?? syllabusContents._default;
-      return mergeClassSyllabusStages(master, classSyllabusExtras[classId] ?? { inserts: [] });
-    },
-    [syllabusContents, classSyllabusExtras],
+    (classId: string, syllabusId: string) =>
+      classSyllabusContents[classId] ?? cloneStages(syllabusId),
+    [classSyllabusContents, cloneStages],
   );
 
-  const setClassSyllabusExtras = React.useCallback(
-    (classId: string, next: ClassSyllabusExtras | ((prev: ClassSyllabusExtras) => ClassSyllabusExtras)) => {
-      setClassSyllabusExtrasState((prev) => {
-        const current = prev[classId] ?? { inserts: [] };
+  const ensureClassSyllabus = React.useCallback(
+    (classId: string, syllabusId: string) => {
+      setClassSyllabusContents((prev) => {
+        if (prev[classId]) return prev;
+        return { ...prev, [classId]: cloneStages(syllabusId) };
+      });
+    },
+    [cloneStages],
+  );
+
+  const setClassSyllabusStages = React.useCallback(
+    (
+      classId: string,
+      syllabusId: string,
+      next: SyllabusStageData[] | ((prev: SyllabusStageData[]) => SyllabusStageData[]),
+    ) => {
+      setClassSyllabusContents((prev) => {
+        const current = prev[classId] ?? cloneStages(syllabusId);
         const resolved = typeof next === "function" ? next(current) : next;
         return { ...prev, [classId]: resolved };
       });
     },
-    [],
+    [cloneStages],
   );
 
   const setHomeworkSubmission = React.useCallback(
@@ -142,7 +155,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     // reset to default page for each role
     if (role === "admin") setPage("teachers");
-    if (role === "teacher") setPage("today");
+    if (role === "teacher") setPage("my-classes");
     if (role === "student") setPage("info");
   }, [role]);
 
@@ -154,7 +167,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         cashConfig, setCashConfig, homeworkSubmissions, setHomeworkSubmission,
         homeworkCorrections, setHomeworkCorrection, page, setPage,
         getSyllabusStages, setSyllabusStages, ensureSyllabusStages,
-        getClassSyllabusExtras, getClassSyllabusStages, setClassSyllabusExtras,
+        ensureClassSyllabus, getClassSyllabusStages, setClassSyllabusStages,
       }}
     >
       {children}

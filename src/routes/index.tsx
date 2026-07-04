@@ -6,7 +6,6 @@ import {
   AdminTeachers, AdminSchedule, AdminAttendanceReport, AdminSalaryReport,
   AdminFinanceReport, AdminAdmissions, AdminWorkManagement,
 } from "@/components/pages/admin-pages";
-import { TeacherToday, TeacherSyllabus } from "@/components/pages/teacher-pages";
 import {
   StudentInfo, StudentSchedule, StudentTuition, StudentResults, StudentHomework,
 } from "@/components/pages/student-pages";
@@ -36,9 +35,7 @@ function PageRouter() {
   }
   if (role === "teacher") {
     switch (page) {
-      case "today": return <TeacherToday />;
-      case "classes": return <AdminClasses />;
-      case "syllabus": return <TeacherSyllabus />;
+      case "my-classes": return <AdminClasses />;
     }
   }
   if (role === "student") {
