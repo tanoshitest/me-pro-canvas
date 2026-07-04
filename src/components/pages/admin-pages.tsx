@@ -2893,16 +2893,12 @@ function SyllabusContentTree({
   const teacherClassView = isClassMode && role === "teacher";
   const teacherStage = stagesState[TEACHER_CURRENT_STAGE];
   const isTeacherStage = (stageId: string) => !teacherClassView || stageId === teacherStage?.id;
-  const allowInsert = isClassMode && !readOnly;
-  const allowInsertInStage = (stageId: string) => {
-    if (!allowInsert) return false;
-    if (teacherClassView) return stageId === teacherStage?.id;
-    return true;
-  };
+  const allowInsert = isClassMode && !readOnly && !teacherClassView;
+  const allowInsertInStage = (stageId: string) => allowInsert;
   const allowMasterTreeEdit = !readOnly && !isClassMode;
-  const sessionReadOnly = readOnly || (teacherClassView && !isTeacherStage(sel.stageId));
+  const sessionReadOnly = readOnly || teacherClassView;
   const allowDeleteInStage = (stageId: string) =>
-    isClassMode && !readOnly && isTeacherStage(stageId);
+    isClassMode && !readOnly && !teacherClassView;
   const patchStages = React.useCallback(
     (updater: (prev: SyllabusStageData[]) => SyllabusStageData[]) => {
       if (classId) {
@@ -3003,10 +2999,7 @@ function SyllabusContentTree({
   };
 
   const insertSessionAt = (stageId: string, insertIndex: number, name: string, type: SessionType) => {
-    if (teacherClassView && stageId !== teacherStage?.id) {
-      toast.info("Giáo viên chỉ được thêm buổi trong Chặng 2.");
-      return;
-    }
+    if (teacherClassView) return;
     const newId = `${stageId}-s-${Date.now()}`;
     const newSession: SyllabusSessionData =
       type === "bigtest"
@@ -3057,7 +3050,7 @@ function SyllabusContentTree({
   };
 
   const updateLesson = (stageId: string, sessionId: string, patch: Partial<SyllabusLesson>) => {
-    if (!isTeacherStage(stageId)) return;
+    if (teacherClassView) return;
     patchStages((sts) =>
       sts.map((st) =>
         st.id !== stageId
@@ -3073,7 +3066,7 @@ function SyllabusContentTree({
   };
 
   const updateBigTestSession = (stageId: string, sessionId: string, patch: Partial<{ name: string; note: string; material: string }>) => {
-    if (!isTeacherStage(stageId)) return;
+    if (teacherClassView) return;
     patchStages((sts) =>
       sts.map((st) =>
         st.id !== stageId
