@@ -2958,6 +2958,79 @@ export const FAM_SYLLABUS_STAGES: SyllabusStage[] = [
   }
 ];
 
+/** Buổi học thêm riêng cho từng lớp — không ghi đè syllabus tổng. */
+export type ClassSyllabusInsert = {
+  id: string;
+  stageId: string;
+  afterSessionId: string | null;
+  order: number;
+  session: SyllabusSessionData;
+};
+
+export type ClassSyllabusExtras = {
+  inserts: ClassSyllabusInsert[];
+};
+
+export function createClassSessionId(classId: string): string {
+  return `cls-${classId}-s-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+export function isClassAddedSession(sessionId: string, classId: string): boolean {
+  return sessionId.startsWith(`cls-${classId}-s-`);
+}
+
+function mergeStageSessions(
+  masterSessions: SyllabusSessionData[],
+  inserts: ClassSyllabusInsert[],
+): SyllabusSessionData[] {
+  const result: SyllabusSessionData[] = [];
+  const sorted = [...inserts].sort((a, b) => a.order - b.order);
+
+  const appendAfter = (afterId: string | null) => {
+    for (const ins of sorted.filter((i) => i.afterSessionId === afterId)) {
+      result.push(ins.session);
+      appendAfter(ins.session.id);
+    }
+  };
+
+  appendAfter(null);
+  for (const ms of masterSessions) {
+    result.push(ms);
+    appendAfter(ms.id);
+  }
+  return result;
+}
+
+export function mergeClassSyllabusStages(
+  master: SyllabusStageData[],
+  extras: ClassSyllabusExtras,
+): SyllabusStageData[] {
+  return master.map((stage) => ({
+    ...stage,
+    sessions: mergeStageSessions(
+      stage.sessions,
+      extras.inserts.filter((i) => i.stageId === stage.id),
+    ),
+  }));
+}
+
+export function resolveInsertAnchor(
+  stageSessions: SyllabusSessionData[],
+  insertIndex: number,
+): string | null {
+  if (insertIndex <= 0) return null;
+  return stageSessions[insertIndex - 1]?.id ?? null;
+}
+
+export function nextInsertOrder(
+  inserts: ClassSyllabusInsert[],
+  stageId: string,
+  afterSessionId: string | null,
+): number {
+  const same = inserts.filter((i) => i.stageId === stageId && i.afterSessionId === afterSessionId);
+  return same.length > 0 ? Math.max(...same.map((i) => i.order)) + 1 : 0;
+}
+
 export function createInitialSyllabusContents(): Record<string, SyllabusStageData[]> {
   const base = SYLLABUS_STAGES.map(normalizeSyllabusStage);
   const clone = () => JSON.parse(JSON.stringify(base)) as SyllabusStageData[];

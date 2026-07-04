@@ -3,8 +3,9 @@ import {
   RECEIPTS_SEED, STUDENTS, CLASSES, CASH_RECEIPT_CONFIG_SEED,
   SEED_HOMEWORK_SUBMISSIONS, SEED_HOMEWORK_CORRECTIONS, homeworkSubmissionKey, homeworkCorrectionKey,
   createInitialSyllabusContents,
+  mergeClassSyllabusStages,
   type Receipt, type Student, type ClassRoom, type Role, type CashReceiptConfig, type Branch,
-  type SyllabusStageData,
+  type SyllabusStageData, type ClassSyllabusExtras,
 } from "./mock-data";
 
 export type ScheduledTeachingSession = {
@@ -41,6 +42,12 @@ type Ctx = {
     next: SyllabusStageData[] | ((prev: SyllabusStageData[]) => SyllabusStageData[]),
   ) => void;
   ensureSyllabusStages: (syllabusId: string) => void;
+  getClassSyllabusExtras: (classId: string) => ClassSyllabusExtras;
+  getClassSyllabusStages: (classId: string, syllabusId: string) => SyllabusStageData[];
+  setClassSyllabusExtras: (
+    classId: string,
+    next: ClassSyllabusExtras | ((prev: ClassSyllabusExtras) => ClassSyllabusExtras),
+  ) => void;
 };
 
 const AppCtx = React.createContext<Ctx | null>(null);
@@ -56,6 +63,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [homeworkCorrections, setHomeworkCorrections] = React.useState<Record<string, string>>(SEED_HOMEWORK_CORRECTIONS);
   const [page, setPage] = React.useState<string>("teachers");
   const [syllabusContents, setSyllabusContents] = React.useState(createInitialSyllabusContents);
+  const [classSyllabusExtras, setClassSyllabusExtrasState] = React.useState<Record<string, ClassSyllabusExtras>>({});
 
   const getSyllabusStages = React.useCallback(
     (syllabusId: string) => syllabusContents[syllabusId] ?? syllabusContents._default,
@@ -76,6 +84,30 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const current = prev[syllabusId] ?? prev._default;
         const resolved = typeof next === "function" ? next(current) : next;
         return { ...prev, [syllabusId]: resolved };
+      });
+    },
+    [],
+  );
+
+  const getClassSyllabusExtras = React.useCallback(
+    (classId: string) => classSyllabusExtras[classId] ?? { inserts: [] },
+    [classSyllabusExtras],
+  );
+
+  const getClassSyllabusStages = React.useCallback(
+    (classId: string, syllabusId: string) => {
+      const master = syllabusContents[syllabusId] ?? syllabusContents._default;
+      return mergeClassSyllabusStages(master, classSyllabusExtras[classId] ?? { inserts: [] });
+    },
+    [syllabusContents, classSyllabusExtras],
+  );
+
+  const setClassSyllabusExtras = React.useCallback(
+    (classId: string, next: ClassSyllabusExtras | ((prev: ClassSyllabusExtras) => ClassSyllabusExtras)) => {
+      setClassSyllabusExtrasState((prev) => {
+        const current = prev[classId] ?? { inserts: [] };
+        const resolved = typeof next === "function" ? next(current) : next;
+        return { ...prev, [classId]: resolved };
       });
     },
     [],
@@ -122,6 +154,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         cashConfig, setCashConfig, homeworkSubmissions, setHomeworkSubmission,
         homeworkCorrections, setHomeworkCorrection, page, setPage,
         getSyllabusStages, setSyllabusStages, ensureSyllabusStages,
+        getClassSyllabusExtras, getClassSyllabusStages, setClassSyllabusExtras,
       }}
     >
       {children}

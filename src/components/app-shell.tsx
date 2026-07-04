@@ -32,6 +32,7 @@ const NAV: Record<string, NavItem[]> = {
   ],
   teacher: [
     { id: "today", label: "Lịch dạy hôm nay", icon: CalendarDays },
+    { id: "classes", label: "Quản lý lớp học", icon: GraduationCap, done: true },
     { id: "syllabus", label: "Syllabus & Điểm danh", icon: ClipboardList },
   ],
   student: [

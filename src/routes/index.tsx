@@ -37,6 +37,7 @@ function PageRouter() {
   if (role === "teacher") {
     switch (page) {
       case "today": return <TeacherToday />;
+      case "classes": return <AdminClasses />;
       case "syllabus": return <TeacherSyllabus />;
     }
   }
